@@ -569,7 +569,7 @@
   }
 
   function render(results, yt) {
-    stopPreview();
+    stopCurrent();
     list.replaceChildren();
     for (const r of results) {
       const li = document.createElement('li');
