@@ -94,37 +94,56 @@ async function searchOfficial(q) {
   return (json?.response?.hits || []).filter((h) => h.type === 'song').map((h) => toResult(h.result));
 }
 
-// 3) Extrait audio de 30 s via l'API publique d'iTunes (sans clé)
+// 3) Extrait audio de ~30 s : iTunes d'abord, Deezer en secours (API publiques, sans clé)
 const previewCache = new Map();
 const norm = (s) => String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]/g, '');
+
+function sameSong(title, artist, candTitle, candArtist) {
+  const t = norm(title), a = norm(artist), ct = norm(candTitle), ca = norm(candArtist);
+  if (!t || !ct) return false;
+  const titleOk = ct.includes(t) || t.includes(ct);
+  const artistOk = !a || !ca || a.includes(ca) || ca.includes(a);
+  return titleOk && artistOk;
+}
+
+async function getJson(url, label) {
+  const res = await fetch(url, { headers: { 'User-Agent': UA, Accept: 'application/json' }, signal: AbortSignal.timeout(5000) });
+  if (!res.ok) throw new Error(`${label} HTTP ${res.status}`);
+  return res.json();
+}
+
+async function previewFromItunes(title, artist) {
+  const params = new URLSearchParams({ term: `${title} ${artist}`, media: 'music', entity: 'song', limit: '10', country: 'FR' });
+  const json = await getJson(`https://itunes.apple.com/search?${params}`, 'iTunes');
+  const m = (json.results || []).find((r) => r.previewUrl && sameSong(title, artist, r.trackName, r.artistName));
+  return m?.previewUrl || '';
+}
+
+async function previewFromDeezer(title, artist) {
+  const params = new URLSearchParams({ q: `${title} ${artist}`, limit: '10' });
+  const json = await getJson(`https://api.deezer.com/search?${params}`, 'Deezer');
+  const m = (json.data || []).find((r) => r.preview && sameSong(title, artist, r.title, r.artist?.name));
+  return m?.preview || '';
+}
 
 async function findPreview(title, artist) {
   const key = norm(title + artist);
   if (previewCache.has(key)) return previewCache.get(key);
 
   let preview = '';
-  try {
-    const params = new URLSearchParams({ term: `${title} ${artist}`, media: 'music', entity: 'song', limit: '8' });
-    const res = await fetch(`https://itunes.apple.com/search?${params}`, {
-      headers: { 'User-Agent': UA },
-      signal: AbortSignal.timeout(5000),
-    });
-    if (res.ok) {
-      const json = await res.json();
-      const t = norm(title);
-      const a = norm(artist);
-      const match = (json.results || []).find((r) => {
-        const rt = norm(r.trackName);
-        const ra = norm(r.artistName);
-        return r.previewUrl && rt && ra && (rt.includes(t) || t.includes(rt)) && (a.includes(ra) || ra.includes(a));
-      });
-      preview = match?.previewUrl || '';
+  let failed = false;
+  for (const source of [previewFromItunes, previewFromDeezer]) {
+    try {
+      preview = await source(title, artist);
+    } catch (err) {
+      failed = true;
+      console.error('Extrait audio :', err.message);
     }
-  } catch (err) {
-    console.error('Extrait audio :', err.message);
-    return ''; // pas de cache en cas d'erreur réseau
+    if (preview) break;
   }
+  console.log(`Extrait « ${title} » (${artist}) : ${preview ? 'trouvé' : 'aucun'}`);
 
+  if (!preview && failed) return ''; // erreur réseau : on ne met pas en cache
   if (previewCache.size >= CACHE_MAX * 4) previewCache.delete(previewCache.keys().next().value);
   previewCache.set(key, preview);
   return preview;
