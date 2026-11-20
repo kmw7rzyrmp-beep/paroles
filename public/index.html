@@ -2,28 +2,30 @@
 <html lang="fr">
 <head>
 <meta charset="utf-8">
-<meta name="theme-color" content="#050A09">
+<meta name="theme-color" content="#0D0D0D">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Quel ëst ce son ? Rëcherche par parolës</title>
+<title>Quel est ce son ? Recherche par paroles</title>
 <meta name="description" content="Tape quelques paroles et retrouve le titre de la chanson et son artiste.">
 <link rel="icon" type="image/png" sizes="256x256" href="/icon.png">
 <link rel="icon" href="/favicon.ico" sizes="16x16 32x32 48x48">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Grenze+Gotisch:wght@600;800&family=Space+Grotesk:wght@400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
   :root {
-    --void: #050A09;
-    --smoke: #0C1513;
-    --accent: #E9E54B;
-    --accent-hi: #F7F37F;
-    --teal: #1F7A6F;
-    --bone: #E4EDE6;
-    --ash: #8FA39B;
-    --line: rgba(228, 237, 230, .16);
-    --display: "Grenze Gotisch", "Palatino Linotype", Georgia, serif;
-    --body: "Space Grotesk", system-ui, -apple-system, "Segoe UI", sans-serif;
+    --bg: #0d0d0d;
+    --surface: #171717;
+    --surface-2: #202020;
+    --text: #f5f5f5;
+    --muted: #b8b8b8;
+    --line: #3a3a3a;
+    --edge: #8c8c8c;
+    --accent: #f5c518;
+    --accent-hi: #ffd84a;
+    --danger: #ff9a9a;
+    --body: Inter, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    color-scheme: dark;
     box-sizing: border-box;
     padding-top: env(safe-area-inset-top, 0px);
     padding-bottom: env(safe-area-inset-bottom, 0px);
@@ -31,224 +33,175 @@
   * { box-sizing: border-box; }
   html { -webkit-text-size-adjust: 100%; scroll-padding-top: env(safe-area-inset-top, 0px); }
   body {
-    margin: 0;
-    background: var(--void);
-    color: var(--bone);
-    font: 400 1.0625rem/1.55 var(--body);
+    margin: 0; padding-bottom: 4.5rem;
+    background: var(--bg);
+    color: var(--text);
+    font: 400 1rem/1.6 var(--body);
   }
 
-  /* Arrière-plan : ta pochette dans public/fond.jpg (ou .png / .webp).
-     Sans image, un halo rouge monte du bas de l'écran. */
-  body::before {
-    content: ""; position: fixed; inset: 0; z-index: -2;
-    background:
-      url('/fond') center / cover no-repeat,
-      radial-gradient(110% 70% at 50% 115%, #0F4A44 0%, rgba(15, 74, 68, 0) 62%),
-      radial-gradient(80% 45% at 50% -10%, rgba(233, 229, 75, .10) 0%, rgba(233, 229, 75, 0) 60%),
-      var(--void);
-  }
-  /* Voile sombre pour que le texte reste lisible sur n'importe quelle image */
-  body::after {
-    content: ""; position: fixed; inset: 0; z-index: -1;
-    background: rgba(2, 8, 7, .55);
-  }
+  /* Arrière-plan : ta pochette dans public/fond.jpg (ou .png / .webp), très assombrie.
+     Sans image, le fond reste uni. */
+  body::before { content: ""; position: fixed; inset: 0; z-index: -2; background: url('/fond') center / cover no-repeat, var(--bg); }
+  body::after { content: ""; position: fixed; inset: 0; z-index: -1; background: rgba(13, 13, 13, .92); }
 
   main {
-    position: relative;
-    max-width: 46rem; margin: 6vh auto 4rem; padding: 3rem 2rem 3.5rem;
-    background: rgba(5, 10, 9, .74);
-    -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
-    border: 1px solid rgba(47, 190, 170, .28);
-    border-radius: 0;
+    max-width: 44rem; margin: 5vh auto 2rem; padding: 2.5rem 2rem 3rem;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 12px;
   }
 
-  /* La pièce maîtresse : un grand titre gothique avec un halo rouge */
-  h1 {
-    font: 800 clamp(2rem, 6vw, 3.4rem)/1.05 var(--display);
-    letter-spacing: .005em;
-    margin: 0 0 1rem;
-    max-width: 22ch;
-    text-shadow: 0 0 34px rgba(47, 200, 170, .5);
-  }
-  .intro { color: var(--ash); max-width: 34rem; margin: 0 0 2.5rem; }
+  h1 { font: 800 clamp(1.75rem, 5vw, 2.5rem)/1.15 var(--body); letter-spacing: -.01em; margin: 0 0 .75rem; max-width: 24ch; }
+  .intro { color: var(--muted); max-width: 36rem; margin: 0 0 2rem; }
 
-  ::selection { background: var(--accent); color: var(--void); }
+  ::selection { background: var(--accent); color: #111; }
 
-  /* Coins façon interface futuriste */
-  main::before, main::after { content: ""; position: absolute; width: 22px; height: 22px; border: 2px solid var(--accent); pointer-events: none; }
-  main::before { top: -1px; left: -1px; border-right: 0; border-bottom: 0; }
-  main::after { bottom: -1px; right: -1px; border-left: 0; border-top: 0; }
-
-  /* Brume qui dérive lentement devant la ville */
-  .fog { position: fixed; inset: 0; z-index: 0; pointer-events: none; overflow: hidden; }
-  .fog::before, .fog::after { content: ""; position: absolute; width: 90vmax; height: 90vmax; border-radius: 50%; animation: drift 38s ease-in-out infinite alternate; }
-  .fog::before { left: -35vmax; bottom: -45vmax; background: radial-gradient(circle, rgba(31, 122, 111, .30) 0%, rgba(31, 122, 111, 0) 65%); }
-  .fog::after { right: -40vmax; top: -50vmax; animation-duration: 52s; animation-direction: alternate-reverse; background: radial-gradient(circle, rgba(233, 229, 75, .08) 0%, rgba(233, 229, 75, 0) 65%); }
-  @keyframes drift { from { transform: translate3d(0, 0, 0) scale(1); } to { transform: translate3d(12vmax, -6vmax, 0) scale(1.15); } }
-  @media (prefers-reduced-motion: reduce) { .fog::before, .fog::after { animation: none; } }
-
-  label { display: block; font-weight: 500; margin-bottom: .25rem; }
-  .field { display: flex; align-items: flex-end; gap: 1rem; border-bottom: 3px solid var(--bone); }
-  .field:focus-within { border-bottom-color: var(--accent); }
+  label { display: block; font-weight: 600; margin-bottom: .5rem; }
+  .field { display: flex; gap: .5rem; }
   input[type="search"] {
-    flex: 1; min-width: 0;
-    border: 0; background: transparent; outline: none;
-    font: 600 clamp(1.4rem, 4.5vw, 2.1rem)/1.2 var(--display);
-    color: var(--bone);
-    padding: .5rem 0;
-    caret-color: var(--accent-hi);
+    flex: 1; min-width: 0; min-height: 3rem;
+    border: 2px solid var(--edge); border-radius: 8px; background: var(--bg);
+    font: 500 1.125rem/1.3 var(--body); color: var(--text);
+    padding: .6rem 1rem; caret-color: var(--accent);
     -webkit-appearance: none; appearance: none;
   }
-  input[type="search"]::placeholder { color: #5E7069; }
+  input[type="search"]:focus { border-color: var(--accent); outline: none; }
+  input[type="search"]::placeholder { color: #8f8f8f; }
   input[type="search"]::-webkit-search-cancel-button { display: none; }
+
   button {
-    font: 500 1rem var(--body);
-    background: var(--accent); color: var(--void);
-    border: 0; border-radius: 2px;
-    padding: .7rem 1.5rem; margin-bottom: .5rem;
+    font: 700 1rem var(--body);
+    background: var(--accent); color: #111;
+    border: 0; border-radius: 8px;
+    min-height: 2.75rem; padding: .6rem 1.4rem; margin: 0;
     cursor: pointer;
   }
   button:hover { background: var(--accent-hi); }
-  :focus-visible { outline: 3px solid var(--bone); outline-offset: 3px; }
-  .hint { color: var(--ash); font-size: .95rem; margin: .75rem 0 0; }
+  :focus-visible { outline: 3px solid #fff; outline-offset: 3px; }
+  .hint { color: var(--muted); font-size: .95rem; margin: .75rem 0 0; }
 
-  #status { min-height: 1.5rem; margin: 2rem 0 .5rem; color: var(--ash); }
-  #status.error { color: #FF7A86; }
-  .demo {
-    background: rgba(233, 229, 75, .10); border: 1px solid rgba(233, 229, 75, .45);
-    border-radius: 2px; padding: .75rem 1rem; margin: 0 0 1rem; font-size: .95rem;
-  }
+  #status { min-height: 1.5rem; margin: 1rem 0 .5rem; color: var(--muted); }
+  #status.error { color: var(--danger); }
+  .demo { background: rgba(245, 197, 24, .12); border: 1px solid var(--accent); border-radius: 8px; padding: .75rem 1rem; margin: 0 0 1rem; font-size: .95rem; }
+
+  /* Onglets Résultats / Favoris */
+  .tabs { display: flex; flex-wrap: wrap; gap: .5rem; margin: 1.75rem 0 0; }
+  .tab { background: transparent; color: var(--text); border: 1px solid var(--edge); font: 600 .95rem var(--body); padding: .5rem 1rem; }
+  .tab:hover { background: var(--surface-2); }
+  .tab:disabled { opacity: .5; cursor: not-allowed; background: transparent; }
+  .tab[aria-selected="true"] { background: var(--accent); border-color: var(--accent); color: #111; }
 
   ol { list-style: none; margin: 0; padding: 0; }
-  li.result {
-    display: grid; grid-template-columns: 3.25rem 1fr auto; gap: 1rem; align-items: center;
-    padding: 1rem 0; border-top: 1px solid var(--line);
-  }
+  li.result { display: grid; grid-template-columns: 3.5rem 1fr auto; gap: 1rem; align-items: start; padding: 1.1rem 0; border-top: 1px solid var(--line); }
   li.result:last-child { border-bottom: 1px solid var(--line); }
-  .disc {
-    width: 3.25rem; height: 3.25rem; border-radius: 50%;
-    background: radial-gradient(circle, var(--void) 0 9%, var(--accent) 10% 24%, #0F1A17 25% 100%);
-    box-shadow: 0 0 0 1px var(--line);
-  }
-  .disc.cover { background: var(--smoke); border-radius: 2px; object-fit: cover; }
-  .title { font: 800 1.45rem/1.15 var(--display); margin: 0; }
-  .meta { margin: .15rem 0 0; color: var(--ash); font-size: .95rem; }
-  a.open { color: var(--accent-hi); font-weight: 500; text-decoration: underline; text-underline-offset: 3px; }
-  a.open:hover { color: var(--bone); }
+  .disc { width: 3.5rem; height: 3.5rem; border-radius: 8px; background: var(--surface-2); border: 1px solid var(--line); display: flex; align-items: center; justify-content: center; }
+  .disc:not(.cover)::after { content: "♪"; color: var(--muted); font-size: 1.5rem; }
+  .disc.cover { object-fit: cover; }
+  .title-row { display: flex; align-items: center; gap: .25rem; }
+  .title { font: 700 1.2rem/1.25 var(--body); margin: 0; }
+  .meta { margin: .15rem 0 0; color: var(--muted); font-size: .95rem; }
+  a.open { color: var(--accent-hi); font-weight: 600; text-decoration: underline; text-underline-offset: 3px; padding: .5rem 0; }
+  a.open:hover { color: #fff; }
+
+  /* Étoile favoris */
+  .star { min-width: 2.75rem; padding: .1rem; background: transparent; color: var(--muted); border: 0; font: 400 1.6rem/1 var(--body); transition: color .2s, transform .15s; }
+  .star:hover { background: transparent; color: var(--accent-hi); transform: scale(1.12); }
+  .star.on { color: var(--accent); }
+  .star.pop { animation: starpop .4s ease-out; }
+  @keyframes starpop { 0% { transform: scale(1); } 40% { transform: scale(1.4); } 100% { transform: scale(1); } }
 
   .actions { display: flex; flex-wrap: wrap; align-items: flex-start; gap: .5rem; margin-top: .6rem; }
   .player { display: flex; flex-direction: column; }
   .play {
     display: inline-flex; align-items: center; gap: .55rem;
-    margin: 0; padding: .45rem .95rem;
-    background: transparent; color: var(--bone);
-    border: 1px solid var(--accent); border-radius: 2px;
-    font: 500 .9rem var(--body);
-    transition: background .2s, transform .15s;
+    background: transparent; color: var(--text);
+    border: 1px solid var(--edge); border-radius: 8px;
+    font: 600 .9rem var(--body); padding: .5rem 1rem;
+    transition: background .2s, color .2s;
   }
-  .play:hover, .play.playing { background: var(--accent); color: var(--void); }
+  .play:hover, .play.playing { background: var(--accent); border-color: var(--accent); color: #111; }
   .play.pop { animation: pop .35s ease-out; }
-  @keyframes pop { 0% { transform: scale(1); } 35% { transform: scale(.9); } 70% { transform: scale(1.07); } 100% { transform: scale(1); } }
+  @keyframes pop { 0% { transform: scale(1); } 35% { transform: scale(.95); } 100% { transform: scale(1); } }
   .ico { display: inline-flex; align-items: center; justify-content: center; width: 1rem; height: 1rem; }
   .ico .eq { display: none; align-items: flex-end; gap: 2px; height: 100%; }
-  .ico .eq i { width: 3px; height: 100%; background: var(--void); transform: scaleY(.3); transform-origin: bottom; animation: eqbar .7s ease-in-out infinite alternate; }
+  .ico .eq i { width: 3px; height: 100%; background: #111; transform: scaleY(.3); transform-origin: bottom; animation: eqbar .7s ease-in-out infinite alternate; }
   .ico .eq i:nth-child(2) { animation-delay: .2s; }
   .ico .eq i:nth-child(3) { animation-delay: .4s; }
   @keyframes eqbar { to { transform: scaleY(1); } }
   .play.playing .tri { display: none; }
   .play.playing .eq { display: inline-flex; }
-  .prog { height: 4px; margin-top: .55rem; background: var(--line); border-radius: 2px; overflow: hidden; }
+  .prog { height: 4px; margin-top: .5rem; background: var(--line); border-radius: 2px; overflow: hidden; }
   .prog i { display: block; height: 100%; width: 0; background: var(--accent); transition: width .3s linear; }
-  @media (prefers-reduced-motion: reduce) { .play.pop, .ico .eq i { animation: none; } }
 
   .chev { display: inline-block; width: 1rem; text-align: center; transition: transform .35s ease; }
-  .lyr-btn.open { background: var(--accent); color: var(--void); }
+  .lyr-btn.open { background: var(--accent); border-color: var(--accent); color: #111; }
   .lyr-btn.open .chev { transform: rotate(180deg); }
-  .lyr-wrap { display: grid; grid-template-rows: 0fr; opacity: 0; transition: grid-template-rows .45s ease, opacity .35s ease; }
+  .lyr-wrap { display: grid; grid-template-rows: 0fr; opacity: 0; transition: grid-template-rows .4s ease, opacity .3s ease; }
   .lyr-wrap.open { grid-template-rows: 1fr; opacity: 1; }
   .lyr-inner { overflow: hidden; min-height: 0; }
   .lyr-text {
-    margin: .8rem 0 0; padding: .9rem 1rem; max-height: 16rem; overflow-y: auto;
-    white-space: pre-wrap; font-size: .95rem; line-height: 1.7; color: var(--bone);
-    background: rgba(228, 237, 230, .05); border-left: 2px solid var(--accent);
+    position: relative; margin: .8rem 0 0; padding: .9rem 1rem; max-height: 16rem; overflow-y: auto;
+    white-space: pre-wrap; font-size: 1rem; line-height: 1.7; color: var(--text);
+    background: var(--surface-2); border-left: 3px solid var(--accent); border-radius: 0 8px 8px 0;
   }
-  @media (prefers-reduced-motion: reduce) { .lyr-wrap, .chev { transition: none; } }
-
-  .lyr-hint { margin: .8rem 0 0; font-size: .85rem; color: var(--ash); }
-  .lyr-text { position: relative; }
+  .lyr-hint { margin: .8rem 0 0; font-size: .9rem; color: var(--muted); }
   .lyr-text.synced { white-space: normal; padding-block: 1.2rem; }
-  .ln { display: block; padding: .15rem 0; color: var(--ash); cursor: pointer; transform-origin: left center; transition: color .35s ease, transform .35s ease; }
-  .ln:hover { color: var(--bone); }
-  .ln.active { color: var(--accent-hi); transform: translateX(8px) scale(1.05); }
-  @media (prefers-reduced-motion: reduce) { .ln { transition: none; } .ln.active { transform: none; } }
+  .ln { display: block; padding: .2rem 0; color: var(--muted); cursor: pointer; transition: color .3s ease, transform .3s ease; }
+  .ln:hover { color: var(--text); }
+  .ln.active { color: var(--accent-hi); font-weight: 600; transform: translateX(6px); }
 
-  .yt-frame { aspect-ratio: 16 / 9; width: 100%; max-width: 30rem; margin-top: .8rem; background: #000; }
+  .yt-frame { aspect-ratio: 16 / 9; width: 100%; max-width: 30rem; margin-top: .8rem; background: #000; border-radius: 8px; overflow: hidden; }
   .yt-frame iframe { display: block; }
 
-  .stat { margin: 1.75rem 0 0; color: var(--ash); font-size: .95rem; }
-  .stat strong { color: var(--bone); font-weight: 500; display: inline-block; }
+  .stat { margin: 1.5rem 0 0; color: var(--muted); font-size: .95rem; }
+  .stat strong { color: var(--text); font-weight: 600; display: inline-block; }
   .stat strong.bump { animation: statpop .45s ease-out; }
-  @keyframes statpop { 0% { transform: scale(1); color: var(--bone); } 40% { transform: scale(1.35); color: var(--accent-hi); } 100% { transform: scale(1); color: var(--bone); } }
-  @media (prefers-reduced-motion: reduce) { .stat strong.bump { animation: none; } }
+  @keyframes statpop { 0% { transform: scale(1); } 40% { transform: scale(1.25); color: var(--accent-hi); } 100% { transform: scale(1); } }
 
   .hist { position: fixed; left: 1rem; bottom: calc(1rem + env(safe-area-inset-bottom, 0px)); z-index: 20; display: flex; flex-direction: column; align-items: flex-start; gap: .5rem; max-width: calc(100vw - 2rem); }
   .hist[hidden] { display: none; }
-  .hist-toggle { margin: 0; padding: .5rem .9rem; background: rgba(5, 10, 9, .88); color: var(--bone); border: 1px solid var(--line); border-radius: 2px; font: 500 .9rem var(--body); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); transition: background .2s, border-color .2s; }
-  .hist-toggle:hover, .hist-toggle[aria-expanded="true"] { background: var(--accent); border-color: var(--accent); color: var(--void); }
-  .hist-panel { display: grid; grid-template-rows: 0fr; opacity: 0; width: 19rem; max-width: 100%; transition: grid-template-rows .4s ease, opacity .3s ease; }
+  .hist-toggle { background: var(--surface); color: var(--text); border: 1px solid var(--edge); font: 600 .9rem var(--body); padding: .5rem .9rem; }
+  .hist-toggle:hover, .hist-toggle[aria-expanded="true"] { background: var(--accent); border-color: var(--accent); color: #111; }
+  .hist-panel { display: grid; grid-template-rows: 0fr; opacity: 0; width: 19rem; max-width: 100%; transition: grid-template-rows .35s ease, opacity .3s ease; }
   .hist-panel.open { grid-template-rows: 1fr; opacity: 1; }
   .hist-inner { overflow: hidden; min-height: 0; }
-  .hist-box { max-height: 50vh; overflow-y: auto; padding: .6rem .75rem .25rem; background: rgba(5, 10, 9, .94); border: 1px solid var(--line); border-radius: 2px; -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); }
-  .hist-head { display: flex; justify-content: space-between; align-items: center; font-weight: 500; font-size: .95rem; padding-bottom: .4rem; }
-  .hist-clear { margin: 0; padding: .15rem .4rem; background: transparent; color: var(--ash); font: 400 .85rem var(--body); text-decoration: underline; text-underline-offset: 3px; }
-  .hist-clear:hover { background: transparent; color: var(--bone); }
+  .hist-box { max-height: 50vh; overflow-y: auto; padding: .6rem .75rem .25rem; background: var(--surface); border: 1px solid var(--edge); border-radius: 8px; }
+  .hist-head { display: flex; justify-content: space-between; align-items: center; font-weight: 600; font-size: .95rem; padding-bottom: .4rem; }
+  .hist-clear { background: transparent; color: var(--muted); font: 400 .9rem var(--body); text-decoration: underline; text-underline-offset: 3px; min-height: 2.25rem; padding: .15rem .5rem; }
+  .hist-clear:hover { background: transparent; color: var(--text); }
   .hist-box ul { list-style: none; margin: 0; padding: 0; }
-  .hist-item { display: block; width: 100%; margin: 0; padding: .55rem .25rem; text-align: left; background: transparent; color: var(--bone); border: 0; border-top: 1px solid var(--line); border-radius: 0; font: 400 1rem var(--body); transition: background .15s; }
-  .hist-item:hover { background: rgba(233, 229, 75, .12); }
-  .hist-title { display: block; font: 800 1.1rem/1.2 var(--display); }
-  .hist-meta { display: block; color: var(--ash); font-size: .85rem; }
-  @media (prefers-reduced-motion: reduce) { .hist-panel, .hist-toggle { transition: none; } }
-
-  /* Favoris : étoile + onglets */
-  .title-row { display: flex; align-items: center; gap: .35rem; }
-  .star { margin: 0; padding: .1rem .35rem; background: transparent; color: var(--ash); border: 0; border-radius: 2px; font: 400 1.5rem/1 var(--body); transition: color .2s, transform .15s; }
-  .star:hover { background: transparent; color: var(--accent-hi); transform: scale(1.15); }
-  .star.on { color: var(--accent); text-shadow: 0 0 12px rgba(233, 229, 75, .55); }
-  .star.pop { animation: starpop .4s ease-out; }
-  @keyframes starpop { 0% { transform: scale(1); } 40% { transform: scale(1.5) rotate(15deg); } 100% { transform: scale(1); } }
-  .tabs { display: flex; gap: .5rem; margin: 1.75rem 0 0; }
-  .tab { margin: 0; padding: .45rem .95rem; background: transparent; color: var(--bone); border: 1px solid var(--line); border-radius: 2px; font: 500 .9rem var(--body); transition: background .2s, border-color .2s; }
-  .tab:hover { background: rgba(233, 229, 75, .12); }
-  .tab:disabled { opacity: .4; cursor: not-allowed; background: transparent; }
-  .tab[aria-selected="true"] { background: var(--accent); border-color: var(--accent); color: var(--void); }
-  #status { margin-top: 1rem; }
-  @media (prefers-reduced-motion: reduce) { .star, .star.pop, .tab { animation: none; transition: none; } }
+  .hist-item { display: block; width: 100%; padding: .55rem .25rem; text-align: left; background: transparent; color: var(--text); border-top: 1px solid var(--line); border-radius: 0; font: 400 1rem var(--body); }
+  .hist-item:hover { background: var(--surface-2); }
+  .hist-title { display: block; font: 700 1rem/1.25 var(--body); }
+  .hist-meta { display: block; color: var(--muted); font-size: .85rem; }
 
   .reveal { animation: rise .25s ease-out; }
   @keyframes rise { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
-  @media (prefers-reduced-motion: reduce) { .reveal { animation: none; } }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation: none !important; transition: none !important; }
+    .ln.active { transform: none; }
+  }
 
   @media (max-width: 520px) {
-    main { margin: 1rem .75rem 2rem; padding: 2rem 1.25rem 2.5rem; }
-    .field { flex-direction: column; align-items: stretch; gap: 0; }
-    button { margin: .5rem 0 .75rem; }
-    li.result { grid-template-columns: 2.5rem 1fr; }
-    .disc { width: 2.5rem; height: 2.5rem; }
+    main { margin: 1rem .75rem 1.5rem; padding: 1.5rem 1.1rem 2rem; }
+    .field { flex-direction: column; }
+    li.result { grid-template-columns: 3rem 1fr; }
+    .disc { width: 3rem; height: 3rem; }
     a.open { grid-column: 2; }
   }
 </style>
 </head>
 <body>
-<div class="fog" aria-hidden="true"></div>
 <main>
-  <h1 id="titre">T’es tëllement bêtë que t’as oublié lë nom du son ? Heureusëment qu’on ëst là</h1>
-  <p class="intro">Tape quelquës mots que l’artistë chante, même approximatifs, ët on te donnë le titre.</p>
+  <h1 id="titre">Un refrain en tête et le titre qui a disparu ? On le retrouve.</h1>
+  <p class="intro">Tape quelques mots que l’artiste chante, même approximatifs, et on te donne le titre.</p>
 
   <form id="form" role="search">
-    <label for="q">Parolës que tu të rappelles</label>
+    <label for="q">Paroles que tu te rappelles</label>
     <div class="field">
       <input id="q" name="q" type="search" autocomplete="off" maxlength="200" placeholder="Ex : Finis les" required>
-      <button type="submit">Trouvër</button>
+      <button type="submit">Trouver</button>
     </div>
     <p class="hint">Tu peux trouver tout ce que tu désires grâce à Kyky</p>
   </form>
@@ -277,108 +230,108 @@
 </aside>
 
 <script>
-  // --- Grande phrase d'accroche : une différente à chaque visite (100 au choix) ---
+  // --- Grande phrase d'accroche : une différente à chaque visite (100 au choix, thème rap) ---
   const PHRASES = [
-    "Alors, t’as déjà oublié lë titre du son que tu cherchais ?",
-    "Lë titre ëst sur le bout de ta langue, hein ? Classique.",
-    "Tu connais les paroles mais pas le nom ? Quël talent.",
-    "T’as la mélodie dans la tête ët rien d’autre. Bravo.",
-    "Encore toi ? Ta mémoire a replanté ?",
-    "Pas de panique, on sait que t’as la mémoire d’un poisson rouge.",
-    "Tu fredonnes depuis ce matin sans savoir ce que tu chantes ?",
-    "Cerveau en vacances ? On s’en occupë.",
-    "Tu te souviens des paroles mais pas du titre. Logique.",
-    "Spécialiste des paroles approximatives, bienvenue.",
-    "Le son tourne dans ta tête, mais lë nom a déménagé ?",
-    "Oui, on a compris : « c’ëst le truc qui fait lalala ».",
-    "Ça fait combien de fois qu’on te sauve la mise ?",
-    "Ta mémoire a démissionné ? On prend lë relais.",
-    "Tu cherches un son que tu connais par cœur. Évidemment.",
-    "Bravo, t’as retenu les paroles ët oublié l’essentiel.",
-    "Le titre est pourtant évident, mais pas pour toi.",
-    "Encore un son qui te résiste ? Impressionnant.",
-    "Dis-nous tout, on a l’habitude des trous de mémoire.",
-    "Les paroles, tu les as. Le titre, aucune idée. Équilibre parfait.",
-    "Tu l’as écouté cent fois ët t’as toujours pas retenu le nom.",
-    "Tu vas encore nous dire « mais si, le truc là » ?",
-    "Allez, avouë : t’as juste la flemme de t’en souvenir.",
-    "Ton cerveau a les paroles, mais pas lë mode d’emploi.",
-    "Pas besoin de rougir, les trous de mémoire, ça arrive.",
-    "T’as aucune idée de ce que tu chantes, hein ?",
-    "Alors quoi, lë titre a pris la fuite ?",
-    "Redémarre ton cerveau, ou donne-nous les paroles.",
-    "T’inquiète, on ne juge personne. Enfin, presque.",
-    "Tu m’as l’air de quelqu’un qui chante faux lë refrain.",
-    "Oublier un titre, ça arrive. En oublier dix, c’ëst toi.",
-    "T’as vraiment tapé « lalala » comme paroles ?",
-    "La chanson tourne en boucle ët toi tu tournes en rond.",
-    "Tu fredonnes, on devine ! Enfin, tape plutôt.",
-    "Tu cherches un son ? Ou ta dignité ? On n’a que le son.",
-    "Encore quelqu’un qui chante sans savoir ce qu’il chante.",
-    "T’es lë genre à chanter les paroles fausses avec confiance.",
-    "Ça fait des jours que t’as ça dans la tête, avouë.",
-    "Tu veux qu’on te redonne le nom ? Pas de souci, viens.",
-    "Alors c’est toi, celui qui oublie tout ?",
-    "Ton cerveau a sorti un « euh » ? Nous, on a les réponses.",
-    "« Lë titre est sur le bout de ma langue », dit-il. Depuis trois jours.",
-    "Tu peux tout oublier, sauf les paroles. Priorités.",
-    "Encore un esprit brillant qui a perdu le nom du son.",
-    "On ëst le GPS de ta mémoire défaillante.",
-    "Ta mémoire est comme ton Wi-Fi : intermittente.",
-    "Quand lë titre se cache, c’est qu’il a honte de toi.",
-    "Dis-moi que t’as pas cherché « la chanson avec le gars ».",
-    "T’es pas lë premier à oublier, mais t’es le plus fier.",
-    "Tu connais l’air, tu connais les mots, mais pas lë nom. Poétique.",
-    "Déjà de retour ? Un autre titre a disparu ?",
-    "Une chanson de plus dans ta liste des oubliettes ?",
-    "Tu viens pour qu’on te redonne un nom ? C’est touchant.",
-    "Ça fait trois mois qu’il te hante, ce son. Normal que tu viennes ici.",
-    "Le moment où ta tête chante ët ta mémoire dort.",
-    "Un titre dans le brouillard ? On sort les phares.",
-    "Rassure-toi, t’es pas fou. Juste oublieux.",
-    "Tu as tout essayé, sauf d’écrire les paroles ici.",
-    "Ta mémoire a le rythme, mais pas lë titre. Bonne affaire.",
-    "Tu fais un peu pitié, mais on t’aide quand même.",
-    "Lë genre de problème qu’on règle en trois secondes.",
-    "Tu t’es dit « je m’en souviendrai », ët voilà.",
-    "Tu connais un truc, mais t’as aucune idée de ce que c’est.",
-    "Le titre, c’est pas compliqué. Sauf pour toi.",
-    "Allez, on te pardonne. Mais tape les paroles.",
-    "Même mon grand-père s’en souviendrait.",
-    "Ta mémoire est sélective, on dirait.",
-    "Ton cerveau fait des économies de mémoire. Bravo.",
-    "Voilà quelqu’un qui chante tout lë temps, mais jamais lë titre.",
-    "Ce son, c’est un classique. Ët toi, tu l’as oublié.",
-    "T’es pas nul. Juste un peu étourdi.",
-    "Arrête de fredonner, tape plutôt les mots.",
-    "Ça va, on a l’habitude des gens comme toi. Entre.",
-    "T’as l’air perdu. On a de quoi retrouver tes affaires.",
-    "Lë genre de requête qui nous fait rire chaque jour.",
-    "Tu veux le nom ? Dis « svp » ët tape les paroles.",
-    "Lë titre existe, prouve-le ët tape les paroles.",
-    "T’es devenu notre meilleur client. Félicitations.",
-    "Ça fait mal à l’amour-propre, hein ? Allez, on t’aide.",
-    "Un jour tu t’en souviendras. Pas aujourd’hui.",
-    "La chanson est célèbre, mais ton cerveau s’en fiche.",
-    "Tu peux pas être aussi nul que ça. Ah si.",
-    "T’as dit « je connais ». Alors dis-nous lë nom.",
-    "Encore toi, mon préféré des oublieux.",
-    "Entre nous : t’es vraiment sûr que c’ëst un vrai son ?",
-    "On t’attendait, tu sais.",
-    "T’as chanté ça faux, c’est sûr. Mais on t’aime bien.",
-    "Tu peux pas t’en souvenir ? Fais pas ta timide, tape.",
-    "Ton cerveau a pété un câble. On a lë tournevis.",
-    "Lë son ëst dans ta tête. Lë nom ëst dans notre base.",
-    "Certains chantent, d’autres oublient. Toi, tu fais les deux.",
-    "Ton cerveau a dit « jë m’en fiche ». Nous, on relève lë défi.",
-    "Tu as la mélodie, les paroles, la motivation... mais pas lë nom.",
-    "Depuis quand tu cherches ? Ne réponds pas, on a peur.",
-    "Franchement, t’aurais pu noter lë titre.",
-    "Ton historique de recherche a déjà honte pour toi.",
-    "On va faire comme si c’était la première fois.",
-    "Tu fredonnes mal ët tu cherches mal. Mais on est patients.",
-    "Allez, un petit effort : tape trois mots, pas un roman.",
-    "Ce son-là, tout lë monde lë connaît. Sauf toi."
+    "Le flow, tu l’as. Le titre, c’est une autre histoire.",
+    "Tu connais le refrain par cœur mais pas le nom du morceau ?",
+    "Un banger dans la tête et zéro titre en mémoire.",
+    "L’instru tourne et le titre a disparu ?",
+    "Tu as la punchline, il te manque la pochette.",
+    "Seize mesures retenues, zéro titre retenu. Bilan correct.",
+    "Pas de panique, même les meilleurs oublient un couplet.",
+    "Le sample te hante, le nom du morceau te fuit.",
+    "Donne-nous les mots, on fait le featuring avec ta mémoire.",
+    "Ton cerveau a le refrain en boucle, nous on a le titre.",
+    "Un son qui tourne depuis ce matin ? On le retrouve.",
+    "Tu fredonnes la mélodie, on s’occupe du reste.",
+    "Mixtape perdue, titre introuvable ? On enquête.",
+    "Ton oreille est bonne, ta mémoire un peu moins.",
+    "Sans le titre, ton flow reste impeccable.",
+    "Le refrain colle, le nom glisse. Classique.",
+    "Studio ouvert : tape les paroles, on trouve le titre.",
+    "Quelques mots suffisent, même approximatifs.",
+    "Ce son te trotte dans la tête depuis la dernière soirée ?",
+    "Pas de gloire sans titre. On retrouve le tien.",
+    "Tu rappes sous la douche mais tu ne sais pas quoi ?",
+    "Tu freestyles sur un titre inconnu depuis longtemps ?",
+    "Même un beatmaker aurait oublié celui-là.",
+    "Un couplet en tête, un trou de mémoire en face.",
+    "Sors le micro, mais d’abord, tape les paroles.",
+    "Tu peux le chanter, mais pas le nommer. Voilà le souci.",
+    "Tu connais le pont, le refrain, pas le titre. Étrange.",
+    "Le DJ passe le morceau, toi tu cherches encore le nom.",
+    "Un hit sans titre, c’est un artiste sans blaze.",
+    "Playlist presque parfaite, il ne manque qu’un titre.",
+    "Tu as entendu ce son au supermarché, avoue.",
+    "Cette instru te dit quelque chose ? On cherche avec toi.",
+    "Même Shazam a besoin d’aide parfois. Nous aussi.",
+    "Un son de cinq minutes, une mémoire de cinq secondes.",
+    "Le refrain, c’est facile. Le titre, c’est le boss final.",
+    "Premier couplet oublié ? Pas grave, le deuxième suffira.",
+    "Quelques rimes en tête ? Tu as déjà fait la moitié du travail.",
+    "Pour un expert du refrain, tu t’en sors plutôt bien.",
+    "Le son parfait pour ce soir existe. Il lui manque juste un nom.",
+    "Ton morceau préféré a un titre. On va le retrouver.",
+    "Ça rime, ça groove, ça a un titre. Cherche-le ici.",
+    "La rime est là, le titre arrive.",
+    "Quand les mots sont là mais pas le nom du morceau, tape ici.",
+    "Tu as la rime, il te manque le titre. Sinon, c’est parfait.",
+    "Pas besoin de rapper, juste d’écrire.",
+    "Un couplet, un refrain, un titre qui se cache.",
+    "Les paroles, c’est ton rayon. Les titres, le nôtre.",
+    "Tu as écouté ça en boucle sans regarder le titre ?",
+    "Ça arrive aux meilleurs : on retient le flow, jamais le nom.",
+    "Ton cerveau est un bon DJ, mais un mauvais libraire.",
+    "La mémoire fait un sample, le titre disparaît du mix.",
+    "Ce refrain mérite un nom. Retrouvons-le.",
+    "Toi, moi, un refrain, et un titre à retrouver.",
+    "Le feat a changé le titre ? Ça n’aide pas, on sait.",
+    "Un son en tête depuis des jours, ça mérite une enquête.",
+    "Tu rappes dans ta tête, on lit dans tes pensées.",
+    "L’instru est mythique, le titre est un mystère.",
+    "Le refrain tourne, mais le titre a pris la fuite.",
+    "Pas de pochette, pas de titre, juste un refrain.",
+    "Cette punchline, tu l’as retenue. Le titre, un peu moins.",
+    "L’oreille absolue, la mémoire relative.",
+    "Tu as la voix, tu as les paroles, il te manque le titre.",
+    "Un petit coup de pouce pour ta mémoire ? C’est ici.",
+    "Ce son a une histoire. Il a aussi un titre.",
+    "Nouveau record : refrain mémorisé en une écoute, titre en zéro.",
+    "Comme au studio : balance les paroles, on prend le titre.",
+    "Ce son est dans ton crâne, le titre est dans notre base.",
+    "Même les rappeurs relisent leurs textes parfois.",
+    "Le refrain est à toi, le titre est à nous.",
+    "Tu peux fredonner, mais on préfère que tu tapes.",
+    "Un couplet entier te manque ? Un seul mot suffit.",
+    "Un mot, deux mots, trois mots : on trouve le morceau.",
+    "Pas de beat sans titre. Retrouvons-le ensemble.",
+    "Un son oublié, un son retrouvé. C’est ici que ça se passe.",
+    "Ton ancien son préféré revient d’entre les morts.",
+    "Ça sent le classique oublié. On le sort du tiroir.",
+    "Un titre, un artiste, une pochette : tout ce qu’il te manque.",
+    "Un hit ne s’oublie jamais, il se cherche.",
+    "Il y a toujours un titre derrière un refrain.",
+    "Le refrain est célèbre, le titre est timide.",
+    "Tu as la rime mais pas la raison. Enfin, pas le titre.",
+    "Ça fait un moment que tu cherches ? Les paroles nous suffisent.",
+    "Retrouve ce morceau avant que le DJ change de disque.",
+    "Le mic est à toi : écris ce que tu te rappelles.",
+    "Pas de feat avec ta mémoire cette fois : on gère.",
+    "Le micro est ouvert. Dis-nous ce refrain.",
+    "Un dernier effort, et le titre est à toi.",
+    "Un son, des paroles, un peu de patience.",
+    "Cette ligne de basse, tu la connais. Ce titre, on va le retrouver.",
+    "Pas de pression, juste des paroles.",
+    "Un bon morceau mérite d’être retrouvé.",
+    "On tape, on trouve, on écoute. Simple.",
+    "Aucune honte à oublier un titre, tout le monde l’a fait.",
+    "Ça commence par un mot. Le reste suivra.",
+    "Une phrase, même floue, et c’est parti.",
+    "Un son, un souvenir, un titre à retrouver.",
+    "Le mix est lancé, il manque juste ton refrain.",
+    "L’oubli fait partie du jeu. Retrouver, c’est notre métier.",
+    "Qui a dit qu’il fallait retenir tous les titres ? Pas nous.",
+    "On a tous un son qu’on cherche. Voici le tien."
 ];
   (function () {
     let last = -1;
@@ -853,7 +806,7 @@
     }
 
     controller = new AbortController();
-    setStatus('Rechërche en cours…');
+    setStatus('Recherche en cours…');
     try {
       const res = await fetch('/api/search?q=' + encodeURIComponent(q), { signal: controller.signal });
       const data = await res.json();
