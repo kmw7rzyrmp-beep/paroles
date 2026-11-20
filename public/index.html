@@ -190,6 +190,36 @@
     50% { transform: scale(1.08); box-shadow: 0 0 0 12px rgba(200, 16, 46, 0); }
   }
 
+  /* Compte : barre du haut + fenêtre d'inscription / connexion */
+  .topbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .75rem; margin: 0 0 1rem; }
+  .topbar .brand { margin: 0; }
+  .account { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; }
+  .account [hidden] { display: none; }
+  .account button { min-height: 2.25rem; padding: .35rem .9rem; font-size: .9rem; }
+  .account-email { display: inline-block; max-width: 14rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); font-size: .9rem; }
+  .ghost { background: transparent; color: var(--text); border: 1px solid var(--edge); }
+  .ghost:hover { background: var(--surface-2); }
+  .linkbtn { background: transparent; color: var(--accent-hi); font: 600 .95rem var(--body); text-decoration: underline; text-underline-offset: 3px; min-height: 2.25rem; padding: .25rem 0; }
+  .linkbtn:hover { background: transparent; color: #fff; }
+
+  dialog { width: min(26rem, calc(100vw - 1.5rem)); padding: 0; background: var(--surface); color: var(--text); border: 1px solid var(--edge); border-radius: 12px; }
+  dialog::backdrop { background: rgba(0, 0, 0, .7); }
+  .auth { padding: 1.75rem 1.5rem; }
+  .auth h2 { margin: 0 0 1rem; font: 800 1.4rem/1.2 var(--body); }
+  .auth label { margin-top: 1rem; }
+  .auth h2 + div > label:first-child { margin-top: 0; }
+  .opt { color: var(--muted); font-weight: 400; }
+  .auth input {
+    display: block; width: 100%; min-height: 3rem;
+    border: 2px solid var(--edge); border-radius: 8px; background: var(--bg);
+    font: 500 1.05rem/1.3 var(--body); color: var(--text);
+    padding: .6rem 1rem; caret-color: var(--accent);
+  }
+  .auth input:focus { border-color: var(--accent); outline: none; }
+  .auth-error { min-height: 1.5rem; margin: .75rem 0 .25rem; color: var(--danger); }
+  .auth-actions { display: flex; flex-wrap: wrap; gap: .5rem; }
+  .auth-switch { margin: .75rem 0 0; }
+
   .reveal { animation: rise .25s ease-out; }
   @keyframes rise { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
 
@@ -209,7 +239,15 @@
 </head>
 <body>
 <main>
-  <p class="brand"><span aria-hidden="true">★</span> Star Song</p>
+  <div class="topbar">
+    <p class="brand"><span aria-hidden="true">★</span> Star Song</p>
+    <div class="account" id="account">
+      <span id="accountEmail" class="account-email" hidden></span>
+      <button id="loginBtn" class="ghost" type="button" hidden>Se connecter</button>
+      <button id="signupBtn" type="button" hidden>Créer un compte</button>
+      <button id="logoutBtn" class="ghost" type="button" hidden>Se déconnecter</button>
+    </div>
+  </div>
   <h1 id="titre">Un refrain en tête et le titre qui a disparu ? On le retrouve.</h1>
   <p class="intro">Tape quelques mots que l’artiste chante, même approximatifs, et on te donne le titre.</p>
 
@@ -244,6 +282,31 @@
   </div>
   <button id="histToggle" class="hist-toggle" type="button" aria-expanded="false" aria-controls="histPanel">↺ Historique <span id="histCount"></span></button>
 </aside>
+
+<dialog id="authDialog" aria-labelledby="authTitle">
+  <form id="authForm" class="auth">
+    <h2 id="authTitle">Créer un compte</h2>
+    <div id="signupFields">
+      <label for="authUsername">Identifiant <span class="opt">(facultatif)</span></label>
+      <input id="authUsername" name="username" type="text" autocomplete="username" maxlength="30" autocapitalize="none" spellcheck="false">
+      <label for="authEmail">Adresse e-mail <span class="opt">(facultative)</span></label>
+      <input id="authEmail" name="email" type="email" autocomplete="email" maxlength="254">
+      <p class="hint">Renseigne au moins l’un des deux : tu pourras te connecter avec celui que tu veux.</p>
+    </div>
+    <div id="loginFields" hidden>
+      <label for="authLogin">Identifiant ou adresse e-mail</label>
+      <input id="authLogin" name="login" type="text" autocomplete="username" maxlength="254" autocapitalize="none" spellcheck="false">
+    </div>
+    <label for="authPassword">Mot de passe</label>
+    <input id="authPassword" name="password" type="password" autocomplete="new-password" maxlength="128" required>
+    <p id="authError" class="auth-error" role="alert"></p>
+    <div class="auth-actions">
+      <button id="authSubmit" type="submit">Créer mon compte</button>
+      <button id="authCancel" class="ghost" type="button">Annuler</button>
+    </div>
+    <p class="auth-switch"><button id="authSwitch" class="linkbtn" type="button">J’ai déjà un compte</button></p>
+  </form>
+</dialog>
 
 <a class="bait" href="https://www.youtube.com/watch?v=dQw4w9WgXcQ" target="_blank" rel="noopener noreferrer">CLIQUE VITE</a>
 
@@ -369,6 +432,18 @@
   let controller = null;
   let timer = null;
 
+  // Compte connecté et synchronisation (favoris, historique, statistique, calages des paroles)
+  let account = null;
+  let applying = false; // vrai pendant qu'on applique les données du compte : pas de ré-envoi
+  let dirty = false;    // des changements locaux n'ont pas encore été envoyés au compte
+  let syncTimer = 0;
+  function scheduleSync() {
+    if (!account || applying) return;
+    dirty = true;
+    clearTimeout(syncTimer);
+    syncTimer = setTimeout(() => flushSync(), 800);
+  }
+
   // --- Statistique : nombre de recherches faites par cette personne (gardé dans son navigateur) ---
   const statEl = document.getElementById('stat');
   let searchCount = 0;
@@ -390,6 +465,7 @@
     lastCounted = k;
     searchCount += 1;
     try { localStorage.setItem('stats:searches', String(searchCount)); } catch { /* pas grave */ }
+    scheduleSync();
     renderStat(true);
   }
 
@@ -440,6 +516,7 @@
   }
   function saveOffset(key, v) {
     try { localStorage.setItem('off:' + key, String(v)); } catch { /* pas grave */ }
+    scheduleSync();
   }
 
   function getTime() {
@@ -873,6 +950,7 @@
   function saveFavs() {
     try { localStorage.setItem('favorites', JSON.stringify(favorites)); } catch { /* pas grave */ }
     favCountEl.textContent = favorites.length ? '(' + favorites.length + ')' : '';
+    scheduleSync();
   }
 
   function toggleFav(r) {
@@ -905,6 +983,7 @@
       b.classList.add('pop');
       if (view === 'favs') showFavCount();
     });
+    b._sync = sync;
     sync();
     return b;
   }
@@ -959,6 +1038,7 @@
 
   function saveHistory() {
     try { localStorage.setItem('history', JSON.stringify(history)); } catch { /* pas grave */ }
+    scheduleSync();
   }
 
   function setHist(open) {
@@ -1022,6 +1102,241 @@
   renderHistory();
   form.addEventListener('submit', (e) => { e.preventDefault(); search(); });
   input.addEventListener('input', () => { clearTimeout(timer); timer = setTimeout(search, 600); });
+
+  // --- Compte : inscription, connexion, déconnexion ---
+  const loginBtn = document.getElementById('loginBtn');
+  const signupBtn = document.getElementById('signupBtn');
+  const logoutBtn = document.getElementById('logoutBtn');
+  const accountEmail = document.getElementById('accountEmail');
+  const authDialog = document.getElementById('authDialog');
+  const authForm = document.getElementById('authForm');
+  const authTitle = document.getElementById('authTitle');
+  const authEmail = document.getElementById('authEmail');
+  const authUsername = document.getElementById('authUsername');
+  const authLogin = document.getElementById('authLogin');
+  const signupFields = document.getElementById('signupFields');
+  const loginFields = document.getElementById('loginFields');
+  const authPassword = document.getElementById('authPassword');
+  const authError = document.getElementById('authError');
+  const authSubmit = document.getElementById('authSubmit');
+  const authSwitch = document.getElementById('authSwitch');
+  let authMode = 'signup';
+
+  function renderAccount() {
+    loginBtn.hidden = signupBtn.hidden = !!account;
+    logoutBtn.hidden = accountEmail.hidden = !account;
+    accountEmail.textContent = account ? account.name : '';
+    accountEmail.title = account ? account.name : '';
+  }
+
+  async function authRequest(path, body) {
+    let res;
+    try {
+      res = await fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    } catch {
+      throw new Error('Connexion impossible. Vérifie ta connexion et réessaie.');
+    }
+    let data = {};
+    try { data = await res.json(); } catch { /* réponse vide */ }
+    if (!res.ok) throw new Error(data.error || 'Une erreur est survenue. Réessaie.');
+    return data;
+  }
+
+  function setAuthMode(mode) {
+    authMode = mode;
+    const signup = mode === 'signup';
+    authTitle.textContent = signup ? 'Créer un compte' : 'Se connecter';
+    authSubmit.textContent = signup ? 'Créer mon compte' : 'Se connecter';
+    authSwitch.textContent = signup ? 'J’ai déjà un compte' : 'Pas encore de compte ? En créer un';
+    authPassword.autocomplete = signup ? 'new-password' : 'current-password';
+    signupFields.hidden = !signup;
+    loginFields.hidden = signup;
+    authLogin.required = !signup;
+    authError.textContent = '';
+  }
+
+  function openAuth(mode) {
+    authForm.reset();
+    setAuthMode(mode);
+    authDialog.showModal();
+  }
+
+
+  // --- Synchronisation avec le compte ---
+  function collectData() {
+    const offsets = {};
+    try {
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        if (k && k.startsWith('off:')) {
+          const v = Number(localStorage.getItem(k));
+          if (Number.isFinite(v)) offsets[k.slice(4)] = v;
+        }
+      }
+    } catch { /* pas grave */ }
+    return { favorites, history, searches: searchCount, offsets };
+  }
+
+  // Remplace les données affichées (et celles du navigateur) par celles données
+  function applyData(d) {
+    applying = true;
+    try {
+      const favsBefore = JSON.stringify(favorites);
+      favorites = (d.favorites || []).map((f) => ({
+        key: favKey(f), title: f.title, artist: f.artist || '', image: f.image || '', url: f.url || '', preview: f.preview || '',
+      }));
+      history = (d.history || []).slice(0, HIST_MAX);
+      searchCount = Number(d.searches) || 0;
+      lastCounted = '';
+      saveFavs();
+      saveHistory();
+      try {
+        localStorage.setItem('stats:searches', String(searchCount));
+        const old = [];
+        for (let i = 0; i < localStorage.length; i++) {
+          const k = localStorage.key(i);
+          if (k && k.startsWith('off:')) old.push(k);
+        }
+        old.forEach((k) => localStorage.removeItem(k));
+        for (const [k, v] of Object.entries(d.offsets || {})) localStorage.setItem('off:' + k, String(v));
+      } catch { /* pas grave */ }
+
+      renderStat(false);
+      renderHistory();
+      document.querySelectorAll('.star').forEach((b) => { if (b._sync) b._sync(); });
+      if (view === 'favs' && favsBefore !== JSON.stringify(favorites)) {
+        render(favorites, ytAvail);
+        showFavCount();
+      }
+    } finally {
+      applying = false;
+    }
+  }
+
+  // Fusionne les données du compte (a) et celles d'avant la connexion (b), les plus récentes d'abord
+  function mergeData(a, b) {
+    const favs = [];
+    const favSeen = new Set();
+    for (const f of [...(b.favorites || []), ...(a.favorites || [])]) {
+      const k = favKey(f);
+      if (!favSeen.has(k)) { favSeen.add(k); favs.push(f); }
+    }
+    const hist = [];
+    const histSeen = new Set();
+    for (const x of [...(b.history || []), ...(a.history || [])]) {
+      const k = x.q.toLowerCase();
+      if (!histSeen.has(k)) { histSeen.add(k); hist.push(x); }
+    }
+    return {
+      favorites: favs.slice(0, 500),
+      history: hist.slice(0, HIST_MAX),
+      searches: Math.max(a.searches || 0, b.searches || 0),
+      offsets: { ...(a.offsets || {}), ...(b.offsets || {}) },
+    };
+  }
+
+  function sessionExpired() {
+    account = null;
+    renderAccount();
+    setStatus('Ta session a expiré : reconnecte-toi pour retrouver tes données.', true);
+  }
+
+  async function flushSync(keepalive = false) {
+    clearTimeout(syncTimer);
+    if (!account || !dirty) return;
+    dirty = false;
+    try {
+      const body = JSON.stringify(collectData());
+      const res = await fetch('/api/data', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body,
+        keepalive: keepalive && body.length < 60000,
+      });
+      if (res.status === 401) { sessionExpired(); return; }
+      if (!res.ok) dirty = true; // on réessaiera au prochain changement
+    } catch {
+      dirty = true;
+    }
+  }
+
+  let lastPull = 0;
+  async function pullAccountData(mergeLocal) {
+    const res = await fetch('/api/data');
+    if (res.status === 401) { sessionExpired(); return; }
+    if (!res.ok) throw new Error('Données indisponibles');
+    const { data, fresh } = await res.json();
+    mergeLocal = mergeLocal || fresh; // compte jamais synchronisé : on y verse ce que le navigateur contient
+    if (dirty && !mergeLocal) return; // des changements locaux sont en attente : on ne les écrase pas
+    lastPull = Date.now();
+    if (mergeLocal) {
+      applyData(mergeData(data, collectData()));
+      dirty = true;
+      await flushSync();
+    } else {
+      applyData(data);
+    }
+  }
+
+  window.addEventListener('pagehide', () => { if (dirty) flushSync(true); });
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible' && account && !dirty && Date.now() - lastPull > 10000) {
+      pullAccountData(false).catch(() => { /* pas grave */ });
+    }
+  });
+
+  loginBtn.addEventListener('click', () => openAuth('login'));
+  signupBtn.addEventListener('click', () => openAuth('signup'));
+  authSwitch.addEventListener('click', () => setAuthMode(authMode === 'signup' ? 'login' : 'signup'));
+  document.getElementById('authCancel').addEventListener('click', () => authDialog.close());
+  authDialog.addEventListener('click', (e) => { if (e.target === authDialog) authDialog.close(); });
+
+  authForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    authError.textContent = '';
+    authSubmit.disabled = true;
+    try {
+      const data = await authRequest(
+        authMode === 'signup' ? '/api/signup' : '/api/login',
+        authMode === 'signup'
+          ? { username: authUsername.value, email: authEmail.value, password: authPassword.value }
+          : { login: authLogin.value, password: authPassword.value }
+      );
+      account = data.user;
+      renderAccount();
+      authForm.reset();
+      authDialog.close();
+      // Les favoris, l'historique et la statistique faits avant la connexion rejoignent le compte
+      try { await pullAccountData(true); } catch { setStatus('Connecté, mais tes données n’ont pas pu être chargées. Recharge la page.', true); }
+    } catch (err) {
+      authError.textContent = err.message;
+    } finally {
+      authSubmit.disabled = false;
+    }
+  });
+
+  logoutBtn.addEventListener('click', async () => {
+    try {
+      await flushSync(); // on envoie les derniers changements avant de partir
+      if (dirty) throw new Error('tes dernières modifications n’ont pas pu être enregistrées, réessaie.');
+      await authRequest('/api/logout', {});
+      account = null;
+      renderAccount();
+      // Sur cet appareil, on efface les données du compte pour la personne suivante
+      applyData({ favorites: [], history: [], searches: 0, offsets: {} });
+    } catch (err) {
+      setStatus('Déconnexion impossible : ' + err.message, true);
+    }
+  });
+
+  fetch('/api/me')
+    .then((r) => r.json())
+    .then((d) => { account = d.user || null; })
+    .catch(() => { account = null; })
+    .finally(() => {
+      renderAccount();
+      if (account) pullAccountData(false).catch(() => { /* on garde les données du navigateur */ });
+    });
 </script>
 </body>
 </html>
