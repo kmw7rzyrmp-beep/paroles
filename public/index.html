@@ -114,14 +114,29 @@
   a.open { color: var(--blood-hi); font-weight: 500; text-decoration: underline; text-underline-offset: 3px; }
   a.open:hover { color: var(--bone); }
 
+  .player { margin-top: .6rem; max-width: 15rem; }
   .play {
-    display: inline-flex; align-items: center; gap: .5rem;
-    margin: .6rem 0 0; padding: .4rem .9rem;
+    display: inline-flex; align-items: center; gap: .55rem;
+    margin: 0; padding: .45rem .95rem;
     background: transparent; color: var(--bone);
     border: 1px solid var(--blood); border-radius: 2px;
     font: 500 .9rem var(--body);
+    transition: background .2s, transform .15s;
   }
-  .play:hover, .play[aria-pressed="true"] { background: var(--blood); }
+  .play:hover, .play.playing { background: var(--blood); }
+  .play.pop { animation: pop .35s ease-out; }
+  @keyframes pop { 0% { transform: scale(1); } 35% { transform: scale(.9); } 70% { transform: scale(1.07); } 100% { transform: scale(1); } }
+  .ico { display: inline-flex; align-items: center; justify-content: center; width: 1rem; height: 1rem; }
+  .ico .eq { display: none; align-items: flex-end; gap: 2px; height: 100%; }
+  .ico .eq i { width: 3px; height: 100%; background: var(--bone); transform: scaleY(.3); transform-origin: bottom; animation: eqbar .7s ease-in-out infinite alternate; }
+  .ico .eq i:nth-child(2) { animation-delay: .2s; }
+  .ico .eq i:nth-child(3) { animation-delay: .4s; }
+  @keyframes eqbar { to { transform: scaleY(1); } }
+  .play.playing .tri { display: none; }
+  .play.playing .eq { display: inline-flex; }
+  .prog { height: 4px; margin-top: .55rem; background: var(--line); border-radius: 2px; overflow: hidden; }
+  .prog i { display: block; height: 100%; width: 0; background: var(--blood); transition: width .3s linear; }
+  @media (prefers-reduced-motion: reduce) { .play.pop, .ico .eq i { animation: none; } }
 
   .reveal { animation: rise .25s ease-out; }
   @keyframes rise { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
@@ -145,10 +160,10 @@
   <form id="form" role="search">
     <label for="q">Parolës que tu të rappelles</label>
     <div class="field">
-      <input id="q" name="q" type="search" autocomplete="off" maxlength="200" placeholder="ex. J’ai mal à mon cœur" required>
+      <input id="q" name="q" type="search" autocomplete="off" maxlength="200" placeholder="Ex : Finis les" required>
       <button type="submit">Trouvër</button>
     </div>
-    <p class="hint">Exemple : « J’ai mal à mon cœur », Acazdir. Plus la phrasë est précisë, plus le résultat est fiablë.</p>
+    <p class="hint">Tu peux trouver tout ce que tu désires grâce à Kyky</p>
   </form>
 
   <p id="status" role="status" aria-live="polite"></p>
@@ -173,33 +188,46 @@
 
   // --- Lecture des extraits (un seul à la fois) ---
   const audio = new Audio();
-  let currentBtn = null;
+  let current = null; // { btn, bar }
 
-  function resetBtn(btn) {
-    if (!btn) return;
-    btn.textContent = '▶ Écouter un extrait';
-    btn.setAttribute('aria-pressed', 'false');
+  function setState(btn, playing) {
+    btn.classList.toggle('playing', playing);
+    btn.setAttribute('aria-pressed', playing ? 'true' : 'false');
+    btn.querySelector('.lbl').textContent = playing ? 'Pause' : 'Écouter un extrait';
+  }
+
+  function resetBar(bar) {
+    bar.style.transition = 'none';
+    bar.style.width = '0%';
+    void bar.offsetWidth;
+    bar.style.transition = '';
   }
 
   function stopPreview() {
     audio.pause();
-    resetBtn(currentBtn);
-    currentBtn = null;
+    if (current) { setState(current.btn, false); resetBar(current.bar); }
+    current = null;
   }
 
-  function togglePreview(btn, src, title) {
-    if (currentBtn === btn) { stopPreview(); return; }
+  function togglePreview(btn, bar, src, title) {
+    btn.classList.remove('pop');
+    void btn.offsetWidth;
+    btn.classList.add('pop');
+
+    if (current && current.btn === btn) { stopPreview(); return; }
     stopPreview();
-    currentBtn = btn;
+    current = { btn, bar };
     audio.src = src;
-    btn.textContent = '⏸ Pause';
-    btn.setAttribute('aria-pressed', 'true');
+    setState(btn, true);
     audio.play().catch(() => {
       stopPreview();
       setStatus('Impossible de lire l’extrait de « ' + title + ' ».', true);
     });
   }
 
+  audio.addEventListener('timeupdate', () => {
+    if (current && audio.duration) current.bar.style.width = (audio.currentTime / audio.duration * 100) + '%';
+  });
   audio.addEventListener('ended', stopPreview);
 
   function render(results) {
@@ -233,13 +261,20 @@
       text.append(title, meta);
 
       if (r.preview && /^https:\/\//.test(r.preview)) {
+        const player = document.createElement('div');
+        player.className = 'player';
         const btn = document.createElement('button');
         btn.type = 'button';
         btn.className = 'play';
         btn.setAttribute('aria-pressed', 'false');
-        btn.textContent = '▶ Écouter un extrait';
-        btn.addEventListener('click', () => togglePreview(btn, r.preview, r.title));
-        text.append(btn);
+        btn.innerHTML = '<span class="ico" aria-hidden="true"><span class="tri">▶</span><span class="eq"><i></i><i></i><i></i></span></span><span class="lbl">Écouter un extrait</span>';
+        const prog = document.createElement('div');
+        prog.className = 'prog';
+        const bar = document.createElement('i');
+        prog.append(bar);
+        btn.addEventListener('click', () => togglePreview(btn, bar, r.preview, r.title));
+        player.append(btn, prog);
+        text.append(player);
       }
 
       li.append(disc, text);
