@@ -3,6 +3,7 @@ import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
 import { join, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { handleAuth } from './auth.js';
 
 // Charge le fichier .env s'il existe (le jeton Genius y est facultatif, voir README).
 try { process.loadEnvFile(); } catch { /* pas de .env : pas grave */ }
@@ -234,6 +235,9 @@ function sendJson(res, code, body) {
 
 const server = createServer(async (req, res) => {
   const url = new URL(req.url, 'http://localhost');
+
+  // Comptes : /api/signup, /api/login, /api/logout, /api/me
+  if (await handleAuth(req, res, url)) return;
 
   if (url.pathname === '/api/search') {
     const ip = req.socket.remoteAddress || 'inconnu';
