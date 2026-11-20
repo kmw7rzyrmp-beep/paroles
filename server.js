@@ -149,11 +149,20 @@ async function findPreview(title, artist) {
   return preview;
 }
 
-// 4) Paroles via LRCLIB (API publique et gratuite, sans clé)
+// 4) Paroles via LRCLIB (API publique et gratuite, sans clé), avec les horodatages quand ils existent
 const lyricsCache = new Map();
 
+function parseLrc(lrc) {
+  const out = [];
+  for (const line of String(lrc || '').split('\n')) {
+    const m = line.match(/^\s*\[(\d+):(\d+(?:\.\d+)?)\]\s*(.*)$/);
+    if (m && m[3].trim()) out.push({ t: Number(m[1]) * 60 + Number(m[2]), text: m[3].trim() });
+  }
+  return out;
+}
+
 async function findLyrics(title, artist) {
-  if (DEMO) return 'Paroles d’exemple.\nCeci est le mode démo.';
+  if (DEMO) return { lyrics: 'Paroles d’exemple.\nCeci est le mode démo.', synced: [] };
   const key = norm(title + artist);
   if (lyricsCache.has(key)) return lyricsCache.get(key);
 
@@ -162,24 +171,32 @@ async function findLyrics(title, artist) {
     `${base}?${new URLSearchParams({ track_name: title, artist_name: artist })}`,
     `${base}?${new URLSearchParams({ q: `${title} ${artist}` })}`,
   ];
-  let lyrics = '';
+  let data = { lyrics: '', synced: [] };
   let failed = false;
   for (const u of tries) {
     try {
       const list = await getJson(u, 'LRCLIB');
-      const m = (Array.isArray(list) ? list : []).find((r) => r.plainLyrics && sameSong(title, artist, r.trackName, r.artistName));
-      if (m) { lyrics = m.plainLyrics.trim(); break; }
+      const matches = (Array.isArray(list) ? list : []).filter(
+        (r) => (r.syncedLyrics || r.plainLyrics) && sameSong(title, artist, r.trackName, r.artistName)
+      );
+      const best = matches.find((r) => r.syncedLyrics) || matches[0];
+      if (best) {
+        const synced = parseLrc(best.syncedLyrics);
+        const lyrics = (best.plainLyrics || synced.map((l) => l.text).join('\n')).trim();
+        data = { lyrics, synced };
+        break;
+      }
     } catch (err) {
       failed = true;
       console.error('Paroles :', err.message);
     }
   }
-  console.log(`Paroles « ${title} » (${artist}) : ${lyrics ? 'trouvées' : 'aucune'}`);
+  console.log(`Paroles « ${title} » (${artist}) : ${data.synced.length ? 'synchronisées' : data.lyrics ? 'simples' : 'aucune'}`);
 
-  if (!lyrics && failed) return '';
+  if (!data.lyrics && failed) return data;
   if (lyricsCache.size >= CACHE_MAX) lyricsCache.delete(lyricsCache.keys().next().value);
-  lyricsCache.set(key, lyrics);
-  return lyrics;
+  lyricsCache.set(key, data);
+  return data;
 }
 
 async function searchLyrics(q) {
@@ -242,7 +259,7 @@ const server = createServer(async (req, res) => {
     if (!title) return sendJson(res, 400, { error: 'Titre manquant.' });
 
     try {
-      return sendJson(res, 200, { lyrics: await findLyrics(title, artist) });
+      return sendJson(res, 200, await findLyrics(title, artist));
     } catch (err) {
       console.error('Erreur paroles :', err.message);
       return sendJson(res, 502, { error: 'Le service de paroles ne répond pas.' });
