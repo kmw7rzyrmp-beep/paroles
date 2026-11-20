@@ -18,7 +18,17 @@ const MIME = {
   '.css': 'text/css; charset=utf-8',
   '.js': 'text/javascript; charset=utf-8',
   '.svg': 'image/svg+xml',
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.png': 'image/png',
+  '.webp': 'image/webp',
+  '.avif': 'image/avif',
+  '.gif': 'image/gif',
+  '.ico': 'image/x-icon',
 };
+
+// Extensions testées pour l'image de fond (/fond -> public/fond.jpg, .png, .webp...)
+const FOND_EXTS = ['.jpg', '.jpeg', '.png', '.webp', '.avif', '.gif'];
 
 // --- Limitation de débit (30 requêtes / minute / IP) et cache (10 min) ---
 const hits = new Map();
@@ -44,9 +54,9 @@ setInterval(() => {
 
 // --- Résultats d'exemple pour le mode démo (npm run demo) ---
 const DEMO_RESULTS = [
-  { title: 'Titre d’exemple A', artist: 'Artiste démo', image: '', url: '' },
-  { title: 'Titre d’exemple B', artist: 'Artiste démo', image: '', url: '' },
-  { title: 'Titre d’exemple C', artist: 'Autre artiste démo', image: '', url: '' },
+  { title: 'Titre d’exemple A', artist: 'Artiste démo', image: '', url: '', preview: '' },
+  { title: 'Titre d’exemple B', artist: 'Artiste démo', image: '', url: '', preview: '' },
+  { title: 'Titre d’exemple C', artist: 'Autre artiste démo', image: '', url: '', preview: '' },
 ];
 
 // --- Genius ---
@@ -84,6 +94,42 @@ async function searchOfficial(q) {
   return (json?.response?.hits || []).filter((h) => h.type === 'song').map((h) => toResult(h.result));
 }
 
+// 3) Extrait audio de 30 s via l'API publique d'iTunes (sans clé)
+const previewCache = new Map();
+const norm = (s) => String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]/g, '');
+
+async function findPreview(title, artist) {
+  const key = norm(title + artist);
+  if (previewCache.has(key)) return previewCache.get(key);
+
+  let preview = '';
+  try {
+    const params = new URLSearchParams({ term: `${title} ${artist}`, media: 'music', entity: 'song', limit: '8' });
+    const res = await fetch(`https://itunes.apple.com/search?${params}`, {
+      headers: { 'User-Agent': UA },
+      signal: AbortSignal.timeout(5000),
+    });
+    if (res.ok) {
+      const json = await res.json();
+      const t = norm(title);
+      const a = norm(artist);
+      const match = (json.results || []).find((r) => {
+        const rt = norm(r.trackName);
+        const ra = norm(r.artistName);
+        return r.previewUrl && rt && ra && (rt.includes(t) || t.includes(rt)) && (a.includes(ra) || ra.includes(a));
+      });
+      preview = match?.previewUrl || '';
+    }
+  } catch (err) {
+    console.error('Extrait audio :', err.message);
+    return ''; // pas de cache en cas d'erreur réseau
+  }
+
+  if (previewCache.size >= CACHE_MAX * 4) previewCache.delete(previewCache.keys().next().value);
+  previewCache.set(key, preview);
+  return preview;
+}
+
 async function searchLyrics(q) {
   if (DEMO) return { demo: true, results: DEMO_RESULTS };
 
@@ -102,6 +148,9 @@ async function searchLyrics(q) {
   // Supprime les doublons éventuels
   const seen = new Set();
   results = results.filter((r) => r.title && !seen.has(r.url || r.title + r.artist) && seen.add(r.url || r.title + r.artist));
+
+  // Ajoute un extrait audio quand il existe
+  await Promise.all(results.map(async (r) => { r.preview = await findPreview(r.title, r.artist); }));
 
   const data = { demo: false, results };
   if (cache.size >= CACHE_MAX) cache.delete(cache.keys().next().value);
@@ -134,15 +183,36 @@ const server = createServer(async (req, res) => {
 
   // Fichiers statiques (uniquement dans /public)
   const name = url.pathname === '/' ? '/index.html' : url.pathname;
-  const file = resolve(join(PUBLIC_DIR, decodeURIComponent(name)));
+  let file;
+  try {
+    file = resolve(join(PUBLIC_DIR, decodeURIComponent(name)));
+  } catch {
+    res.writeHead(400).end('Requête invalide');
+    return;
+  }
   if (!file.startsWith(PUBLIC_DIR + sep)) {
     res.writeHead(403).end('Interdit');
     return;
   }
   try {
-    const body = await readFile(file);
-    const ext = file.slice(file.lastIndexOf('.'));
-    res.writeHead(200, { 'Content-Type': MIME[ext] || 'application/octet-stream' });
+    let body;
+    // /fond (sans extension) : on cherche public/fond.jpg, .png, .webp, etc.
+    if (url.pathname === '/fond') {
+      for (const e of FOND_EXTS) {
+        try {
+          body = await readFile(file + e);
+          file = file + e;
+          break;
+        } catch { /* extension suivante */ }
+      }
+      if (!body) throw new Error('fond introuvable');
+    } else {
+      body = await readFile(file);
+    }
+    const ext = file.slice(file.lastIndexOf('.')).toLowerCase();
+    const headers = { 'Content-Type': MIME[ext] || 'application/octet-stream' };
+    if (ext !== '.html') headers['Cache-Control'] = 'public, max-age=3600';
+    res.writeHead(200, headers);
     res.end(body);
   } catch {
     res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' }).end('Page introuvable');
