@@ -30,8 +30,10 @@ pour retrouver une chanson à partir de paroles.
 
 ## Comptes (inscription / connexion)
 
-Les visiteurs peuvent créer un compte avec un identifiant, une adresse e-mail, ou les deux (au moins l'un des deux),
-et un mot de passe (sans longueur minimum). Ils se connectent ensuite avec celui des deux qu'ils préfèrent.
+Les visiteurs créent un compte avec un identifiant (obligatoire), une adresse e-mail (facultative) et un mot de passe
+(sans longueur minimum). Ils se connectent ensuite avec l'identifiant ou l'e-mail, comme ils préfèrent.
+Un compte créé sans identifiant (avant qu'il soit obligatoire) se voit proposer d'en choisir un à la connexion ; il ne peut
+ensuite plus être changé.
 
 - `auth.js` : inscription, connexion, déconnexion. Mots de passe hachés avec scrypt (jamais stockés en clair),
   session dans un cookie `HttpOnly` de 30 jours, limitation des tentatives par IP et par e-mail.
@@ -42,6 +44,9 @@ et un mot de passe (sans longueur minimum). Ils se connectent ensuite avec celui
 - Quand on est connecté, les favoris, l'historique, le compteur de recherches et les calages des paroles sont
   enregistrés dans le compte et retrouvés sur tous les appareils (`GET/PUT /api/data`). À la connexion, ce qui a été
   fait avant dans le navigateur est ajouté au compte. À la déconnexion, ces données sont effacées de l'appareil.
+- **Amis** : onglet « Amis » (visible une fois connecté avec un identifiant). On invite quelqu'un avec son identifiant ;
+  la demande doit être acceptée. Une fois amis, chacun peut voir l'historique des recherches et les favoris de l'autre
+  (`/api/friends/...`). Retirer un ami coupe l'accès dans les deux sens.
 - Limites actuelles : l'adresse e-mail n'est pas vérifiée et il n'y a pas encore de « mot de passe oublié »
   (cela demande un service d'envoi d'e-mails).
 
