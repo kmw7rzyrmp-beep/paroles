@@ -209,6 +209,20 @@
   .hist-meta { display: block; color: var(--ash); font-size: .85rem; }
   @media (prefers-reduced-motion: reduce) { .hist-panel, .hist-toggle { transition: none; } }
 
+  /* Favoris : étoile + onglets */
+  .title-row { display: flex; align-items: center; gap: .35rem; }
+  .star { margin: 0; padding: .1rem .35rem; background: transparent; color: var(--ash); border: 0; border-radius: 2px; font: 400 1.5rem/1 var(--body); transition: color .2s, transform .15s; }
+  .star:hover { background: transparent; color: var(--accent-hi); transform: scale(1.15); }
+  .star.on { color: var(--accent); text-shadow: 0 0 12px rgba(233, 229, 75, .55); }
+  .star.pop { animation: starpop .4s ease-out; }
+  @keyframes starpop { 0% { transform: scale(1); } 40% { transform: scale(1.5) rotate(15deg); } 100% { transform: scale(1); } }
+  .tabs { display: flex; gap: .5rem; margin: 1.75rem 0 0; }
+  .tab { margin: 0; padding: .45rem .95rem; background: transparent; color: var(--bone); border: 1px solid var(--line); border-radius: 2px; font: 500 .9rem var(--body); transition: background .2s, border-color .2s; }
+  .tab:hover { background: rgba(233, 229, 75, .12); }
+  .tab[aria-selected="true"] { background: var(--accent); border-color: var(--accent); color: var(--void); }
+  #status { margin-top: 1rem; }
+  @media (prefers-reduced-motion: reduce) { .star, .star.pop, .tab { animation: none; transition: none; } }
+
   .reveal { animation: rise .25s ease-out; }
   @keyframes rise { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
   @media (prefers-reduced-motion: reduce) { .reveal { animation: none; } }
@@ -237,6 +251,11 @@
     </div>
     <p class="hint">Tu peux trouver tout ce que tu désires grâce à Kyky</p>
   </form>
+
+  <div class="tabs" role="tablist" aria-label="Affichage">
+    <button id="tabSearch" class="tab" type="button" role="tab" aria-selected="true">Résultats</button>
+    <button id="tabFavs" class="tab" type="button" role="tab" aria-selected="false">★ Favoris <span id="favCount"></span></button>
+  </div>
 
   <p id="status" role="status" aria-live="polite"></p>
   <div id="demo" class="demo" hidden>Mode démo : ces résultats sont fictifs. Lance le site avec « npm start » pour obtenir de vraies chansons.</div>
@@ -618,7 +637,10 @@
       const meta = document.createElement('p');
       meta.className = 'meta';
       meta.textContent = r.artist;
-      text.append(title, meta);
+      const titleRow = document.createElement('div');
+      titleRow.className = 'title-row';
+      titleRow.append(title, makeStar(r));
+      text.append(titleRow, meta);
 
       const lyr = { key: r.preview || (r.title + '|' + r.artist), off: { audio: r.preview ? loadOffset(r.preview) : null, yt: 0 }, videoId: null, lines: [], active: -1, body: null, hint: null, loaded: false, loading: false };
       const actions = document.createElement('div');
@@ -709,6 +731,7 @@
     if (controller) controller.abort();
 
     if (q.length < 3) {
+      if (view === 'favs') return; // on laisse la liste des favoris affichée
       list.replaceChildren();
       demo.hidden = true;
       setStatus(q.length ? 'Tape au moins 3 caractères.' : '');
@@ -723,6 +746,8 @@
       if (!res.ok) throw new Error(data.error || 'Erreur inconnue');
 
       demo.hidden = !data.demo;
+      setYt(data.yt);
+      setView('search');
       render(data.results, data.yt);
       countSearch(q);
       if (data.results.length) addHistory(q, data.results[0]);
@@ -737,6 +762,94 @@
   }
 
   renderStat(false);
+
+  // --- Favoris (gardés dans le navigateur) ---
+  const favCountEl = document.getElementById('favCount');
+  const tabSearch = document.getElementById('tabSearch');
+  const tabFavs = document.getElementById('tabFavs');
+  let favorites = [];
+  let view = 'search';
+  let ytAvail = false;
+  try {
+    const raw = JSON.parse(localStorage.getItem('favorites') || '[]');
+    if (Array.isArray(raw)) favorites = raw.filter((f) => f && typeof f.key === 'string' && typeof f.title === 'string');
+    ytAvail = localStorage.getItem('ytAvail') === '1';
+  } catch { /* pas grave */ }
+
+  function setYt(v) {
+    if (v === undefined) return;
+    ytAvail = !!v;
+    try { localStorage.setItem('ytAvail', ytAvail ? '1' : '0'); } catch { /* pas grave */ }
+  }
+
+  const favKey = (r) => (r.title + '|' + (r.artist || '')).toLowerCase().trim();
+  const isFav = (r) => favorites.some((f) => f.key === favKey(r));
+
+  function saveFavs() {
+    try { localStorage.setItem('favorites', JSON.stringify(favorites)); } catch { /* pas grave */ }
+    favCountEl.textContent = favorites.length ? '(' + favorites.length + ')' : '';
+  }
+
+  function toggleFav(r) {
+    const key = favKey(r);
+    if (isFav(r)) {
+      favorites = favorites.filter((f) => f.key !== key);
+    } else {
+      favorites.unshift({ key, title: r.title, artist: r.artist || '', image: r.image || '', url: r.url || '', preview: r.preview || '' });
+    }
+    saveFavs();
+  }
+
+  function makeStar(r) {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'star';
+    const sync = () => {
+      const on = isFav(r);
+      b.classList.toggle('on', on);
+      b.textContent = on ? '★' : '☆';
+      b.setAttribute('aria-pressed', on ? 'true' : 'false');
+      b.setAttribute('aria-label', (on ? 'Retirer des favoris : ' : 'Ajouter aux favoris : ') + r.title);
+      b.title = on ? 'Retirer des favoris' : 'Ajouter aux favoris';
+    };
+    b.addEventListener('click', () => {
+      toggleFav(r);
+      sync();
+      b.classList.remove('pop');
+      void b.offsetWidth;
+      b.classList.add('pop');
+      if (view === 'favs') showFavCount();
+    });
+    sync();
+    return b;
+  }
+
+  function showFavCount() {
+    setStatus(favorites.length
+      ? (favorites.length === 1 ? '1 son en favori' : favorites.length + ' sons en favoris')
+      : 'Aucun favori pour l’instant. Clique sur l’étoile ☆ à côté d’un son pour l’ajouter.');
+  }
+
+  function setView(v) {
+    view = v;
+    tabSearch.setAttribute('aria-selected', v === 'search' ? 'true' : 'false');
+    tabFavs.setAttribute('aria-selected', v === 'favs' ? 'true' : 'false');
+  }
+
+  tabFavs.addEventListener('click', () => {
+    if (controller) controller.abort();
+    clearTimeout(timer);
+    setView('favs');
+    demo.hidden = true;
+    render(favorites, ytAvail);
+    showFavCount();
+  });
+  tabSearch.addEventListener('click', () => {
+    setView('search');
+    if (input.value.trim().length >= 3) search();
+    else { stopCurrent(); list.replaceChildren(); setStatus(''); }
+  });
+  saveFavs();
 
   // --- Historique des sons recherchés (gardé dans le navigateur, 20 maximum) ---
   const histEl = document.getElementById('hist');
