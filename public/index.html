@@ -152,6 +152,14 @@
   }
   @media (prefers-reduced-motion: reduce) { .lyr-wrap, .chev { transition: none; } }
 
+  .lyr-hint { margin: .8rem 0 0; font-size: .85rem; color: var(--ash); }
+  .lyr-text { position: relative; }
+  .lyr-text.synced { white-space: normal; padding-block: 1.2rem; }
+  .ln { display: block; padding: .15rem 0; color: var(--ash); cursor: pointer; transform-origin: left center; transition: color .35s ease, transform .35s ease; }
+  .ln:hover { color: var(--bone); }
+  .ln.active { color: var(--bone); transform: translateX(8px) scale(1.05); }
+  @media (prefers-reduced-motion: reduce) { .ln { transition: none; } .ln.active { transform: none; } }
+
   .reveal { animation: rise .25s ease-out; }
   @keyframes rise { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
   @media (prefers-reduced-motion: reduce) { .reveal { animation: none; } }
@@ -200,9 +208,12 @@
     statusEl.classList.toggle('error', isError);
   }
 
-  // --- Lecture des extraits (un seul à la fois) ---
+  // --- Lecture des extraits (un seul à la fois) et paroles qui suivent ---
   const audio = new Audio();
-  let current = null; // { btn, bar }
+  let current = null; // { btn, bar, lyr }
+  let raf = 0;
+  let uid = 0;
+  const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   function setState(btn, playing) {
     btn.classList.toggle('playing', playing);
@@ -217,23 +228,80 @@
     bar.style.transition = '';
   }
 
-  function stopPreview() {
-    audio.pause();
-    if (current) { setState(current.btn, false); resetBar(current.bar); }
-    current = null;
+  // Décalage mémorisé : position de l'extrait dans le morceau complet
+  function loadOffset(key) {
+    try {
+      const v = localStorage.getItem('off:' + key);
+      return v === null || Number.isNaN(Number(v)) ? null : Number(v);
+    } catch { return null; }
+  }
+  function saveOffset(key, v) {
+    try { localStorage.setItem('off:' + key, String(v)); } catch { /* pas grave */ }
   }
 
-  function togglePreview(btn, bar, src, title) {
+  function setHint(lyr) {
+    const playing = current && current.lyr === lyr;
+    lyr.hint.hidden = !(playing && lyr.lines.length && lyr.offset === null);
+  }
+
+  function clearActive(lyr) {
+    if (lyr.active >= 0 && lyr.lines[lyr.active]) lyr.lines[lyr.active].el.classList.remove('active');
+    lyr.active = -1;
+  }
+
+  function updateLyrics() {
+    if (!current) return;
+    const lyr = current.lyr;
+    if (lyr.offset === null || !lyr.lines.length) return;
+    const pos = audio.currentTime + lyr.offset;
+    let idx = -1;
+    for (let i = 0; i < lyr.lines.length; i++) {
+      if (lyr.lines[i].t <= pos) idx = i; else break;
+    }
+    if (idx === lyr.active) return;
+    clearActive(lyr);
+    lyr.active = idx;
+    if (idx < 0) return;
+    const el = lyr.lines[idx].el;
+    el.classList.add('active');
+    lyr.body.scrollTo({
+      top: el.offsetTop - lyr.body.clientHeight / 2 + el.offsetHeight / 2,
+      behavior: reduceMotion ? 'auto' : 'smooth',
+    });
+  }
+
+  function tick() {
+    updateLyrics();
+    raf = requestAnimationFrame(tick);
+  }
+
+  function stopPreview() {
+    audio.pause();
+    cancelAnimationFrame(raf);
+    if (current) {
+      const { btn, bar, lyr } = current;
+      current = null;
+      setState(btn, false);
+      resetBar(bar);
+      clearActive(lyr);
+      setHint(lyr);
+    }
+  }
+
+  function togglePreview(btn, bar, src, title, lyr) {
     btn.classList.remove('pop');
     void btn.offsetWidth;
     btn.classList.add('pop');
 
     if (current && current.btn === btn) { stopPreview(); return; }
     stopPreview();
-    current = { btn, bar };
+    current = { btn, bar, lyr };
     audio.src = src;
     setState(btn, true);
-    audio.play().catch(() => {
+    setHint(lyr);
+    audio.play().then(() => {
+      if (current && current.btn === btn) raf = requestAnimationFrame(tick);
+    }).catch(() => {
       stopPreview();
       setStatus('Impossible de lire l’extrait de « ' + title + ' ».', true);
     });
@@ -244,28 +312,59 @@
   });
   audio.addEventListener('ended', stopPreview);
 
-  // --- Paroles (panneau qui se déplie en douceur) ---
-  let uid = 0;
+  // Clic sur une ligne : « c'est celle-ci que j'entends » -> cale les paroles sur l'extrait
+  function calibrate(lyr, t) {
+    if (!current || current.lyr !== lyr) return;
+    lyr.offset = t - audio.currentTime;
+    saveOffset(lyr.key, lyr.offset);
+    clearActive(lyr);
+    setHint(lyr);
+    updateLyrics();
+  }
 
-  async function toggleLyrics(btn, panel, body, r) {
+  // --- Paroles (panneau qui se déplie en douceur) ---
+  function showLyrics(lyr, data) {
+    const body = lyr.body;
+    body.replaceChildren();
+    lyr.lines = [];
+    lyr.active = -1;
+    const synced = Array.isArray(data.synced) ? data.synced : [];
+    body.classList.toggle('synced', synced.length > 0);
+    if (synced.length) {
+      for (const l of synced) {
+        const el = document.createElement('span');
+        el.className = 'ln';
+        el.textContent = l.text;
+        el.addEventListener('click', () => calibrate(lyr, l.t));
+        body.append(el);
+        lyr.lines.push({ t: l.t, el });
+      }
+    } else {
+      body.textContent = data.lyrics || 'Paroles introuvables pour ce morceau.';
+    }
+    setHint(lyr);
+    updateLyrics();
+  }
+
+  async function toggleLyrics(btn, panel, lyr, r) {
     const open = !panel.classList.contains('open');
     panel.classList.toggle('open', open);
     btn.classList.toggle('open', open);
     btn.setAttribute('aria-expanded', open ? 'true' : 'false');
-    if (!open || body.dataset.loaded || body.dataset.loading) return;
+    if (!open || lyr.loaded || lyr.loading) return;
 
-    body.dataset.loading = '1';
-    body.textContent = 'Chargement des paroles…';
+    lyr.loading = true;
+    lyr.body.textContent = 'Chargement des paroles…';
     try {
       const res = await fetch('/api/lyrics?title=' + encodeURIComponent(r.title) + '&artist=' + encodeURIComponent(r.artist));
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Erreur');
-      body.textContent = data.lyrics || 'Paroles introuvables pour ce morceau.';
-      if (data.lyrics) body.dataset.loaded = '1';
+      showLyrics(lyr, data);
+      if (data.lyrics) lyr.loaded = true;
     } catch (err) {
-      body.textContent = 'Impossible de charger les paroles. Réessaie dans un instant.';
+      lyr.body.textContent = 'Impossible de charger les paroles. Réessaie dans un instant.';
     } finally {
-      delete body.dataset.loading;
+      lyr.loading = false;
     }
   }
 
@@ -299,6 +398,7 @@
       meta.textContent = r.artist;
       text.append(title, meta);
 
+      const lyr = { key: r.preview || (r.title + '|' + r.artist), offset: r.preview ? loadOffset(r.preview) : null, lines: [], active: -1, body: null, hint: null, loaded: false, loading: false };
       const actions = document.createElement('div');
       actions.className = 'actions';
 
@@ -314,7 +414,7 @@
         prog.className = 'prog';
         const bar = document.createElement('i');
         prog.append(bar);
-        btn.addEventListener('click', () => togglePreview(btn, bar, r.preview, r.title));
+        btn.addEventListener('click', () => togglePreview(btn, bar, r.preview, r.title, lyr));
         player.append(btn, prog);
         actions.append(player);
       }
@@ -333,9 +433,15 @@
       inner.className = 'lyr-inner';
       const lyrText = document.createElement('p');
       lyrText.className = 'lyr-text';
-      inner.append(lyrText);
+      const lyrHint = document.createElement('p');
+      lyrHint.className = 'lyr-hint';
+      lyrHint.hidden = true;
+      lyrHint.textContent = 'Les paroles sont synchronisées : clique sur la ligne que tu entends pour les caler sur l’extrait.';
+      lyr.body = lyrText;
+      lyr.hint = lyrHint;
+      inner.append(lyrHint, lyrText);
       panel.append(inner);
-      lyrBtn.addEventListener('click', () => toggleLyrics(lyrBtn, panel, lyrText, r));
+      lyrBtn.addEventListener('click', () => toggleLyrics(lyrBtn, panel, lyr, r));
       actions.append(lyrBtn);
 
       text.append(actions, panel);
