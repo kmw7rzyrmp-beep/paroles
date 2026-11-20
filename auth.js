@@ -156,6 +156,8 @@ setInterval(() => {
   const now = Date.now();
   for (const [k, h] of ipHits) if (now > h.reset) ipHits.delete(k);
   for (const [k, f] of loginFails) if (now > f.reset) loginFails.delete(k);
+  for (const [k, w] of dataWrites) if (now > w.reset) dataWrites.delete(k);
+  for (const [k, w] of friendActs) if (now > w.reset) friendActs.delete(k);
   let changed = false;
   for (const [k, s] of sessions) if (s.exp < now) { sessions.delete(k); changed = true; }
   if (changed) persist().catch((e) => console.error('Sauvegarde des comptes :', e.message));
@@ -172,12 +174,12 @@ function send(res, code, body, headers = {}) {
   return true;
 }
 
-async function readJson(req) {
+async function readJson(req, max = 10_000) {
   const chunks = [];
   let size = 0;
   for await (const c of req) {
     size += c.length;
-    if (size > 10_000) throw new HttpError(413, 'Requête trop volumineuse.');
+    if (size > max) throw new HttpError(413, 'Requête trop volumineuse.');
     chunks.push(c);
   }
   try {
@@ -199,19 +201,182 @@ const publicUser = (u) => (u ? { username: u.username || '', email: u.email || '
 const normEmail = (e) => String(e || '').trim().toLowerCase();
 const validEmail = (e) => e.length <= 254 && /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(e);
 // Identifiant : 3 à 30 caractères, sans @ (pour ne jamais être confondu avec un e-mail)
+const USERNAME_HELP = 'Identifiant invalide : 3 à 30 caractères, avec des lettres, chiffres, points, tirets ou underscores.';
 const validUsername = (u) => u.length >= 3 && u.length <= 30 && /^[\p{L}\p{N}._-]+$/u.test(u);
 
-const ROUTES = new Set(['/api/me', '/api/signup', '/api/login', '/api/logout']);
+// --- Données du compte : favoris, historique, nombre de recherches, calages des paroles ---
+const str = (v, max) => (typeof v === 'string' ? v.slice(0, max) : '');
+const httpsUrl = (v) => { const u = str(v, 500); return /^https:\/\//.test(u) ? u : ''; };
+
+// Ne garde que ce qu'on attend, avec des tailles limitées (le client n'est jamais digne de confiance)
+function cleanData(d) {
+  const out = { favorites: [], history: [], searches: 0, offsets: {} };
+  const seen = new Set();
+  for (const f of Array.isArray(d.favorites) ? d.favorites.slice(0, 500) : []) {
+    if (!f || typeof f !== 'object') continue;
+    const title = str(f.title, 200).trim();
+    if (!title) continue;
+    const artist = str(f.artist, 200);
+    const key = (title + '|' + artist).toLowerCase().trim();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.favorites.push({ key, title, artist, image: httpsUrl(f.image), url: httpsUrl(f.url), preview: httpsUrl(f.preview) });
+  }
+  for (const h of Array.isArray(d.history) ? d.history.slice(0, 20) : []) {
+    if (!h || typeof h !== 'object') continue;
+    const q = str(h.q, 200).trim();
+    const title = str(h.title, 200).trim();
+    if (q && title) out.history.push({ q, title, artist: str(h.artist, 200) });
+  }
+  const n = Number(d.searches);
+  if (Number.isFinite(n)) out.searches = Math.min(Math.max(0, Math.floor(n)), 1e9);
+  if (d.offsets && typeof d.offsets === 'object') {
+    for (const [k, v] of Object.entries(d.offsets).slice(0, 500)) {
+      const num = Number(v);
+      if (k && k.length <= 300 && k !== '__proto__' && Number.isFinite(num) && Math.abs(num) < 1e5) out.offsets[k] = num;
+    }
+  }
+  return out;
+}
+
+const dataWrites = new Map(); // userId -> { count, reset }
+const friendActs = new Map();
+function hitLimit(map, id, max) {
+  const now = Date.now();
+  let w = map.get(id);
+  if (!w || now > w.reset) {
+    w = { count: 0, reset: now + 60_000 };
+    map.set(id, w);
+  }
+  w.count += 1;
+  return w.count > max;
+}
+const tooManyWrites = (userId) => hitLimit(dataWrites, userId, 60); // 60 sauvegardes par minute et par compte
+
+// --- Amis : demandes, acceptation, et consultation de l'historique et des favoris ---
+const ensureFriendFields = (u) => {
+  u.friends ||= [];
+  u.incoming ||= [];
+  u.outgoing ||= [];
+};
+
+function findByUsername(v) {
+  const name = String(v || '').trim();
+  if (!validUsername(name)) return null; // un identifiant ne contient jamais « @ » : on ne peut pas tomber sur un e-mail
+  return usersByLogin.get(name.toLowerCase()) || null;
+}
+
+function listFriends(me) {
+  const names = (ids) => ids
+    .map((id) => usersById.get(id))
+    .filter((u) => u && u.username)
+    .map((u) => ({ username: u.username }))
+    .sort((a, b) => a.username.localeCompare(b.username));
+  return { friends: names(me.friends), incoming: names(me.incoming), outgoing: names(me.outgoing) };
+}
+
+const FRIEND_ACTIONS = new Set(['request', 'accept', 'decline', 'cancel', 'remove']);
+
+async function handleFriends(req, res, url, me) {
+  ensureFriendFields(me);
+  const action = url.pathname.slice('/api/friends'.length).replace(/^\//, '');
+
+  if (req.method === 'GET') {
+    if (action === '') return send(res, 200, listFriends(me));
+    if (action === 'data') {
+      const target = findByUsername(url.searchParams.get('username'));
+      if (!target || !me.friends.includes(target.id)) throw new HttpError(403, 'Tu ne peux voir que les données de tes amis.');
+      const d = target.data || cleanData({});
+      return send(res, 200, { username: target.username, favorites: d.favorites, history: d.history });
+    }
+    throw new HttpError(404, 'Introuvable.');
+  }
+
+  if (req.method !== 'POST') throw new HttpError(405, 'Méthode non autorisée.');
+  if (!FRIEND_ACTIONS.has(action)) throw new HttpError(404, 'Introuvable.');
+  if (!sameSiteJson(req)) throw new HttpError(400, 'Requête invalide.');
+  if (hitLimit(friendActs, me.id, 30)) throw new HttpError(429, 'Trop d’actions, réessaie dans une minute.');
+  if (!me.username) throw new HttpError(403, 'Choisis d’abord un identifiant pour utiliser les amis.');
+
+  const body = await readJson(req);
+  const target = findByUsername(body.username);
+  if (!target) throw new HttpError(404, 'Aucun utilisateur avec cet identifiant.');
+  if (target.id === me.id) throw new HttpError(400, 'Tu ne peux pas t’ajouter toi-même.');
+  ensureFriendFields(target);
+
+  const snapshot = [me, target].map((u) => ({ u, friends: [...u.friends], incoming: [...u.incoming], outgoing: [...u.outgoing] }));
+  const rm = (arr, id) => { const i = arr.indexOf(id); if (i >= 0) arr.splice(i, 1); };
+  const add = (arr, id) => { if (!arr.includes(id)) arr.push(id); };
+  const befriend = () => {
+    rm(me.incoming, target.id); rm(me.outgoing, target.id);
+    rm(target.incoming, me.id); rm(target.outgoing, me.id);
+    add(me.friends, target.id); add(target.friends, me.id);
+  };
+
+  if (action === 'request') {
+    if (me.friends.includes(target.id)) throw new HttpError(409, 'Vous êtes déjà amis.');
+    if (me.outgoing.includes(target.id)) throw new HttpError(409, 'Demande déjà envoyée.');
+    if (me.incoming.includes(target.id)) befriend(); // il t'avait déjà invité : c'est accepté
+    else { add(me.outgoing, target.id); add(target.incoming, me.id); }
+  } else if (action === 'accept') {
+    if (!me.incoming.includes(target.id)) throw new HttpError(404, 'Aucune demande de cette personne.');
+    befriend();
+  } else if (action === 'decline') {
+    rm(me.incoming, target.id); rm(target.outgoing, me.id);
+  } else if (action === 'cancel') {
+    rm(me.outgoing, target.id); rm(target.incoming, me.id);
+  } else { // remove
+    rm(me.friends, target.id); rm(target.friends, me.id);
+  }
+
+  try {
+    await persist();
+  } catch (err) {
+    for (const x of snapshot) Object.assign(x.u, { friends: x.friends, incoming: x.incoming, outgoing: x.outgoing });
+    console.error('Amis :', err.message);
+    throw new HttpError(500, 'Action impossible pour le moment.');
+  }
+  return send(res, 200, listFriends(me));
+}
+
+const ROUTES = new Set(['/api/me', '/api/signup', '/api/login', '/api/logout', '/api/data', '/api/username']);
 
 // Renvoie true si la requête a été traitée ici
 export async function handleAuth(req, res, url) {
   const path = url.pathname;
-  if (!ROUTES.has(path)) return false;
+  const isFriends = path === '/api/friends' || path.startsWith('/api/friends/');
+  if (!ROUTES.has(path) && !isFriends) return false;
 
   try {
     if (path === '/api/me') {
       if (req.method !== 'GET') throw new HttpError(405, 'Méthode non autorisée.');
       return send(res, 200, { user: publicUser(currentUser(req)) });
+    }
+
+    if (isFriends) {
+      const me = currentUser(req);
+      if (!me) throw new HttpError(401, 'Connecte-toi pour utiliser les amis.');
+      return await handleFriends(req, res, url, me);
+    }
+
+    if (path === '/api/data') {
+      const me = currentUser(req);
+      if (!me) throw new HttpError(401, 'Connecte-toi pour retrouver tes données.');
+      // fresh : rien n'a encore jamais été enregistré pour ce compte (le navigateur peut alors alimenter le compte)
+      if (req.method === 'GET') return send(res, 200, { data: me.data || cleanData({}), fresh: !me.data });
+      if (req.method !== 'PUT') throw new HttpError(405, 'Méthode non autorisée.');
+      if (!sameSiteJson(req)) throw new HttpError(400, 'Requête invalide.');
+      if (tooManyWrites(me.id)) throw new HttpError(429, 'Trop de sauvegardes, réessaie dans une minute.');
+      const previous = me.data;
+      me.data = cleanData(await readJson(req, 400_000));
+      try {
+        await persist();
+      } catch (err) {
+        me.data = previous;
+        console.error('Sauvegarde des données du compte :', err.message);
+        throw new HttpError(500, 'Sauvegarde impossible pour le moment.');
+      }
+      return send(res, 200, { ok: true });
     }
 
     if (req.method !== 'POST') throw new HttpError(405, 'Méthode non autorisée.');
@@ -224,29 +389,49 @@ export async function handleAuth(req, res, url) {
     }
 
     if (tooManyFromIp(clientIp(req))) throw new HttpError(429, 'Trop de tentatives, réessaie dans quelques minutes.');
+    // Choix de l'identifiant pour un compte qui n'en a pas encore (comptes créés avant qu'il soit obligatoire)
+    if (path === '/api/username') {
+      const me = currentUser(req);
+      if (!me) throw new HttpError(401, 'Connecte-toi d’abord.');
+      if (me.username) throw new HttpError(409, 'Tu as déjà un identifiant.');
+      const username = String((await readJson(req)).username || '').trim();
+      if (!validUsername(username)) throw new HttpError(400, USERNAME_HELP);
+      if (usersByLogin.has(username.toLowerCase())) throw new HttpError(409, 'Cet identifiant est déjà pris.');
+      me.username = username;
+      indexUser(me);
+      try {
+        await persist();
+      } catch (err) {
+        usersByLogin.delete(username.toLowerCase());
+        delete me.username;
+        console.error('Identifiant :', err.message);
+        throw new HttpError(500, 'Impossible d’enregistrer l’identifiant pour le moment.');
+      }
+      return send(res, 200, { user: publicUser(me) });
+    }
+
     const body = await readJson(req);
     const password = body.password;
 
     if (path === '/api/signup') {
       const email = normEmail(body.email);
       const username = String(body.username || '').trim();
-      if (!email && !username) throw new HttpError(400, 'Choisis un identifiant ou renseigne une adresse e-mail.');
+      if (!username) throw new HttpError(400, 'Choisis un identifiant.');
       if (email && !validEmail(email)) throw new HttpError(400, 'Adresse e-mail invalide.');
-      if (username && !validUsername(username)) throw new HttpError(400, 'Identifiant invalide : 3 à 30 caractères, avec des lettres, chiffres, points, tirets ou underscores.');
+      if (!validUsername(username)) throw new HttpError(400, USERNAME_HELP);
       if (typeof password !== 'string' || password.length < 1) throw new HttpError(400, 'Choisis un mot de passe.');
       if (password.length > 128) throw new HttpError(400, 'Le mot de passe est trop long (128 caractères maximum).');
 
       const checkFree = () => {
         if (email && usersByLogin.has(email)) throw new HttpError(409, 'Un compte existe déjà avec cet e-mail. Connecte-toi plutôt.');
-        if (username && usersByLogin.has(username.toLowerCase())) throw new HttpError(409, 'Cet identifiant est déjà pris.');
+        if (usersByLogin.has(username.toLowerCase())) throw new HttpError(409, 'Cet identifiant est déjà pris.');
       };
       checkFree();
       const hash = await hashPassword(password);
       checkFree(); // au cas où une autre requête l'aurait pris entre-temps
 
-      const user = { id: randomUUID(), hash, createdAt: new Date().toISOString() };
+      const user = { id: randomUUID(), username, hash, createdAt: new Date().toISOString() };
       if (email) user.email = email;
-      if (username) user.username = username;
       usersById.set(user.id, user);
       indexUser(user);
       const token = createSession(user.id);
