@@ -3,7 +3,7 @@ import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
 import { join, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { handleAuth } from './auth.js';
+import { handleAuth, clientIp } from './auth.js';
 
 // Charge le fichier .env s'il existe (le jeton Genius y est facultatif, voir README).
 try { process.loadEnvFile(); } catch { /* pas de .env : pas grave */ }
@@ -240,7 +240,7 @@ const server = createServer(async (req, res) => {
   if (await handleAuth(req, res, url)) return;
 
   if (url.pathname === '/api/search') {
-    const ip = req.socket.remoteAddress || 'inconnu';
+    const ip = clientIp(req);
     if (tooMany(ip)) return sendJson(res, 429, { error: 'Trop de recherches, réessaie dans une minute.' });
 
     const q = (url.searchParams.get('q') || '').trim().slice(0, 200);
@@ -255,7 +255,7 @@ const server = createServer(async (req, res) => {
   }
 
   if (url.pathname === '/api/lyrics') {
-    const ip = req.socket.remoteAddress || 'inconnu';
+    const ip = clientIp(req);
     if (tooMany(ip)) return sendJson(res, 429, { error: 'Trop de recherches, réessaie dans une minute.' });
 
     const title = (url.searchParams.get('title') || '').trim().slice(0, 200);
