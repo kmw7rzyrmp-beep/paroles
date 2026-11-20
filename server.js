@@ -149,6 +149,39 @@ async function findPreview(title, artist) {
   return preview;
 }
 
+// 4) Paroles via LRCLIB (API publique et gratuite, sans clé)
+const lyricsCache = new Map();
+
+async function findLyrics(title, artist) {
+  if (DEMO) return 'Paroles d’exemple.\nCeci est le mode démo.';
+  const key = norm(title + artist);
+  if (lyricsCache.has(key)) return lyricsCache.get(key);
+
+  const base = 'https://lrclib.net/api/search';
+  const tries = [
+    `${base}?${new URLSearchParams({ track_name: title, artist_name: artist })}`,
+    `${base}?${new URLSearchParams({ q: `${title} ${artist}` })}`,
+  ];
+  let lyrics = '';
+  let failed = false;
+  for (const u of tries) {
+    try {
+      const list = await getJson(u, 'LRCLIB');
+      const m = (Array.isArray(list) ? list : []).find((r) => r.plainLyrics && sameSong(title, artist, r.trackName, r.artistName));
+      if (m) { lyrics = m.plainLyrics.trim(); break; }
+    } catch (err) {
+      failed = true;
+      console.error('Paroles :', err.message);
+    }
+  }
+  console.log(`Paroles « ${title} » (${artist}) : ${lyrics ? 'trouvées' : 'aucune'}`);
+
+  if (!lyrics && failed) return '';
+  if (lyricsCache.size >= CACHE_MAX) lyricsCache.delete(lyricsCache.keys().next().value);
+  lyricsCache.set(key, lyrics);
+  return lyrics;
+}
+
 async function searchLyrics(q) {
   if (DEMO) return { demo: true, results: DEMO_RESULTS };
 
@@ -197,6 +230,22 @@ const server = createServer(async (req, res) => {
     } catch (err) {
       console.error('Erreur de recherche :', err.message);
       return sendJson(res, 502, { error: 'Le service de paroles ne répond pas. Réessaie dans un instant.' });
+    }
+  }
+
+  if (url.pathname === '/api/lyrics') {
+    const ip = req.socket.remoteAddress || 'inconnu';
+    if (tooMany(ip)) return sendJson(res, 429, { error: 'Trop de recherches, réessaie dans une minute.' });
+
+    const title = (url.searchParams.get('title') || '').trim().slice(0, 200);
+    const artist = (url.searchParams.get('artist') || '').trim().slice(0, 200);
+    if (!title) return sendJson(res, 400, { error: 'Titre manquant.' });
+
+    try {
+      return sendJson(res, 200, { lyrics: await findLyrics(title, artist) });
+    } catch (err) {
+      console.error('Erreur paroles :', err.message);
+      return sendJson(res, 502, { error: 'Le service de paroles ne répond pas.' });
     }
   }
 
