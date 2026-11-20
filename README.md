@@ -1,4 +1,4 @@
-# Recherche de chanson par paroles
+# Star Song : recherche de chanson par paroles
 
 Tape quelques paroles, le site affiche le titre, l'artiste et la pochette de la chanson (via Genius).
 
