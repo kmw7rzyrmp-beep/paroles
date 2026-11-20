@@ -114,6 +114,15 @@
   a.open { color: var(--blood-hi); font-weight: 500; text-decoration: underline; text-underline-offset: 3px; }
   a.open:hover { color: var(--bone); }
 
+  .play {
+    display: inline-flex; align-items: center; gap: .5rem;
+    margin: .6rem 0 0; padding: .4rem .9rem;
+    background: transparent; color: var(--bone);
+    border: 1px solid var(--blood); border-radius: 2px;
+    font: 500 .9rem var(--body);
+  }
+  .play:hover, .play[aria-pressed="true"] { background: var(--blood); }
+
   .reveal { animation: rise .25s ease-out; }
   @keyframes rise { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
   @media (prefers-reduced-motion: reduce) { .reveal { animation: none; } }
@@ -162,7 +171,39 @@
     statusEl.classList.toggle('error', isError);
   }
 
+  // --- Lecture des extraits (un seul à la fois) ---
+  const audio = new Audio();
+  let currentBtn = null;
+
+  function resetBtn(btn) {
+    if (!btn) return;
+    btn.textContent = '▶ Écouter un extrait';
+    btn.setAttribute('aria-pressed', 'false');
+  }
+
+  function stopPreview() {
+    audio.pause();
+    resetBtn(currentBtn);
+    currentBtn = null;
+  }
+
+  function togglePreview(btn, src, title) {
+    if (currentBtn === btn) { stopPreview(); return; }
+    stopPreview();
+    currentBtn = btn;
+    audio.src = src;
+    btn.textContent = '⏸ Pause';
+    btn.setAttribute('aria-pressed', 'true');
+    audio.play().catch(() => {
+      stopPreview();
+      setStatus('Impossible de lire l’extrait de « ' + title + ' ».', true);
+    });
+  }
+
+  audio.addEventListener('ended', stopPreview);
+
   function render(results) {
+    stopPreview();
     list.replaceChildren();
     for (const r of results) {
       const li = document.createElement('li');
@@ -190,6 +231,16 @@
       meta.className = 'meta';
       meta.textContent = r.artist;
       text.append(title, meta);
+
+      if (r.preview && /^https:\/\//.test(r.preview)) {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'play';
+        btn.setAttribute('aria-pressed', 'false');
+        btn.textContent = '▶ Écouter un extrait';
+        btn.addEventListener('click', () => togglePreview(btn, r.preview, r.title));
+        text.append(btn);
+      }
 
       li.append(disc, text);
 
@@ -242,4 +293,3 @@
 </script>
 </body>
 </html>
-
