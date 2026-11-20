@@ -1,5 +1,5 @@
 {
-  "name": "recherche-paroles",
+  "name": "star-song",
   "version": "1.1.0",
   "description": "Retrouve le titre d'une chanson à partir de quelques paroles.",
   "type": "module",
