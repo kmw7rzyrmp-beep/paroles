@@ -205,9 +205,8 @@
   dialog { width: min(26rem, calc(100vw - 1.5rem)); padding: 0; background: var(--surface); color: var(--text); border: 1px solid var(--edge); border-radius: 12px; }
   dialog::backdrop { background: rgba(0, 0, 0, .7); }
   .auth { padding: 1.75rem 1.5rem; }
-  .auth h2 { margin: 0 0 1rem; font: 800 1.4rem/1.2 var(--body); }
+  .auth h2 { margin: 0; font: 800 1.4rem/1.2 var(--body); }
   .auth label { margin-top: 1rem; }
-  .auth h2 + div > label:first-child { margin-top: 0; }
   .opt { color: var(--muted); font-weight: 400; }
   .auth input {
     display: block; width: 100%; min-height: 3rem;
@@ -219,6 +218,28 @@
   .auth-error { min-height: 1.5rem; margin: .75rem 0 .25rem; color: var(--danger); }
   .auth-actions { display: flex; flex-wrap: wrap; gap: .5rem; }
   .auth-switch { margin: .75rem 0 0; }
+
+  /* Amis */
+  .friends { margin: 1.25rem 0 .5rem; }
+  .friends[hidden] { display: none; }
+  .friends input[type="text"] {
+    flex: 1; min-width: 0; min-height: 3rem;
+    border: 2px solid var(--edge); border-radius: 8px; background: var(--bg);
+    font: 500 1.05rem/1.3 var(--body); color: var(--text);
+    padding: .6rem 1rem; caret-color: var(--accent);
+  }
+  .friends input[type="text"]:focus { border-color: var(--accent); outline: none; }
+  .friends h2 { font: 700 1.05rem var(--body); margin: 1.5rem 0 .5rem; }
+  .friends h3 { font: 600 .95rem var(--body); color: var(--muted); margin: 1rem 0 .25rem; }
+  .friend-list { list-style: none; margin: 0; padding: 0; }
+  .friend-item { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .5rem; padding: .6rem 0; border-top: 1px solid var(--line); }
+  .friend-item:last-child { border-bottom: 1px solid var(--line); }
+  .friend-name { font-weight: 700; overflow-wrap: anywhere; }
+  .friend-actions { display: flex; flex-wrap: wrap; gap: .5rem; }
+  .friend-actions button { min-height: 2.25rem; padding: .35rem .9rem; font-size: .9rem; }
+  .friend-empty { color: var(--muted); margin: .5rem 0 0; }
+  .friend-detail { margin-top: 1.5rem; padding-top: .5rem; border-top: 2px solid var(--accent); }
+  .friend-detail[hidden] { display: none; }
 
   .reveal { animation: rise .25s ease-out; }
   @keyframes rise { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
@@ -243,6 +264,7 @@
     <p class="brand"><span aria-hidden="true">★</span> Star Song</p>
     <div class="account" id="account">
       <span id="accountEmail" class="account-email" hidden></span>
+      <button id="usernameBtn" type="button" hidden>Choisir un identifiant</button>
       <button id="loginBtn" class="ghost" type="button" hidden>Se connecter</button>
       <button id="signupBtn" type="button" hidden>Créer un compte</button>
       <button id="logoutBtn" class="ghost" type="button" hidden>Se déconnecter</button>
@@ -263,10 +285,31 @@
   <div class="tabs" role="tablist" aria-label="Affichage">
     <button id="tabSearch" class="tab" type="button" role="tab" aria-selected="true">Résultats</button>
     <button id="tabFavs" class="tab" type="button" role="tab" aria-selected="false">★ Favoris <span id="favCount"></span></button>
+    <button id="tabFriends" class="tab" type="button" role="tab" aria-selected="false" hidden>Amis <span id="friendCount"></span></button>
   </div>
 
   <p id="status" role="status" aria-live="polite"></p>
   <div id="demo" class="demo" hidden>Mode démo : ces résultats sont fictifs. Lance le site avec « npm start » pour obtenir de vraies chansons.</div>
+  <section id="friendsView" class="friends" hidden aria-label="Amis">
+    <form id="friendForm">
+      <label for="friendName">Ajouter un ami avec son identifiant</label>
+      <div class="field">
+        <input id="friendName" type="text" autocomplete="off" maxlength="30" autocapitalize="none" spellcheck="false" placeholder="Identifiant de ton ami" required>
+        <button type="submit">Inviter</button>
+      </div>
+      <p class="hint">Vos favoris et vos historiques de recherche sont visibles entre amis, une fois la demande acceptée.</p>
+    </form>
+    <div id="friendIncoming"></div>
+    <div id="friendOutgoing"></div>
+    <h2>Mes amis</h2>
+    <ul id="friendList" class="friend-list"></ul>
+    <div id="friendDetail" class="friend-detail" hidden>
+      <h2 id="friendDetailTitle"></h2>
+      <h3>Dernières recherches</h3>
+      <ul id="friendHist" class="friend-list"></ul>
+      <h3>Favoris (affichés ci-dessous)</h3>
+    </div>
+  </section>
   <ol id="results"></ol>
   <p id="stat" class="stat" role="status" hidden></p>
 </main>
@@ -287,24 +330,28 @@
   <form id="authForm" class="auth">
     <h2 id="authTitle">Créer un compte</h2>
     <div id="signupFields">
-      <label for="authUsername">Identifiant <span class="opt">(facultatif)</span></label>
+      <label for="authUsername">Identifiant</label>
       <input id="authUsername" name="username" type="text" autocomplete="username" maxlength="30" autocapitalize="none" spellcheck="false">
-      <label for="authEmail">Adresse e-mail <span class="opt">(facultative)</span></label>
-      <input id="authEmail" name="email" type="email" autocomplete="email" maxlength="254">
-      <p class="hint">Renseigne au moins l’un des deux : tu pourras te connecter avec celui que tu veux.</p>
+      <div id="emailField">
+        <label for="authEmail">Adresse e-mail <span class="opt">(facultative)</span></label>
+        <input id="authEmail" name="email" type="email" autocomplete="email" maxlength="254">
+      </div>
+      <p id="authHint" class="hint"></p>
     </div>
     <div id="loginFields" hidden>
       <label for="authLogin">Identifiant ou adresse e-mail</label>
       <input id="authLogin" name="login" type="text" autocomplete="username" maxlength="254" autocapitalize="none" spellcheck="false">
     </div>
-    <label for="authPassword">Mot de passe</label>
-    <input id="authPassword" name="password" type="password" autocomplete="new-password" maxlength="128" required>
+    <div id="passwordField">
+      <label for="authPassword">Mot de passe</label>
+      <input id="authPassword" name="password" type="password" autocomplete="new-password" maxlength="128" required>
+    </div>
     <p id="authError" class="auth-error" role="alert"></p>
     <div class="auth-actions">
       <button id="authSubmit" type="submit">Créer mon compte</button>
       <button id="authCancel" class="ghost" type="button">Annuler</button>
     </div>
-    <p class="auth-switch"><button id="authSwitch" class="linkbtn" type="button">J’ai déjà un compte</button></p>
+    <p id="authSwitchP" class="auth-switch"><button id="authSwitch" class="linkbtn" type="button">J’ai déjà un compte</button></p>
   </form>
 </dialog>
 
@@ -893,7 +940,7 @@
     if (controller) controller.abort();
 
     if (q.length < 3) {
-      if (view === 'favs') return; // on laisse la liste des favoris affichée
+      if (view === 'favs' || view === 'friends') return; // on laisse la liste affichée
       list.replaceChildren();
       demo.hidden = true;
       setStatus(q.length ? 'Tape au moins 3 caractères.' : '');
@@ -999,10 +1046,15 @@
     tabSearch.disabled = input.value.trim() === '';
   }
 
+  const tabFriends = document.getElementById('tabFriends');
+  const friendsView = document.getElementById('friendsView');
+
   function setView(v) {
     view = v;
     tabSearch.setAttribute('aria-selected', v === 'search' ? 'true' : 'false');
     tabFavs.setAttribute('aria-selected', v === 'favs' ? 'true' : 'false');
+    tabFriends.setAttribute('aria-selected', v === 'friends' ? 'true' : 'false');
+    friendsView.hidden = v !== 'friends';
   }
 
   tabFavs.addEventListener('click', () => {
@@ -1118,6 +1170,11 @@
   const loginFields = document.getElementById('loginFields');
   const authPassword = document.getElementById('authPassword');
   const authError = document.getElementById('authError');
+  const authHint = document.getElementById('authHint');
+  const emailField = document.getElementById('emailField');
+  const passwordField = document.getElementById('passwordField');
+  const authSwitchP = document.getElementById('authSwitchP');
+  const usernameBtn = document.getElementById('usernameBtn');
   const authSubmit = document.getElementById('authSubmit');
   const authSwitch = document.getElementById('authSwitch');
   let authMode = 'signup';
@@ -1125,6 +1182,8 @@
   function renderAccount() {
     loginBtn.hidden = signupBtn.hidden = !!account;
     logoutBtn.hidden = accountEmail.hidden = !account;
+    usernameBtn.hidden = !account || !!account.username;
+    tabFriends.hidden = !(account && account.username);
     accountEmail.textContent = account ? account.name : '';
     accountEmail.title = account ? account.name : '';
   }
@@ -1145,13 +1204,23 @@
   function setAuthMode(mode) {
     authMode = mode;
     const signup = mode === 'signup';
-    authTitle.textContent = signup ? 'Créer un compte' : 'Se connecter';
-    authSubmit.textContent = signup ? 'Créer mon compte' : 'Se connecter';
+    const login = mode === 'login';
+    const setname = mode === 'setname';
+    authTitle.textContent = signup ? 'Créer un compte' : login ? 'Se connecter' : 'Choisis ton identifiant';
+    authSubmit.textContent = signup ? 'Créer mon compte' : login ? 'Se connecter' : 'Enregistrer';
     authSwitch.textContent = signup ? 'J’ai déjà un compte' : 'Pas encore de compte ? En créer un';
+    authSwitchP.hidden = setname;
+    signupFields.hidden = login;
+    emailField.hidden = !signup;
+    passwordField.hidden = setname;
+    loginFields.hidden = !login;
+    authUsername.required = !login;
+    authLogin.required = login;
+    authPassword.required = !setname;
     authPassword.autocomplete = signup ? 'new-password' : 'current-password';
-    signupFields.hidden = !signup;
-    loginFields.hidden = signup;
-    authLogin.required = !signup;
+    authHint.textContent = setname
+      ? 'Ton identifiant permet à tes amis de te retrouver. Une fois choisi, il ne peut plus être changé.'
+      : 'Ton identifiant sert à te connecter et à être retrouvé par tes amis. L’e-mail est facultatif : tu pourras te connecter avec l’un ou l’autre.';
     authError.textContent = '';
   }
 
@@ -1238,6 +1307,7 @@
   function sessionExpired() {
     account = null;
     renderAccount();
+    resetFriends();
     setStatus('Ta session a expiré : reconnecte-toi pour retrouver tes données.', true);
   }
 
@@ -1285,6 +1355,212 @@
     }
   });
 
+  // --- Amis ---
+  const friendCountEl = document.getElementById('friendCount');
+  const friendForm = document.getElementById('friendForm');
+  const friendName = document.getElementById('friendName');
+  const friendIncoming = document.getElementById('friendIncoming');
+  const friendOutgoing = document.getElementById('friendOutgoing');
+  const friendList = document.getElementById('friendList');
+  const friendDetail = document.getElementById('friendDetail');
+  const friendDetailTitle = document.getElementById('friendDetailTitle');
+  const friendHist = document.getElementById('friendHist');
+  let friends = { friends: [], incoming: [], outgoing: [] };
+  let selectedFriend = null;
+
+  async function friendsApi(path, body) {
+    const opts = body ? { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) } : {};
+    let res;
+    try {
+      res = await fetch(path, opts);
+    } catch {
+      throw new Error('Connexion impossible. Réessaie dans un instant.');
+    }
+    let data = {};
+    try { data = await res.json(); } catch { /* réponse vide */ }
+    if (res.status === 401) { sessionExpired(); throw new Error(data.error || 'Session expirée.'); }
+    if (!res.ok) throw new Error(data.error || 'Une erreur est survenue.');
+    return data;
+  }
+
+  function resetFriends() {
+    friends = { friends: [], incoming: [], outgoing: [] };
+    selectedFriend = null;
+    friendDetail.hidden = true;
+    friendCountEl.textContent = '';
+    if (view === 'friends') {
+      setView('search');
+      stopCurrent();
+      list.replaceChildren();
+      setStatus('');
+    }
+  }
+
+  function closeFriend() {
+    selectedFriend = null;
+    friendDetail.hidden = true;
+    stopCurrent();
+    list.replaceChildren();
+  }
+
+  function mkBtn(label, onClick, ghost) {
+    const b = document.createElement('button');
+    b.type = 'button';
+    if (ghost) b.className = 'ghost';
+    b.textContent = label;
+    b.addEventListener('click', onClick);
+    return b;
+  }
+
+  function friendRow(name, buttons, label) {
+    const li = document.createElement('li');
+    li.className = 'friend-item';
+    const n = document.createElement('span');
+    n.className = 'friend-name';
+    n.textContent = label ? label + name : name;
+    const actions = document.createElement('div');
+    actions.className = 'friend-actions';
+    actions.append(...buttons);
+    li.append(n, actions);
+    return li;
+  }
+
+  function friendSection(container, title, rows) {
+    container.replaceChildren();
+    if (!rows.length) return;
+    const h = document.createElement('h2');
+    h.textContent = title;
+    const ul = document.createElement('ul');
+    ul.className = 'friend-list';
+    ul.append(...rows);
+    container.append(h, ul);
+  }
+
+  function renderFriends() {
+    const n = friends.incoming.length;
+    friendCountEl.textContent = n ? '(' + n + ')' : '';
+    if (view !== 'friends') return;
+
+    friendSection(friendIncoming, 'Demandes reçues', friends.incoming.map((f) => friendRow(f.username, [
+      mkBtn('Accepter', () => friendAction('accept', f.username)),
+      mkBtn('Refuser', () => friendAction('decline', f.username), true),
+    ])));
+    friendSection(friendOutgoing, 'Demandes envoyées', friends.outgoing.map((f) => friendRow(f.username, [
+      mkBtn('Annuler', () => friendAction('cancel', f.username), true),
+    ], 'En attente : ')));
+
+    friendList.replaceChildren();
+    if (!friends.friends.length) {
+      const p = document.createElement('li');
+      p.className = 'friend-empty';
+      p.textContent = 'Aucun ami pour l’instant. Invite quelqu’un avec son identifiant.';
+      friendList.append(p);
+    }
+    for (const f of friends.friends) {
+      friendList.append(friendRow(f.username, [
+        mkBtn(selectedFriend === f.username ? 'Fermer' : 'Voir', () => (selectedFriend === f.username ? (closeFriend(), renderFriends()) : openFriend(f.username))),
+        mkBtn('Retirer', () => { if (confirm('Retirer ' + f.username + ' de tes amis ?')) friendAction('remove', f.username); }, true),
+      ]));
+    }
+  }
+
+  async function loadFriends() {
+    if (!account || !account.username) { resetFriends(); return; }
+    try {
+      friends = await friendsApi('/api/friends');
+      renderFriends();
+    } catch { /* pas grave : on réessaiera */ }
+  }
+
+  async function friendAction(action, name) {
+    try {
+      friends = await friendsApi('/api/friends/' + action, { username: name });
+      if (action === 'remove' && selectedFriend && selectedFriend.toLowerCase() === name.toLowerCase()) closeFriend();
+      renderFriends();
+      if (action === 'request') {
+        setStatus(friends.friends.some((f) => f.username.toLowerCase() === name.toLowerCase())
+          ? 'Vous êtes maintenant amis !' : 'Demande envoyée à ' + name + '.');
+      } else if (action === 'accept') {
+        setStatus(name + ' est maintenant ton ami.');
+      } else {
+        setStatus('');
+      }
+      return true;
+    } catch (err) {
+      setStatus(err.message, true);
+      return false;
+    }
+  }
+
+  async function openFriend(name) {
+    try {
+      const d = await friendsApi('/api/friends/data?username=' + encodeURIComponent(name));
+      selectedFriend = d.username;
+      friendDetail.hidden = false;
+      friendDetailTitle.textContent = 'Chez ' + d.username;
+
+      friendHist.replaceChildren();
+      if (!d.history.length) {
+        const p = document.createElement('li');
+        p.className = 'friend-empty';
+        p.textContent = 'Aucune recherche pour l’instant.';
+        friendHist.append(p);
+      }
+      for (const x of d.history) {
+        const li = document.createElement('li');
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'hist-item';
+        const t = document.createElement('span');
+        t.className = 'hist-title';
+        t.textContent = x.title;
+        const m = document.createElement('span');
+        m.className = 'hist-meta';
+        m.textContent = (x.artist ? x.artist + ' · ' : '') + '« ' + x.q + ' »';
+        b.append(t, m);
+        b.addEventListener('click', () => {
+          input.value = x.q;
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+          search();
+        });
+        li.append(b);
+        friendHist.append(li);
+      }
+
+      render(d.favorites, ytAvail);
+      setStatus(d.favorites.length
+        ? d.username + ' a ' + (d.favorites.length === 1 ? '1 son en favori.' : d.favorites.length + ' sons en favoris.')
+        : d.username + ' n’a pas encore de favori.');
+      renderFriends();
+    } catch (err) {
+      setStatus(err.message, true);
+    }
+  }
+
+  tabFriends.addEventListener('click', () => {
+    if (controller) controller.abort();
+    clearTimeout(timer);
+    stopCurrent();
+    setView('friends');
+    demo.hidden = true;
+    list.replaceChildren();
+    setStatus('');
+    selectedFriend = null;
+    friendDetail.hidden = true;
+    renderFriends();
+    loadFriends();
+  });
+
+  friendForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const name = friendName.value.trim();
+    if (name && await friendAction('request', name)) friendName.value = '';
+  });
+
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible' && account && account.username) loadFriends();
+  });
+
   loginBtn.addEventListener('click', () => openAuth('login'));
   signupBtn.addEventListener('click', () => openAuth('signup'));
   authSwitch.addEventListener('click', () => setAuthMode(authMode === 'signup' ? 'login' : 'signup'));
@@ -1295,19 +1571,30 @@
     e.preventDefault();
     authError.textContent = '';
     authSubmit.disabled = true;
+    const mode = authMode;
     try {
-      const data = await authRequest(
-        authMode === 'signup' ? '/api/signup' : '/api/login',
-        authMode === 'signup'
-          ? { username: authUsername.value, email: authEmail.value, password: authPassword.value }
-          : { login: authLogin.value, password: authPassword.value }
-      );
+      let path;
+      let payload;
+      if (mode === 'signup') {
+        path = '/api/signup';
+        payload = { username: authUsername.value, email: authEmail.value, password: authPassword.value };
+      } else if (mode === 'login') {
+        path = '/api/login';
+        payload = { login: authLogin.value, password: authPassword.value };
+      } else {
+        path = '/api/username';
+        payload = { username: authUsername.value };
+      }
+      const data = await authRequest(path, payload);
       account = data.user;
       renderAccount();
       authForm.reset();
       authDialog.close();
-      // Les favoris, l'historique et la statistique faits avant la connexion rejoignent le compte
-      try { await pullAccountData(true); } catch { setStatus('Connecté, mais tes données n’ont pas pu être chargées. Recharge la page.', true); }
+      if (mode !== 'setname') {
+        // Les favoris, l'historique et la statistique faits avant la connexion rejoignent le compte
+        try { await pullAccountData(true); } catch { setStatus('Connecté, mais tes données n’ont pas pu être chargées. Recharge la page.', true); }
+      }
+      afterAccountReady();
     } catch (err) {
       authError.textContent = err.message;
     } finally {
@@ -1322,6 +1609,7 @@
       await authRequest('/api/logout', {});
       account = null;
       renderAccount();
+      resetFriends();
       // Sur cet appareil, on efface les données du compte pour la personne suivante
       applyData({ favorites: [], history: [], searches: 0, offsets: {} });
     } catch (err) {
@@ -1329,13 +1617,24 @@
     }
   });
 
+  usernameBtn.addEventListener('click', () => openAuth('setname'));
+
+  // Une fois connecté : amis, et choix de l'identifiant pour les comptes qui n'en ont pas encore
+  function afterAccountReady() {
+    loadFriends();
+    if (account && !account.username) openAuth('setname');
+  }
+
   fetch('/api/me')
     .then((r) => r.json())
     .then((d) => { account = d.user || null; })
     .catch(() => { account = null; })
-    .finally(() => {
+    .finally(async () => {
       renderAccount();
-      if (account) pullAccountData(false).catch(() => { /* on garde les données du navigateur */ });
+      if (account) {
+        await pullAccountData(false).catch(() => { /* on garde les données du navigateur */ });
+        afterAccountReady();
+      }
     });
 </script>
 </body>
