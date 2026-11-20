@@ -219,6 +219,7 @@
   .tabs { display: flex; gap: .5rem; margin: 1.75rem 0 0; }
   .tab { margin: 0; padding: .45rem .95rem; background: transparent; color: var(--bone); border: 1px solid var(--line); border-radius: 2px; font: 500 .9rem var(--body); transition: background .2s, border-color .2s; }
   .tab:hover { background: rgba(233, 229, 75, .12); }
+  .tab:disabled { opacity: .4; cursor: not-allowed; background: transparent; }
   .tab[aria-selected="true"] { background: var(--accent); border-color: var(--accent); color: var(--void); }
   #status { margin-top: 1rem; }
   @media (prefers-reduced-motion: reduce) { .star, .star.pop, .tab { animation: none; transition: none; } }
@@ -240,7 +241,7 @@
 <body>
 <div class="fog" aria-hidden="true"></div>
 <main>
-  <h1>T’es tëllement bêtë que t’as oublié lë nom du son ? Heureusëment qu’on ëst là</h1>
+  <h1 id="titre">T’es tëllement bêtë que t’as oublié lë nom du son ? Heureusëment qu’on ëst là</h1>
   <p class="intro">Tape quelquës mots que l’artistë chante, même approximatifs, ët on te donnë le titre.</p>
 
   <form id="form" role="search">
@@ -276,6 +277,118 @@
 </aside>
 
 <script>
+  // --- Grande phrase d'accroche : une différente à chaque visite (100 au choix) ---
+  const PHRASES = [
+    "Alors, t’as déjà oublié lë titre du son que tu cherchais ?",
+    "Lë titre ëst sur le bout de ta langue, hein ? Classique.",
+    "Tu connais les paroles mais pas le nom ? Quël talent.",
+    "T’as la mélodie dans la tête ët rien d’autre. Bravo.",
+    "Encore toi ? Ta mémoire a replanté ?",
+    "Pas de panique, on sait que t’as la mémoire d’un poisson rouge.",
+    "Tu fredonnes depuis ce matin sans savoir ce que tu chantes ?",
+    "Cerveau en vacances ? On s’en occupë.",
+    "Tu te souviens des paroles mais pas du titre. Logique.",
+    "Spécialiste des paroles approximatives, bienvenue.",
+    "Le son tourne dans ta tête, mais lë nom a déménagé ?",
+    "Oui, on a compris : « c’ëst le truc qui fait lalala ».",
+    "Ça fait combien de fois qu’on te sauve la mise ?",
+    "Ta mémoire a démissionné ? On prend lë relais.",
+    "Tu cherches un son que tu connais par cœur. Évidemment.",
+    "Bravo, t’as retenu les paroles ët oublié l’essentiel.",
+    "Le titre est pourtant évident, mais pas pour toi.",
+    "Encore un son qui te résiste ? Impressionnant.",
+    "Dis-nous tout, on a l’habitude des trous de mémoire.",
+    "Les paroles, tu les as. Le titre, aucune idée. Équilibre parfait.",
+    "Tu l’as écouté cent fois ët t’as toujours pas retenu le nom.",
+    "Tu vas encore nous dire « mais si, le truc là » ?",
+    "Allez, avouë : t’as juste la flemme de t’en souvenir.",
+    "Ton cerveau a les paroles, mais pas lë mode d’emploi.",
+    "Pas besoin de rougir, les trous de mémoire, ça arrive.",
+    "T’as aucune idée de ce que tu chantes, hein ?",
+    "Alors quoi, lë titre a pris la fuite ?",
+    "Redémarre ton cerveau, ou donne-nous les paroles.",
+    "T’inquiète, on ne juge personne. Enfin, presque.",
+    "Tu m’as l’air de quelqu’un qui chante faux lë refrain.",
+    "Oublier un titre, ça arrive. En oublier dix, c’ëst toi.",
+    "T’as vraiment tapé « lalala » comme paroles ?",
+    "La chanson tourne en boucle ët toi tu tournes en rond.",
+    "Tu fredonnes, on devine ! Enfin, tape plutôt.",
+    "Tu cherches un son ? Ou ta dignité ? On n’a que le son.",
+    "Encore quelqu’un qui chante sans savoir ce qu’il chante.",
+    "T’es lë genre à chanter les paroles fausses avec confiance.",
+    "Ça fait des jours que t’as ça dans la tête, avouë.",
+    "Tu veux qu’on te redonne le nom ? Pas de souci, viens.",
+    "Alors c’est toi, celui qui oublie tout ?",
+    "Ton cerveau a sorti un « euh » ? Nous, on a les réponses.",
+    "« Lë titre est sur le bout de ma langue », dit-il. Depuis trois jours.",
+    "Tu peux tout oublier, sauf les paroles. Priorités.",
+    "Encore un esprit brillant qui a perdu le nom du son.",
+    "On ëst le GPS de ta mémoire défaillante.",
+    "Ta mémoire est comme ton Wi-Fi : intermittente.",
+    "Quand lë titre se cache, c’est qu’il a honte de toi.",
+    "Dis-moi que t’as pas cherché « la chanson avec le gars ».",
+    "T’es pas lë premier à oublier, mais t’es le plus fier.",
+    "Tu connais l’air, tu connais les mots, mais pas lë nom. Poétique.",
+    "Déjà de retour ? Un autre titre a disparu ?",
+    "Une chanson de plus dans ta liste des oubliettes ?",
+    "Tu viens pour qu’on te redonne un nom ? C’est touchant.",
+    "Ça fait trois mois qu’il te hante, ce son. Normal que tu viennes ici.",
+    "Le moment où ta tête chante ët ta mémoire dort.",
+    "Un titre dans le brouillard ? On sort les phares.",
+    "Rassure-toi, t’es pas fou. Juste oublieux.",
+    "Tu as tout essayé, sauf d’écrire les paroles ici.",
+    "Ta mémoire a le rythme, mais pas lë titre. Bonne affaire.",
+    "Tu fais un peu pitié, mais on t’aide quand même.",
+    "Lë genre de problème qu’on règle en trois secondes.",
+    "Tu t’es dit « je m’en souviendrai », ët voilà.",
+    "Tu connais un truc, mais t’as aucune idée de ce que c’est.",
+    "Le titre, c’est pas compliqué. Sauf pour toi.",
+    "Allez, on te pardonne. Mais tape les paroles.",
+    "Même mon grand-père s’en souviendrait.",
+    "Ta mémoire est sélective, on dirait.",
+    "Ton cerveau fait des économies de mémoire. Bravo.",
+    "Voilà quelqu’un qui chante tout lë temps, mais jamais lë titre.",
+    "Ce son, c’est un classique. Ët toi, tu l’as oublié.",
+    "T’es pas nul. Juste un peu étourdi.",
+    "Arrête de fredonner, tape plutôt les mots.",
+    "Ça va, on a l’habitude des gens comme toi. Entre.",
+    "T’as l’air perdu. On a de quoi retrouver tes affaires.",
+    "Lë genre de requête qui nous fait rire chaque jour.",
+    "Tu veux le nom ? Dis « svp » ët tape les paroles.",
+    "Lë titre existe, prouve-le ët tape les paroles.",
+    "T’es devenu notre meilleur client. Félicitations.",
+    "Ça fait mal à l’amour-propre, hein ? Allez, on t’aide.",
+    "Un jour tu t’en souviendras. Pas aujourd’hui.",
+    "La chanson est célèbre, mais ton cerveau s’en fiche.",
+    "Tu peux pas être aussi nul que ça. Ah si.",
+    "T’as dit « je connais ». Alors dis-nous lë nom.",
+    "Encore toi, mon préféré des oublieux.",
+    "Entre nous : t’es vraiment sûr que c’ëst un vrai son ?",
+    "On t’attendait, tu sais.",
+    "T’as chanté ça faux, c’est sûr. Mais on t’aime bien.",
+    "Tu peux pas t’en souvenir ? Fais pas ta timide, tape.",
+    "Ton cerveau a pété un câble. On a lë tournevis.",
+    "Lë son ëst dans ta tête. Lë nom ëst dans notre base.",
+    "Certains chantent, d’autres oublient. Toi, tu fais les deux.",
+    "Ton cerveau a dit « jë m’en fiche ». Nous, on relève lë défi.",
+    "Tu as la mélodie, les paroles, la motivation... mais pas lë nom.",
+    "Depuis quand tu cherches ? Ne réponds pas, on a peur.",
+    "Franchement, t’aurais pu noter lë titre.",
+    "Ton historique de recherche a déjà honte pour toi.",
+    "On va faire comme si c’était la première fois.",
+    "Tu fredonnes mal ët tu cherches mal. Mais on est patients.",
+    "Allez, un petit effort : tape trois mots, pas un roman.",
+    "Ce son-là, tout lë monde lë connaît. Sauf toi."
+];
+  (function () {
+    let last = -1;
+    try { last = Number(localStorage.getItem('phraseIdx')); } catch { /* pas grave */ }
+    let i;
+    do { i = Math.floor(Math.random() * PHRASES.length); } while (i === last && PHRASES.length > 1);
+    document.getElementById('titre').textContent = PHRASES[i];
+    try { localStorage.setItem('phraseIdx', String(i)); } catch { /* pas grave */ }
+  })();
+
   const form = document.getElementById('form');
   const input = document.getElementById('q');
   const statusEl = document.getElementById('status');
@@ -727,6 +840,7 @@
 
   async function search() {
     const q = input.value.trim();
+    syncTabSearch();
     clearTimeout(timer);
     if (controller) controller.abort();
 
@@ -830,6 +944,11 @@
       : 'Aucun favori pour l’instant. Clique sur l’étoile ☆ à côté d’un son pour l’ajouter.');
   }
 
+  // L'onglet « Résultats » est inutilisable tant que la barre de recherche est vide
+  function syncTabSearch() {
+    tabSearch.disabled = input.value.trim() === '';
+  }
+
   function setView(v) {
     view = v;
     tabSearch.setAttribute('aria-selected', v === 'search' ? 'true' : 'false');
@@ -850,6 +969,8 @@
     else { stopCurrent(); list.replaceChildren(); setStatus(''); }
   });
   saveFavs();
+  syncTabSearch();
+  input.addEventListener('input', syncTabSearch);
 
   // --- Historique des sons recherchés (gardé dans le navigateur, 20 maximum) ---
   const histEl = document.getElementById('hist');
