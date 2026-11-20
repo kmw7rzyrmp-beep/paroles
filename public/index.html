@@ -158,7 +158,7 @@
   .stat strong.bump { animation: statpop .45s ease-out; }
   @keyframes statpop { 0% { transform: scale(1); } 40% { transform: scale(1.25); color: var(--accent-hi); } 100% { transform: scale(1); } }
 
-  .hist { position: fixed; left: 1rem; bottom: calc(1rem + env(safe-area-inset-bottom, 0px)); z-index: 20; display: flex; flex-direction: column; align-items: flex-start; gap: .5rem; max-width: calc(100vw - 2rem); }
+  .hist { position: fixed; right: 1rem; bottom: calc(1rem + env(safe-area-inset-bottom, 0px)); z-index: 20; display: flex; flex-direction: column; align-items: flex-end; gap: .5rem; max-width: calc(100vw - 2rem); }
   .hist[hidden] { display: none; }
   .hist-toggle { background: var(--surface); color: var(--text); border: 1px solid var(--edge); font: 600 .9rem var(--body); padding: .5rem .9rem; }
   .hist-toggle:hover, .hist-toggle[aria-expanded="true"] { background: var(--accent); border-color: var(--accent); color: #111; }
@@ -174,6 +174,20 @@
   .hist-item:hover { background: var(--surface-2); }
   .hist-title { display: block; font: 700 1rem/1.25 var(--body); }
   .hist-meta { display: block; color: var(--muted); font-size: .85rem; }
+
+  /* Bouton « CLIQUE VITE » (bas à gauche) */
+  .bait {
+    position: fixed; left: 1rem; bottom: calc(1rem + env(safe-area-inset-bottom, 0px)); z-index: 20;
+    display: inline-flex; align-items: center; min-height: 2.75rem; padding: .6rem 1.2rem;
+    background: #c8102e; color: #fff; border: 2px solid #fff; border-radius: 8px;
+    font: 800 1rem var(--body); letter-spacing: .04em; text-decoration: none;
+    animation: bait 1.2s ease-in-out infinite;
+  }
+  .bait:hover { background: #e3173a; }
+  @keyframes bait {
+    0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(200, 16, 46, .7); }
+    50% { transform: scale(1.08); box-shadow: 0 0 0 12px rgba(200, 16, 46, 0); }
+  }
 
   .reveal { animation: rise .25s ease-out; }
   @keyframes rise { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
@@ -228,6 +242,8 @@
   </div>
   <button id="histToggle" class="hist-toggle" type="button" aria-expanded="false" aria-controls="histPanel">↺ Historique <span id="histCount"></span></button>
 </aside>
+
+<a class="bait" href="https://www.youtube.com/watch?v=dQw4w9WgXcQ" target="_blank" rel="noopener noreferrer">CLIQUE VITE</a>
 
 <script>
   // --- Grande phrase d'accroche : une différente à chaque visite (100 au choix, thème rap) ---
