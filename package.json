@@ -1,0 +1,12 @@
+{
+  "name": "recherche-paroles",
+  "version": "1.1.0",
+  "description": "Retrouve le titre d'une chanson à partir de quelques paroles.",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "start": "node server.js",
+    "demo": "node server.js --demo"
+  },
+  "engines": { "node": ">=20.12" }
+}
