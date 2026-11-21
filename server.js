@@ -102,11 +102,19 @@ async function searchOfficial(q) {
 const previewCache = new Map();
 const norm = (s) => String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]/g, '');
 
-function sameSong(title, artist, candTitle, candArtist) {
-  const t = norm(title), a = norm(artist), ct = norm(candTitle), ca = norm(candArtist);
-  if (!t || !ct) return false;
-  const titleOk = ct.includes(t) || t.includes(ct);
-  const artistOk = !a || !ca || a.includes(ca) || ca.includes(a);
+// Compare mot par mot (et pas lettre par lettre) : « SCH » ne doit pas matcher « Schoolboy Q »,
+// et « Otto » ne doit pas matcher un son qui s'appelle « To ».
+const padWords = (s) => ' ' + String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
+  .replace(/[^a-z0-9]+/g, ' ').trim() + ' ';
+const coreTitle = (s) => padWords(String(s || '').replace(/\s*[([].*?[)\]]/g, '').replace(/\s+-\s+.*$/, ''));
+const hasWords = (big, small) => small.trim() !== '' && big.includes(small);
+
+function sameSong(title, artist, candTitle, candArtist, strict = false) {
+  const t = coreTitle(title), ct = coreTitle(candTitle);
+  if (!t.trim() || !ct.trim()) return false;
+  const a = padWords(artist), ca = padWords(candArtist);
+  const titleOk = strict ? t === ct : (hasWords(ct, t) || hasWords(t, ct));
+  const artistOk = !a.trim() || !ca.trim() || hasWords(ca, a) || hasWords(a, ca);
   return titleOk && artistOk;
 }
 
