@@ -262,7 +262,7 @@
       box.append(el('div', 'big', '—'), el('p', 'goal', board === 'streak' ? 'Ta flamme est éteinte : un blind test ou une recherche aujourd’hui la rallume.' : 'Tu n’es pas encore dans ce classement. Une partie suffit pour y entrer !'));
       const a = el('a', 'cta', 'Jouer maintenant'); a.href = '/blindtest'; box.append(a);
     } else {
-      const big = el('div', 'big', '#' + me.rank); big.append(el('small', '', `sur ${b.total}`));
+      const big = el('div', 'big', '#' + me.rank); big.append(el('small', '', `sur\u00a0${b.total}`));
       const pct = Math.max(1, Math.round((me.rank / b.total) * 100));
       box.append(big, el('span', 'rk-topchip', me.rank === 1 ? '👑 Numéro 1' : `Top ${pct} %`));
       const above = b.top.find((x) => x.rank === me.rank - 1);
