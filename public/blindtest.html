@@ -230,10 +230,24 @@
 
   /* ---------- Choix des artistes ---------- */
   .artists { margin-top: -1rem; }
-  .artists-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: .3rem 1rem; }
-  .artists-head .lbl { margin: 0 0 .45rem; }
+  /* la ligne repliée : discrète, un clic déplie la liste */
+  .artists-toggle {
+    display: flex; flex-wrap: wrap; align-items: baseline; gap: .2rem .5rem; width: 100%; min-height: 2.6rem; padding: .45rem .1rem; margin: 0;
+    background: none; border: 0; border-bottom: 1px dashed var(--ligne); border-radius: 0; box-shadow: none; color: var(--blanc); text-align: left; cursor: pointer;
+  }
+  .artists-toggle:active { transform: none; background: none; border-bottom-width: 1px; box-shadow: none; }
+  .artists-toggle .lbl { margin: 0; }
+  .artists-act { margin-left: auto; display: inline-flex; align-items: center; gap: .35rem; color: var(--jaune); font: 700 .92rem var(--texte); }
+  .artists-act::after { content: ""; width: .45rem; height: .45rem; border-right: 2px solid currentColor; border-bottom: 2px solid currentColor; transform: translateY(-2px) rotate(45deg); transition: transform .3s ease; }
+  .artists.open .artists-act::after { transform: translateY(1px) rotate(-135deg); }
+  .artists .when-open, .artists.open .when-closed { display: none; }
+  .artists.open .when-open { display: inline; }
+  .artists-body { display: grid; grid-template-rows: 0fr; opacity: 0; transition: grid-template-rows .35s ease, opacity .25s ease; }
+  .artists.open .artists-body { grid-template-rows: 1fr; opacity: 1; }
+  .artists-inner { overflow: hidden; min-height: 0; }
+  .artists:not(.open) .artists-inner { visibility: hidden; transition: visibility 0s .35s; }
   .artists-count { color: var(--gris); font-weight: 500; }
-  .artists-tools { display: inline-flex; gap: 1rem; }
+  .artists-tools { display: flex; gap: 1rem; margin: .7rem 0 .4rem; }
   .artists-tools[hidden] { display: none; }
   .artists-tools button { min-height: 2.2rem; padding: 0; background: none; border: 0; box-shadow: none; color: var(--jaune); font: 700 .92rem var(--texte); text-decoration: underline; text-underline-offset: 3px; }
   .artists-tools button:active { transform: none; background: none; }
@@ -328,12 +342,17 @@
       <p class="lbl">Catégorie</p>
       <div id="catChips" class="chips block" role="radiogroup" aria-label="Catégorie"></div>
       <div id="homeArtists" class="artists block" hidden>
-        <div class="artists-head">
-          <p class="lbl">Artistes <span class="artists-count"></span></p>
-          <span class="artists-tools"><button type="button" data-all>Tout cocher</button><button type="button" data-none>Tout décocher</button></span>
+        <button type="button" class="artists-toggle" aria-expanded="false">
+          <span class="lbl">Artistes</span> <span class="artists-count"></span>
+          <span class="artists-act"><span class="when-closed">Modifier</span><span class="when-open">Masquer</span></span>
+        </button>
+        <div class="artists-body">
+          <div class="artists-inner">
+            <span class="artists-tools"><button type="button" data-all>Tout cocher</button><button type="button" data-none>Tout décocher</button></span>
+            <input class="artists-search" type="search" placeholder="Chercher un artiste" aria-label="Chercher un artiste" hidden>
+            <div class="artist-chips" role="group" aria-label="Artistes à entendre"></div>
+          </div>
         </div>
-        <input class="artists-search" type="search" placeholder="Chercher un artiste" aria-label="Chercher un artiste" hidden>
-        <div class="artist-chips" role="group" aria-label="Artistes à entendre"></div>
       </div>
       <p class="lbl">Nombre de sons</p>
       <div id="roundChips" class="chips block" role="radiogroup" aria-label="Nombre de sons" style="width: fit-content"></div>
@@ -370,12 +389,17 @@
       <p class="lbl">Catégorie</p>
       <div id="lobbyCats" class="chips block" role="radiogroup" aria-label="Catégorie"></div>
       <div id="lobbyArtists" class="artists block" hidden>
-        <div class="artists-head">
-          <p class="lbl">Artistes <span class="artists-count"></span></p>
-          <span class="artists-tools"><button type="button" data-all>Tout cocher</button><button type="button" data-none>Tout décocher</button></span>
+        <button type="button" class="artists-toggle" aria-expanded="false">
+          <span class="lbl">Artistes</span> <span class="artists-count"></span>
+          <span class="artists-act"><span class="when-closed">Modifier</span><span class="when-open">Masquer</span></span>
+        </button>
+        <div class="artists-body">
+          <div class="artists-inner">
+            <span class="artists-tools"><button type="button" data-all>Tout cocher</button><button type="button" data-none>Tout décocher</button></span>
+            <input class="artists-search" type="search" placeholder="Chercher un artiste" aria-label="Chercher un artiste" hidden>
+            <div class="artist-chips" role="group" aria-label="Artistes à entendre"></div>
+          </div>
         </div>
-        <input class="artists-search" type="search" placeholder="Chercher un artiste" aria-label="Chercher un artiste" hidden>
-        <div class="artist-chips" role="group" aria-label="Artistes à entendre"></div>
       </div>
       <p class="lbl">Nombre de sons</p>
       <div id="lobbyRounds" class="chips block" role="radiogroup" aria-label="Nombre de sons" style="width: fit-content"></div>
@@ -545,6 +569,20 @@
       return b;
     }));
     search.oninput = () => artistPicker(box, catId, sel, onChange, readOnly);
+  }
+
+  // la liste des artistes est repliée de base ; on retient si l'utilisateur l'a ouverte
+  let artistsOpen = false;
+  try { artistsOpen = localStorage.getItem('bt-artists-open') === '1'; } catch {}
+  for (const box of document.querySelectorAll('.artists')) {
+    const btn = box.querySelector('.artists-toggle');
+    const draw = () => { box.classList.toggle('open', artistsOpen); btn.setAttribute('aria-expanded', String(artistsOpen)); };
+    btn.addEventListener('click', () => {
+      artistsOpen = !artistsOpen;
+      try { localStorage.setItem('bt-artists-open', artistsOpen ? '1' : '0'); } catch {}
+      document.querySelectorAll('.artists').forEach((b) => { b.classList.toggle('open', artistsOpen); b.querySelector('.artists-toggle').setAttribute('aria-expanded', String(artistsOpen)); });
+    });
+    draw();
   }
 
   // chaque bouton de niveau garde sa couleur (vert, orange, rouge)
