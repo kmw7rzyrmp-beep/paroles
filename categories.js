@@ -3,6 +3,11 @@
 // Pour créer une catégorie : copie un bloc { id, nom, chansons: [...] } et change l'id (sans espace ni accent).
 // L'extrait de 30 secondes est trouvé automatiquement (iTunes, puis Deezer). Un son sans extrait est simplement sauté.
 // verifierArtiste: false sert pour le classique : sur les plateformes, l'« artiste » est l'orchestre, pas le compositeur.
+//
+// Niveaux (Facile / Intermédiaire / HARRR MODE) : le serveur les calcule tout seul avec la popularité Deezer.
+// Dans chaque catégorie, le tiers le plus écouté va en Facile, le tiers du milieu en Intermédiaire,
+// le tiers le moins connu en HARRR MODE. Pour forcer le niveau d'un son, ajoute niveau: 'facile', 'intermediaire' ou 'hard' :
+//   { titre: 'Bande organisée', artiste: 'Jul', niveau: 'facile' },
 
 export const CATEGORIES = [
   {
