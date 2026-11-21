@@ -214,6 +214,8 @@
   .invite-list .st.on { color: #6fdc8c; }
   .invite-list .st::before { content: ""; display: inline-block; width: .5rem; height: .5rem; margin-right: .35rem; border-radius: 50%; background: #5d5b63; vertical-align: middle; }
   .invite-list .st.on::before { background: #3fbf6a; }
+  .invite-list .st.ingame { color: #ffb15c; }
+  .invite-list .st.ingame::before { background: #f28c1c; }
   .invite-list button { min-height: 2.3rem; padding: .3rem .9rem; font-size: .92rem; }
   .invite-list button.sent { background: transparent; color: var(--gris); border: 1px solid var(--ligne); box-shadow: none; }
 
@@ -988,13 +990,14 @@
       : !friendsList.length ? 'Tu n’as pas encore d’amis sur le site. Ajoute-les depuis la bulle « Amis » de l’accueil.'
       : !list.length ? 'Tous tes amis sont déjà dans la partie !' : '';
     // on ne redessine la liste que si elle a changé
-    const sig = list.map((f) => f.username + f.online + invited.has(f.username.toLowerCase())).join('|');
+    const sig = list.map((f) => f.username + f.online + f.inBlindtest + invited.has(f.username.toLowerCase())).join('|');
     if (sig === drawnInvite && ul.children.length) return;
     drawnInvite = sig;
     ul.replaceChildren(...list.map((f) => {
       const li = document.createElement('li');
       const who = document.createElement('span'); who.className = 'who'; who.textContent = f.username;
-      const st = document.createElement('span'); st.className = 'st' + (f.online ? ' on' : ''); st.textContent = f.online ? 'En ligne' : 'Hors ligne';
+      const st = document.createElement('span'); st.className = 'st' + (f.inBlindtest ? ' ingame' : f.online ? ' on' : '');
+      st.textContent = f.inBlindtest ? 'En blind test' : f.online ? 'En ligne' : 'Hors ligne';
       who.append(st);
       const b = document.createElement('button'); b.type = 'button';
       const sent = invited.has(f.username.toLowerCase());
