@@ -40,7 +40,10 @@ function categorySongs(id) {
 }
 const categoryName = (id) => (id === ALL ? 'Tout mélangé' : CATEGORIES.find((c) => c.id === id)?.nom || id);
 
-export function createBlindtest({ getJson, sameSong, clientIp, demo }) {
+const INVITE_TTL = 15 * 60_000; // une invitation reste valable 15 min
+const invites = new Map(); // identifiant invité (minuscules) -> Map(code -> { from, code, category, at })
+
+export function createBlindtest({ getJson, sameSong, clientIp, sessionUser, findFriend, demo }) {
   // --- Trouver l'extrait de 30 s (et la pochette) d'une chanson ---
   async function resolveSong(song) {
     const key = song.titre + '|' + song.artiste;
@@ -251,6 +254,26 @@ export function createBlindtest({ getJson, sameSong, clientIp, demo }) {
         });
       }
 
+      // Invitations reçues par la personne connectée
+      if (parts[0] === 'invites') {
+        const user = sessionUser(req);
+        if (!user) return send(res, 200, { invites: [] });
+        const mine = invites.get(user.username.toLowerCase()) || new Map();
+        if (req.method === 'POST' && parts[1] === 'decline') {
+          const body = await readBody(req);
+          mine.delete(String(body.code || '').toUpperCase());
+          return send(res, 200, { ok: true });
+        }
+        if (req.method !== 'GET') throw new BtError(405, 'Méthode non autorisée.');
+        const now = Date.now();
+        for (const [code, inv] of mine) {
+          const r = rooms.get(code);
+          // invitation périmée, partie disparue ou déjà lancée : on l'oublie
+          if (now - inv.at > INVITE_TTL || !r || (r.phase !== 'lobby' && r.phase !== 'end')) mine.delete(code);
+        }
+        return send(res, 200, { invites: [...mine.values()].map((i) => ({ from: i.from, code: i.code, category: categoryName(rooms.get(i.code).category) })) });
+      }
+
       if (parts[0] !== 'rooms') throw new BtError(404, 'Introuvable.');
 
       // Créer une partie
@@ -287,6 +310,19 @@ export function createBlindtest({ getJson, sameSong, clientIp, demo }) {
       }
 
       const me = getPlayer(room, body.token);
+
+      if (action === 'invite') { // inviter un ami du site (il faut être connecté et amis)
+        const user = sessionUser(req);
+        if (!user) throw new BtError(401, 'Connecte-toi sur Star Song pour inviter tes amis.');
+        if (room.phase !== 'lobby' && room.phase !== 'end') throw new BtError(409, 'La partie a déjà commencé.');
+        const friend = findFriend(user.id, body.username);
+        if (!friend) throw new BtError(403, 'Tu ne peux inviter que tes amis.');
+        if (limited('inv:' + user.id, 30)) throw new BtError(429, 'Trop d’invitations, attends une minute.');
+        const key = friend.username.toLowerCase();
+        if (!invites.has(key)) invites.set(key, new Map());
+        invites.get(key).set(room.code, { from: user.username, code: room.code, at: Date.now() });
+        return send(res, 200, { ok: true, invited: friend.username });
+      }
 
       if (action === 'settings') { // l'hôte change la catégorie ou le nombre de manches
         if (me.id !== room.hostId) throw new BtError(403, 'Seul l’hôte peut changer les réglages.');
