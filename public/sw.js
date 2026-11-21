@@ -1,7 +1,7 @@
 // Service worker de Star Song : rend le site installable et l'ouvre même sans connexion.
 // Change VERSION quand tu modifies les icônes pour forcer la mise à jour du cache.
-const VERSION = 'star-song-v1';
-const SHELL = ['/', '/manifest.webmanifest', '/icon.png', '/icon-192.png', '/icon-512.png', '/apple-touch-icon.png', '/favicon.ico'];
+const VERSION = 'star-song-v2';
+const SHELL = ['/', '/blindtest', '/manifest.webmanifest', '/icon.png', '/icon-192.png', '/icon-512.png', '/apple-touch-icon.png', '/favicon.ico'];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(caches.open(VERSION).then((c) => c.addAll(SHELL)).then(() => self.skipWaiting()));
@@ -26,10 +26,10 @@ self.addEventListener('fetch', (event) => {
     event.respondWith(
       fetch(req)
         .then((res) => {
-          if (res.ok) { const copy = res.clone(); caches.open(VERSION).then((c) => c.put('/', copy)); }
+          if (res.ok) { const copy = res.clone(); caches.open(VERSION).then((c) => c.put(url.pathname, copy)); }
           return res;
         })
-        .catch(() => caches.match('/'))
+        .catch(async () => (await caches.match(url.pathname)) || caches.match('/'))
     );
     return;
   }
