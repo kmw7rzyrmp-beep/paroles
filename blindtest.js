@@ -441,8 +441,19 @@ export function createBlindtest({ getJson, sameSong, clientIp, sessionUser, find
       const round = g.rounds[g.index];
       if (room.phase === 'countdown') {
         if (now < g.phaseEnd) return;
+        // le 1er son n'est pas encore prêt : on prolonge un peu le compte à rebours (chargement) au lieu de bloquer
+        if (!round) {
+          if (g.exhausted && !g.filling && !g.pending) { // aucun extrait trouvé : retour au salon
+            room.phase = 'lobby'; room.game = null;
+            room.error = 'Impossible de charger les extraits. Réessaie, ou choisis d’autres artistes.';
+            return;
+          }
+          topUp(g);
+          g.phaseEnd = now + 600; // on repasse vérifier dans un instant
+          return;
+        }
         room.phase = 'playing';
-        g.roundStart = g.phaseEnd;
+        g.roundStart = Math.min(g.phaseEnd, now); // si on a attendu le 1er son, il démarre maintenant
         g.phaseEnd = g.roundStart + roundMs(room, g.index);
       } else if (room.phase === 'playing') {
         const inGame = [...room.players.values()].filter((p) => p.out === null);
@@ -612,15 +623,15 @@ export function createBlindtest({ getJson, sameSong, clientIp, sessionUser, find
       if (room.mode === 'br' && room.players.size < 2) throw new BtError(400, 'Il faut être au moins 2 pour jouer en battle royale. Invite un pote !');
       // en battle royale, on joue jusqu'à ce qu'il ne reste qu'un survivant
       const target = room.mode === 'br' || room.roundCount === INFINITE ? Infinity : room.roundCount;
+      // On NE charge PLUS le 1er extrait avant de répondre : le compte à rebours démarre tout de suite,
+      // et les premiers sons se chargent pendant ces 4 secondes (voir le garde du compte à rebours dans tick()).
       const g = { rounds: [], deck, target, exhausted: false, filling: null, index: 0, phaseEnd: 0, roundStart: 0 };
-      await fillRounds(g, 1); // le 1er son tout de suite, la suite pendant le compte à rebours
-      if (g.rounds.length < Math.min(target, 1)) throw new BtError(502, 'Impossible de charger assez d’extraits avec ces artistes. Ajoute des artistes ou réessaie dans un instant.');
       g.phaseEnd = Date.now() + COUNTDOWN_MS;
       room.game = g;
       room.phase = 'countdown';
       countStat('bt_games');
       countStat('bt_players', room.players.size);
-      topUp(g);
+      topUp(g); // charge les premiers sons en arrière-plan
     } catch (err) {
       room.phase = 'lobby';
       room.error = err instanceof BtError ? err.message : 'Impossible de lancer la partie pour le moment.';
