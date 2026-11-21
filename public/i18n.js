@@ -6,7 +6,7 @@
   // --- Textes exacts ---
   const DICT = {
     'Patch note': 'Patch notes',
-    'Réservé aux admins': 'Admins only',
+    'Quoi de neuf': 'What’s new',
     'Dernière version': 'Latest version',
     'Nouveau': 'New',
     'Amélioré': 'Improved',

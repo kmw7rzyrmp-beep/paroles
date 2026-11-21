@@ -1,4 +1,4 @@
-// Le patch note du site : visible seulement par les admins (page « Patch note » du menu).
+// Le patch note du site : visible par tout le monde (page « Patch note » du menu).
 // La plus récente en premier. Pour ajouter une version : copier un bloc en haut de la liste.
 // tag : 'new' (nouveauté), 'better' (amélioration), 'fix' (correction), 'removed' (retiré)
 export const PATCH_NOTES = [
@@ -15,7 +15,7 @@ export const PATCH_NOTES = [
       ['new', 'Indicateur « … écrit » dans le chat du salon.'],
       ['new', 'Pseudos uniques, tous en minuscules, affichés avec un @ devant.'],
       ['new', 'Playlists d’artistes : on enregistre une sélection d’artistes et un clic les met tous dans le blind test.'],
-      ['new', 'Ce patch note, visible seulement par les admins.'],
+      ['new', 'Ce patch note, visible par tout le monde dans le menu.'],
     ],
   },
   {

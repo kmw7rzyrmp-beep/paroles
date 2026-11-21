@@ -393,8 +393,7 @@ const server = createServer(async (req, res) => {
   if (await handleBlindtest(req, res, url)) return;
 
   // Notification envoyée par l'admin à la personne de son choix
-  if (url.pathname === '/api/admin/patchnotes') { // le patch note : réservé aux admins
-    if (!isAdmin(sessionUser(req))) return sendJson(res, 404, { error: 'Introuvable.' });
+  if (url.pathname === '/api/patchnotes') { // le patch note : visible par tout le monde
     return sendJson(res, 200, { notes: PATCH_NOTES });
   }
   if (url.pathname === '/api/admin/notify' && req.method === 'POST') {

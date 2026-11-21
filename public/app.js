@@ -73,7 +73,6 @@
     if (!frame || location.pathname !== '/') return;
     const name = location.hash.slice(1);
     const want = PAGES[name] ? name : '';
-    if (want === 'patch' && meKnown && !(me && me.admin)) { history.replaceState(null, '', '/'); return route(); }
     if (want === 'amis' && !me) { const lb = $('#loginBtn'); if (meKnown) { history.replaceState(null, '', '/'); if (lb && !lb.hidden) lb.click(); return route(); } }
     if (want === current) return;
     // on ferme l'ancienne page
@@ -367,12 +366,9 @@
     if (v !== i.value) { const p = i.selectionStart; i.value = v; try { i.setSelectionRange(p, p); } catch {} }
   });
 
-  // ---------- le patch note (seulement pour les admins) ----------
+  // ---------- le patch note (visible par tout le monde) ----------
   const PN_TAGS = { new: ['Nouveau', 'pn-new'], better: ['Amélioré', 'pn-better'], fix: ['Corrigé', 'pn-fix'], removed: ['Retiré', 'pn-removed'] };
   function setupPatch() {
-    const admin = Boolean(me && me.admin);
-    $$('[data-open="patch"]').forEach((b) => { b.closest('li') ? (b.closest('li').hidden = !admin) : (b.hidden = !admin); });
-    if (!admin) return;
     const navs = $$('.side .nav');
     const social = navs[navs.length - 1];
     if (social && !$('[data-open="patch"]', social)) {
@@ -391,16 +387,16 @@
     const page = $('#pagePatch');
     if (!page) return;
     if (!patchData) {
-      try { const r = await fetch('/api/admin/patchnotes', { cache: 'no-store' }); if (!r.ok) throw 0; patchData = (await r.json()).notes; } catch { page.replaceChildren(el('p', 'nf-empty', 'Patch note indisponible.')); return; }
+      try { const r = await fetch('/api/patchnotes', { cache: 'no-store' }); if (!r.ok) throw 0; patchData = (await r.json()).notes; } catch { page.replaceChildren(el('p', 'nf-empty', 'Patch note indisponible.')); return; }
     }
     const head = el('div', 'page-head');
     const back = el('button', 'ghost page-back'); back.type = 'button'; back.setAttribute('data-page-close', ''); back.setAttribute('aria-label', 'Retour');
     back.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>';
     const tw = el('div'); const h = el('h1', '', 'Patch note'); h.id = 'pnTitle';
-    tw.append(el('p', 'page-eyebrow', 'Réservé aux admins'), h);
+    tw.append(el('p', 'page-eyebrow', 'Quoi de neuf'), h);
     head.append(back, tw);
     const count = patchData.reduce((n, v) => n + v.items.length, 0);
-    const intro = el('p', 'pn-intro', `${patchData.length} versions, ${count} changements. Seuls les admins voient cette page.`);
+    const intro = el('p', 'pn-intro', `${patchData.length} versions, ${count} changements depuis le lancement de Star Song.`);
     const tl = el('ol', 'pn-timeline');
     patchData.forEach((v, i) => {
       const li = el('li', 'pn-ver' + (i === 0 ? ' latest' : ''));
@@ -437,6 +433,7 @@
     drawRailFriends();
     if (me) setTimeout(announce, 2500); else refreshNotifBadge();
   }
+  setupPatch();
   refreshMe();
   window.addEventListener('account-changed', refreshMe);
   setInterval(() => { if (document.visibilityState === 'visible') drawRailFriends(); }, 30_000);
