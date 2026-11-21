@@ -182,7 +182,20 @@ function currentUser(req) {
 
 // Considéré « en ligne » si un signe de vie est arrivé il y a moins de 75 s
 const ONLINE_MS = 75_000;
-const presence = (u) => ({ online: Boolean(u.lastSeen) && Date.now() - u.lastSeen < ONLINE_MS, lastSeen: u.lastSeen || 0 });
+// « En blind test » : la page du blind test donne des nouvelles toutes les secondes ; sans nouvelles depuis 15 s, c'est fini
+const BLINDTEST_MS = 15_000;
+const presence = (u) => {
+  const online = Boolean(u.lastSeen) && Date.now() - u.lastSeen < ONLINE_MS;
+  const inBlindtest = online && Boolean(u.playingAt) && Date.now() - u.playingAt < BLINDTEST_MS;
+  return { online, inBlindtest, lastSeen: u.lastSeen || 0 };
+};
+// appelé par le blind test tant que la personne est dans une partie
+export function markInBlindtest(userId) {
+  const u = usersById.get(userId);
+  if (!u) return;
+  u.playingAt = Date.now();
+  u.lastSeen = Date.now();
+}
 
 const isSecure = (req) => Boolean(req.socket.encrypted) || req.headers['x-forwarded-proto'] === 'https';
 
@@ -355,7 +368,7 @@ function listFriends(me) {
   // Seuls les amis voient si tu es en ligne (pas les demandes en attente)
   const friends = users(me.friends)
     .map((u) => ({ username: u.username, avatarUrl: avatar(u), ...presence(u) }))
-    .sort((a, b) => b.online - a.online || a.username.localeCompare(b.username));
+    .sort((a, b) => b.inBlindtest - a.inBlindtest || b.online - a.online || a.username.localeCompare(b.username));
   return { friends, incoming: names(me.incoming), outgoing: names(me.outgoing) };
 }
 
