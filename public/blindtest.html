@@ -84,6 +84,11 @@
   .block { margin: 0 0 2rem; }
   .chips { display: flex; flex-wrap: wrap; gap: .5rem; padding: .45rem; background: #0d0c0f; border-radius: 6px; box-shadow: inset 0 2px 5px rgba(0,0,0,.6); }
   .chips button { min-height: 2.6rem; padding: .4rem .95rem; font-size: .98rem; }
+  .round-input { width: 5.2rem; min-height: 2.6rem; padding: .4rem .6rem; font: inherit; font-size: .98rem; text-align: center;
+    color: inherit; background: transparent; border: 1px dashed rgba(255,255,255,.28); border-radius: 4px; }
+  .round-input.on { border-style: solid; border-color: currentColor; }
+  .round-input::placeholder { color: rgba(255,255,255,.5); }
+  .stop-game { display: block; margin: 1.2rem auto 0; }
   .row { display: flex; flex-wrap: wrap; gap: .8rem; align-items: flex-end; }
   .row > .grow { flex: 1; min-width: 10rem; }
   .or { display: flex; align-items: center; gap: 1rem; color: var(--gris); margin: 2rem 0; }
@@ -441,6 +446,7 @@
       </div>
     </div>
     <ul id="gameScores" class="scores"></ul>
+    <button id="stopBtn" class="ghost stop-game" type="button" hidden>Terminer la partie</button>
   </section>
 
   <!-- Icône son : couper / remettre (et débloquer le son si le navigateur l'a bloqué) -->
@@ -482,7 +488,7 @@
 (() => {
   const $ = (id) => document.getElementById(id);
   const API = '/api/bt';
-  let cats = [], roundsChoices = [5, 10, 15];
+  let cats = [], roundsChoices = [5, 10, 15, 30, 50], maxRounds = 300;
   let levels = [{ id: 'facile', nom: 'Facile' }, { id: 'intermediaire', nom: 'Intermédiaire' }, { id: 'hard', nom: 'HARRR MODE' }];
   let pick = { category: 'rap-fr', rounds: 10, level: 'intermediaire', artists: null }; // artists : null = tous
   let session = null; // { code, token }
@@ -531,6 +537,31 @@
       b.addEventListener('click', () => onPick(value));
       return b;
     }));
+  }
+
+  // --- Nombre de sons : raccourcis, mode infini (0) ou un nombre au choix ---
+  const roundsLabel = (n) => (n === 0 ? 'mode infini' : `${n} son${n > 1 ? 's' : ''}`);
+  function roundPicker(el, current, onPick) {
+    const custom = current !== 0 && !roundsChoices.includes(current);
+    chips(el, [...roundsChoices.map((n) => [n, String(n)]), [0, '∞ Infini']], current, onPick);
+    const inf = el.lastElementChild;
+    inf.title = 'Continue tant qu’il reste des sons';
+    const input = document.createElement('input');
+    input.type = 'number'; input.min = '1'; input.max = String(maxRounds); input.inputMode = 'numeric';
+    input.className = 'round-input' + (custom ? ' on' : '');
+    input.placeholder = 'Autre';
+    input.setAttribute('aria-label', `Autre nombre de sons (1 à ${maxRounds})`);
+    if (custom) input.value = String(current);
+    const commit = () => {
+      const n = Math.round(Number(input.value));
+      if (!input.value || !Number.isFinite(n)) return;
+      const v = Math.min(maxRounds, Math.max(1, n));
+      input.value = String(v);
+      if (v !== current) onPick(v);
+    };
+    input.addEventListener('change', commit);
+    input.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); input.blur(); } });
+    el.append(input);
   }
 
   // --- Choix des artistes : des boutons à cocher, tous cochés au départ ---
@@ -598,7 +629,7 @@
       pick.category = v; drawHomeChips();
     });
     artistPicker($('homeArtists'), pick.category, pick.artists, (list) => { pick.artists = list; drawHomeChips(); }, false);
-    chips($('roundChips'), roundsChoices.map((n) => [n, String(n)]), pick.rounds, (v) => { pick.rounds = v; drawHomeChips(); });
+    roundPicker($('roundChips'), pick.rounds, (v) => { pick.rounds = v; drawHomeChips(); });
     chips($('levelChips'), levels.map((l) => [l.id, l.nom]), pick.level, (v) => { pick.level = v; drawHomeChips(); });
     markLevels($('levelChips'));
   }
@@ -744,7 +775,7 @@
     }
     try {
       const d = await api('/categories');
-      cats = d.categories; roundsChoices = d.rounds; if (d.levels) levels = d.levels;
+      cats = d.categories; roundsChoices = d.rounds; if (d.maxRounds) maxRounds = d.maxRounds; if (d.levels) levels = d.levels;
     } catch (err) { $('homeMsg').textContent = err.message; }
     drawHomeChips();
 
@@ -852,12 +883,12 @@
     $('hostSettings').hidden = !isHost();
     const loading = state.phase === 'loading';
     $('guestWait').textContent = loading ? 'Chargement des extraits…'
-      : isHost() ? '' : `En attente que l’hôte lance la partie (${state.categoryName}, ${state.levelName}, ${state.rounds} sons`
+      : isHost() ? '' : `En attente que l’hôte lance la partie (${state.categoryName}, ${state.levelName}, ${roundsLabel(state.rounds)}`
         + (Array.isArray(state.artists) ? `, artistes : ${state.artists.slice(0, 4).join(', ')}${state.artists.length > 4 ? ` et ${state.artists.length - 4} autres` : ''}` : '') + ').';
     if (isHost()) {
       const set = (body) => api(`/rooms/${state.code}/settings`, { token: session.token, ...body }).then((d) => { state = d; render(); }).catch((e) => { $('lobbyMsg').textContent = e.message; });
       chips($('lobbyCats'), cats.map((c) => [c.id, c.nom]), state.category, (v) => set({ category: v }));
-      chips($('lobbyRounds'), roundsChoices.map((n) => [n, String(n)]), state.rounds, (v) => set({ rounds: v }));
+      roundPicker($('lobbyRounds'), state.rounds, (v) => set({ rounds: v }));
       chips($('lobbyLevels'), levels.map((l) => [l.id, l.nom]), state.level, (v) => set({ level: v }));
       artistPicker($('lobbyArtists'), state.category, state.artists, (list) => set({ artists: list }), false);
       markLevels($('lobbyLevels'));
@@ -1000,7 +1031,8 @@
     const s = state;
     show('game');
     $('gameCat').textContent = `${s.categoryName}, ${s.levelName}`;
-    $('gameRound').textContent = s.phase === 'countdown' ? '' : `Son ${s.index + 1} / ${s.total}`;
+    $('gameRound').textContent = s.phase === 'countdown' ? '' : `Son ${s.index + 1} / ${s.total == null ? '∞' : s.total}`;
+    $('stopBtn').hidden = !isHost();
     playersList($('gameScores'), s.players, true);
 
     if (s.phase === 'countdown') {
@@ -1110,6 +1142,19 @@
   $('againBtn').addEventListener('click', async () => {
     unlockAudio();
     try { state = await api(`/rooms/${state.code}/start`, { token: session.token }); render(); } catch (err) { $('endWait').textContent = err.message; }
+  });
+  // Terminer la partie (hôte) : un 2e clic pour confirmer, pour éviter les accidents
+  let stopArmed = 0;
+  $('stopBtn').addEventListener('click', async () => {
+    const btn = $('stopBtn');
+    if (Date.now() - stopArmed > 3000) {
+      stopArmed = Date.now();
+      btn.textContent = 'Sûr ? Clique encore pour terminer';
+      setTimeout(() => { if (Date.now() - stopArmed >= 3000) btn.textContent = 'Terminer la partie'; }, 3100);
+      return;
+    }
+    stopArmed = 0; btn.textContent = 'Terminer la partie';
+    try { state = await api(`/rooms/${state.code}/stop`, { token: session.token }); render(); } catch (err) { $('playState').textContent = err.message; }
   });
   $('settingsBtn').addEventListener('click', async () => {
     try { state = await api(`/rooms/${state.code}/settings`, { token: session.token }); render(); } catch (err) { $('endWait').textContent = err.message; }
