@@ -4,6 +4,12 @@
 // tag : 'new' (nouveauté), 'better' (amélioration), 'fix' (correction), 'removed' (retiré)
 export const PATCH_NOTES = [
   {
+    version: '2.13', date: '2026-11-21', time: '21:20', title: 'Bouton « Prêt » déplacé',
+    items: [
+      ['better', 'Le bouton « Prêt » de l’hôte est maintenant à côté de « Lancer la partie ».'],
+    ],
+  },
+  {
     version: '2.12', date: '2026-11-21', time: '21:20', title: 'Lancement instantané',
     items: [
       ['better', 'La partie se lance tout de suite, même avec tous les artistes : le compte à rebours démarre aussitôt et les premiers sons se chargent pendant ces 4 secondes.'],
