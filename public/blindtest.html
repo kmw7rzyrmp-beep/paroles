@@ -1020,7 +1020,7 @@
         const b = document.createElement('button');
         b.type = 'button';
         const t = document.createElement('span'); t.className = 't'; t.textContent = o.titre;
-        const a = document.createElement('span'); a.className = 'a'; a.textContent = o.artiste;
+        const a = document.createElement('span'); a.className = 'a'; a.textContent = o.artiste || ''; a.hidden = !o.artiste;
         b.append(t, a);
         const done = s.myChoice !== null || s.phase !== 'playing';
         b.disabled = done;
