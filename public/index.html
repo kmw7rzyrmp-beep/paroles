@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="utf-8">
-<meta name="theme-color" content="#141317">
+<meta name="theme-color" content="#000000">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Star Song</title>
 <meta name="description" content="Tape quelques paroles et retrouve le titre de la chanson et son artiste.">
@@ -20,638 +20,346 @@
 <script src="/chat.js" defer></script>
 <script src="/engage.js" defer></script>
 <script src="/board-home.js" defer></script>
+<script src="/app.js" defer></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..900&family=Permanent+Marker&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/app.css">
 <style>
-  /* =====================================================================
-     DA « mixtape » : la recherche s'écrit au feutre sur l'étiquette d'une cassette,
-     les bobines tournent quand le son joue, les boutons sont les touches d'un
-     ghetto-blaster et les résultats forment la tracklist de la face A.
-     ===================================================================== */
-  :root {
-    --mur: #141317;          /* le fond */
-    --coque: #26252c;        /* plastique de la cassette */
-    --coque-hi: #34333b;
-    --etiquette: #efe8d8;    /* étiquette papier */
-    --rouge: #e2412b;        /* les trois bandes de l'étiquette */
-    --orange: #f28c1c;
-    --jaune: #f5c43a;
-    --bande: #4a3226;        /* la bande magnétique */
-    --blanc: #f4f2ee;
-    --gris: #a6a3ad;
-    --ligne: #3a3940;
-    --feutre-encre: #1b1b22;
-    --chrome: linear-gradient(180deg, #f3f3f5 0%, #c9c9cf 48%, #a9a9b1 52%, #d6d6dc 100%);
-    --danger: #ff8a7a;
-    --texte: Archivo, "Arial Narrow", system-ui, sans-serif;
-    --feutre: "Permanent Marker", "Comic Sans MS", cursive;
-    color-scheme: dark;
-    padding-top: env(safe-area-inset-top, 0px);
-    padding-bottom: env(safe-area-inset-bottom, 0px);
+  /* ---------- Accueil : le grand bandeau orange avec la recherche ---------- */
+  .hero {
+    position: relative; overflow: hidden; isolation: isolate;
+    display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, .75fr); align-items: stretch;
+    min-height: 20rem; padding: 2.4rem 2.6rem 2rem; border-radius: var(--r-xl);
+    background: var(--orange); color: #fff;
   }
-  * { box-sizing: border-box; }
-  html { -webkit-text-size-adjust: 100%; scroll-padding-top: env(safe-area-inset-top, 0px); }
-  body {
-    margin: 0; padding: 0 0 5.5rem;
-    background: var(--mur);
-    color: var(--blanc);
-    font: 400 1.0625rem/1.55 var(--texte);
-    font-stretch: 92%;
-  }
-  /* Fond : ta pochette (public/fond.jpg…) en noir et blanc, puis une trame de points comme une affiche photocopiée */
-  body::before {
-    content: ""; position: fixed; inset: 0; z-index: -2;
-    background: url('/fond') center / cover no-repeat, var(--mur);
-    filter: grayscale(1) contrast(1.2);
-  }
-  body::after {
-    content: ""; position: fixed; inset: 0; z-index: -1;
-    background:
-      radial-gradient(circle at 85% 8%, rgba(242, 140, 28, .16), transparent 45%),
-      radial-gradient(rgba(255,255,255,.07) 1px, transparent 1.6px) 0 0 / 7px 7px,
-      rgba(20, 19, 23, .9);
+  .hero-txt { position: relative; z-index: 1; display: flex; flex-direction: column; min-width: 0; }
+  .eyebrow { margin: 0 0 1.1rem; font: 700 .7rem/1 var(--texte); letter-spacing: .08em; text-transform: uppercase; opacity: .9; }
+  #titre { margin: 0 0 .8rem; max-width: 15ch; font: 800 clamp(2rem, 4.2vw, 3.1rem)/1.04 var(--texte); letter-spacing: -.03em; text-wrap: balance; }
+  .intro { margin: 0 0 1.6rem; max-width: 30rem; font-size: .98rem; line-height: 1.5; color: rgba(255, 255, 255, .85); }
+  #form { display: flex; gap: .5rem; max-width: 31rem; padding: .35rem; border-radius: 999px; background: rgba(0, 0, 0, .18); box-shadow: inset 0 0 0 1px rgba(255,255,255,.18); }
+  #form .search-ico { flex: none; width: 1.1rem; height: 1.1rem; margin: 0 .1rem 0 .8rem; align-self: center; opacity: .85; }
+  #q { flex: 1; min-width: 0; min-height: 2.9rem; padding: 0 .3rem; border: 0; background: transparent; color: #fff; font: 500 1.05rem var(--texte); -webkit-appearance: none; appearance: none; }
+  #q::placeholder { color: rgba(255, 255, 255, .7); }
+  #q:focus { outline: none; }
+  #q::-webkit-search-cancel-button { display: none; }
+  #form:focus-within { box-shadow: inset 0 0 0 2px rgba(255,255,255,.75); }
+  #form button[type="submit"] { flex: none; min-height: 2.9rem; padding: 0 1.4rem; background: #0b0b0c; color: #fff; }
+  #form button[type="submit"]:hover { background: #1c1c1f; }
+  .hero-foot { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem 1rem; margin-top: auto; padding-top: 1.6rem; font-size: .85rem; color: rgba(255,255,255,.9); }
+  .hero-foot .heart { display: inline-grid; place-items: center; width: 1.6rem; height: 1.6rem; border-radius: 6px; background: rgba(255,255,255,.22); }
+  .hero-foot .heart svg { width: .85rem; height: .85rem; }
+  .hero-foot .dot { width: 4px; height: 4px; border-radius: 50%; background: currentColor; opacity: .6; }
+  /* l'illustration : un vinyle qui dépasse d'une pochette, et l'onde du son */
+  .hero-art { position: relative; min-height: 14rem; }
+  .hero-art .sleeve { position: absolute; right: 8%; top: 50%; width: min(15rem, 82%); aspect-ratio: 1; transform: translateY(-50%) rotate(-6deg); border-radius: 14px;
+    background: linear-gradient(135deg, #1a1a1d, #0b0b0c); box-shadow: 0 30px 60px rgba(80, 20, 0, .45); overflow: hidden; }
+  .hero-art .sleeve::before { content: ""; position: absolute; inset: 14%; border-radius: 50%; background: radial-gradient(circle, transparent 0 30%, rgba(242, 107, 58, .9) 30% 31%, transparent 31% 46%, rgba(255,255,255,.12) 46% 47%, transparent 47%); }
+  .hero-art .sleeve::after { content: "★"; position: absolute; left: 1rem; bottom: .7rem; font: 800 1.1rem var(--texte); color: var(--orange); }
+  .hero-art .vinyl { position: absolute; right: -6%; top: 50%; width: min(14rem, 76%); aspect-ratio: 1; transform: translateY(-50%); border-radius: 50%;
+    background: radial-gradient(circle, #0b0b0c 0 4%, #fff 4.5% 17%, #0b0b0c 17.5% 19%, transparent 19.5%), repeating-radial-gradient(circle, #111 0 2px, #1c1c1f 2px 3px);
+    box-shadow: 0 20px 50px rgba(80, 20, 0, .45); animation: spin 9s linear infinite; z-index: -1; }
+  .hero-art .vinyl::after { content: ""; position: absolute; inset: 0; border-radius: 50%; background: conic-gradient(from 30deg, transparent 0 10%, rgba(255,255,255,.12) 14%, transparent 20% 60%, rgba(255,255,255,.08) 64%, transparent 70%); }
+  body.searching .hero-art .vinyl, body:has(.play.playing) .hero-art .vinyl { animation-duration: 1.8s; }
+  @keyframes spin { to { transform: translateY(-50%) rotate(360deg); } }
+  .hero-art .wave { position: absolute; left: -10%; right: -40%; bottom: -1.4rem; height: 5rem; opacity: .5; }
+  @media (max-width: 760px) {
+    .hero { grid-template-columns: 1fr; padding: 1.7rem 1.3rem 1.4rem; min-height: 0; }
+    .hero-art { position: absolute; right: -3rem; top: -2rem; width: 11rem; min-height: 0; height: 11rem; opacity: .35; z-index: 0; }
+    .hero-art .sleeve { display: none; }
+    .hero-art .wave { display: none; }
+    #form { flex-wrap: wrap; border-radius: 18px; }
+    #form button[type="submit"] { width: 100%; }
   }
 
-  main { max-width: 46rem; margin: 0 auto; padding: 2rem 1.5rem 3rem; }
-
-  ::selection { background: var(--orange); color: var(--feutre-encre); }
-  :focus-visible { outline: 3px solid var(--jaune); outline-offset: 3px; }
-
-  /* ---------- En-tête : logo + sticker « paroles explicites » ---------- */
-  .topbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 1rem; margin: 0 0 2.4rem; }
-  .brand {
-    display: inline-flex; align-items: center; gap: .7rem; margin: 0;
-    font: 900 1.9rem/1 var(--texte); font-stretch: 62%; letter-spacing: .01em; color: var(--blanc);
-  }
-  .topbar .brand { margin: 0; }
-  .brand span { color: var(--orange); }
-  .pa { display: inline-flex; flex-direction: column; border: 2px solid var(--blanc); font: 900 .6rem/1 var(--texte); font-stretch: 75%; text-transform: uppercase; letter-spacing: .05em; text-align: center; transform: rotate(-4deg); }
-  .pa b { display: block; padding: .18rem .35rem; }
-  .pa b:first-child { background: var(--blanc); color: #000; }
-  .pa b:last-child { background: #000; color: var(--blanc); }
-
-  /* liens vers les plateformes, aux couleurs de chacune */
-  .stream { display: inline-flex; align-items: center; gap: .45rem; min-height: 2.5rem; padding: .4rem .9rem; border-radius: 999px; font: 800 .92rem var(--texte); font-stretch: 80%; text-decoration: none; color: #fff; }
-  .stream img { width: 1.15rem; height: 1.15rem; }
-  .stream.spotify { background: #1db954; color: #000; }
-  .stream.deezer { background: #a238ff; }
-  .stream:hover { filter: brightness(1.1); }
-  h1 {
-    margin: 0 0 1rem; max-width: 16ch;
-    font: 900 clamp(2.5rem, 8.5vw, 4.7rem)/.94 var(--texte); font-stretch: 62%;
-    letter-spacing: -.005em; text-transform: uppercase; text-wrap: balance;
-  }
-  .intro { color: var(--gris); max-width: 32rem; margin: 0 0 2.2rem; font-size: 1.1rem; }
-
-  /* ---------- Boutons : les touches d'un ghetto-blaster ---------- */
-  button {
-    font: 800 1rem var(--texte); font-stretch: 78%; letter-spacing: .02em;
-    color: var(--feutre-encre); background: var(--chrome);
-    border: 1px solid #6f6f78; border-bottom: 4px solid #5b5b63; border-radius: 4px;
-    min-height: 2.75rem; padding: .5rem 1.2rem; margin: 0;
-    box-shadow: 0 2px 0 rgba(0,0,0,.5), inset 0 1px 0 rgba(255,255,255,.8);
-    cursor: pointer; transition: transform .08s, border-bottom-width .08s;
-  }
-  button:hover { filter: brightness(1.06); }
-  button:active, button[aria-pressed="true"] { transform: translateY(3px); border-bottom-width: 1px; box-shadow: inset 0 2px 4px rgba(0,0,0,.35); }
-  .ghost { background: transparent; color: var(--blanc); border: 1px solid var(--ligne); border-bottom-width: 1px; box-shadow: none; }
-  .ghost:hover { background: rgba(255,255,255,.06); filter: none; }
-  .ghost:active { transform: none; }
-  .hint { color: var(--gris); font-size: .95rem; margin: .9rem 0 0; }
-  label { display: block; font-weight: 700; margin-bottom: .35rem; font-stretch: 85%; }
-
-  /* ---------- La cassette ---------- */
-  .tape {
-    position: relative; max-width: 36rem;
-    padding: 1.1rem 1.1rem 0;
-    background: linear-gradient(180deg, var(--coque-hi), var(--coque));
-    border-radius: 14px;
-    box-shadow: 0 20px 45px rgba(0,0,0,.55), inset 0 1px 0 rgba(255,255,255,.08), inset 0 -2px 0 rgba(0,0,0,.4);
-  }
-  /* les 4 vis */
-  .tape::before {
-    content: ""; position: absolute; inset: .45rem; pointer-events: none;
-    background:
-      radial-gradient(circle, #8d8c95 0 2.5px, #1c1b20 3px 4.2px, transparent 4.6px) 0 0 / 100% 100% no-repeat;
-    --v: radial-gradient(circle at center, #8d8c95 0 2px, #17161b 2.6px 4px, transparent 4.4px);
-    background: var(--v) left top / 10px 10px no-repeat, var(--v) right top / 10px 10px no-repeat,
-                var(--v) left bottom / 10px 10px no-repeat, var(--v) right bottom / 10px 10px no-repeat;
-  }
-  .tape-label {
-    position: relative; z-index: 1;
-    padding: .9rem 1.1rem 0;
-    background: var(--etiquette);
-    color: var(--feutre-encre);
-    border-radius: 6px 6px 3px 3px;
-  }
-  .tape-label label {
-    display: flex; justify-content: space-between; align-items: baseline; gap: 1rem;
-    font: 800 .95rem var(--texte); font-stretch: 75%; color: var(--feutre-encre); margin: 0;
-  }
-  .tape-label label::after { content: "A"; font: 900 1.8rem/1 var(--texte); font-stretch: 62%; }
-  .tape-label .field { display: flex; gap: .8rem; align-items: flex-end; padding: .1rem 0 1rem; }
-  input[type="search"] {
-    flex: 1; min-width: 0; min-height: 3rem;
-    border: 0; border-bottom: 2px dashed rgba(27, 27, 34, .45); border-radius: 0;
-    background: transparent;
-    font: 400 1.5rem/1.2 var(--feutre); color: var(--feutre-encre);
-    padding: .35rem .1rem; caret-color: var(--rouge);
-    -webkit-appearance: none; appearance: none;
-  }
-  input[type="search"]:focus { outline: none; border-bottom: 2px solid var(--rouge); }
-  input[type="search"]::placeholder { color: rgba(27, 27, 34, .35); }
-  input[type="search"]::-webkit-search-cancel-button { display: none; }
-  /* la touche REC */
-  #form button[type="submit"] { display: inline-flex; align-items: center; gap: .5rem; font-size: 1.05rem; }
-  #form button[type="submit"]::before { content: ""; width: .7rem; height: .7rem; border-radius: 50%; background: var(--rouge); box-shadow: 0 0 0 2px rgba(0,0,0,.15); }
-
-  /* les trois bandes de couleur + la fenêtre avec les bobines */
-  .tape-stripes {
-    position: relative; height: 5.6rem; margin: 0 -1.1rem;
-    background: linear-gradient(180deg, var(--rouge) 0 33.3%, var(--orange) 33.3% 66.6%, var(--jaune) 66.6% 100%);
-    border-radius: 0 0 3px 3px;
-    display: flex; align-items: center; justify-content: center;
-  }
-  .tape-window {
-    position: relative; width: 62%; height: 3.9rem;
-    display: flex; align-items: center; justify-content: space-between; padding: 0 1.2rem;
-    background: rgba(18, 17, 21, .92); border-radius: 2rem;
-    box-shadow: inset 0 2px 6px rgba(0,0,0,.7);
-    overflow: hidden;
-  }
-  /* la bande entre les deux bobines */
-  .tape-window::before { content: ""; position: absolute; left: 22%; right: 22%; bottom: .55rem; height: 3px; background: var(--bande); }
-  .reel {
-    position: relative; z-index: 1; width: 2.7rem; height: 2.7rem; border-radius: 50%;
-    background:
-      radial-gradient(circle, transparent 0 .5rem, var(--etiquette) .5rem .62rem, transparent .64rem),
-      repeating-conic-gradient(var(--etiquette) 0 12deg, transparent 12deg 60deg),
-      radial-gradient(circle, transparent 0 .62rem, rgba(239,232,216,.0) .62rem);
-    background-color: transparent;
-    border: 3px solid rgba(239, 232, 216, .85);
-  }
-  .reel::after { content: ""; position: absolute; inset: 35%; border-radius: 50%; background: #121115; }
-  /* bande enroulée : beaucoup à gauche, peu à droite */
-  .reel:first-child { box-shadow: 0 0 0 .55rem var(--bande); }
-  .reel:last-child { box-shadow: 0 0 0 .18rem var(--bande); }
-  .tape-foot {
-    height: 2.1rem; margin: .9rem auto 0; width: 70%;
-    background:
-      radial-gradient(circle, #0e0d10 0 .32rem, transparent .36rem) 18% 55% / 1.2rem 1.2rem no-repeat,
-      radial-gradient(circle, #0e0d10 0 .32rem, transparent .36rem) 82% 55% / 1.2rem 1.2rem no-repeat,
-      linear-gradient(180deg, #2f2e35, #222127);
-    clip-path: polygon(6% 0, 94% 0, 100% 100%, 0 100%);
-    border-radius: 3px 3px 0 0;
-  }
-  /* les bobines tournent pendant une recherche et quand un son joue */
-  @keyframes spin { to { transform: rotate(360deg); } }
-  body.searching .reel, body:has(.play.playing) .reel { animation: spin 1.6s linear infinite; }
-  body.searching .reel:last-child, body:has(.play.playing) .reel:last-child { animation-duration: .9s; }
-
-  #status { min-height: 1.5rem; margin: 1.3rem 0 .4rem; color: var(--gris); }
-  #status.error { color: var(--danger); font-weight: 700; }
-  .demo { background: rgba(245, 196, 58, .12); border-left: 4px solid var(--jaune); padding: .75rem 1rem; margin: 0 0 1rem; font-size: .95rem; }
-
-  /* lien vers le blind test */
-  /* lien vers le blind test : un vinyle qui tourne, un égaliseur qui danse, un cadre aux couleurs de la cassette */
-  .bt-link {
-    --tilt: 0deg;
-    position: relative; display: inline-flex; align-items: center; gap: .9rem;
-    margin: 1.8rem 0 0; padding: .55rem 1.3rem .55rem .55rem;
-    border-radius: 999px; color: var(--blanc); text-decoration: none;
-    background:
-      linear-gradient(var(--coque), var(--coque)) padding-box,
-      linear-gradient(90deg, var(--rouge), var(--orange), var(--jaune), var(--orange), var(--rouge)) border-box;
-    background-size: 100% 100%, 300% 100%;
-    border: 2px solid transparent;
-    box-shadow: 0 8px 22px rgba(0,0,0,.45);
-    transition: transform .35s cubic-bezier(.2, .9, .3, 1.3), box-shadow .35s ease, background-position 1.2s ease;
-  }
-  .bt-link:hover, .bt-link:focus-visible {
-    transform: translateY(-3px) scale(1.03);
-    box-shadow: 0 14px 30px rgba(0,0,0,.5), 0 0 0 6px rgba(242, 140, 28, .12);
-    background-position: 0 0, 100% 0;
-  }
-  .bt-link:active { transform: translateY(0) scale(.97); transition-duration: .12s; }
-  .bt-label { font: 900 1.7rem/1 var(--texte); font-stretch: 62%; letter-spacing: .01em; text-transform: uppercase; }
-
-  /* le vinyle */
-  .bt-disc {
-    position: relative; width: 3rem; height: 3rem; border-radius: 50%; flex: none;
-    background:
-      radial-gradient(circle, #111 0 .16rem, var(--orange) .18rem .62rem, #111 .64rem .7rem, transparent .72rem),
-      repeating-radial-gradient(circle, #19181c 0 2px, #2a2930 2px 3px);
-    box-shadow: inset 0 0 0 1px rgba(255,255,255,.06), 0 2px 6px rgba(0,0,0,.5);
-    animation: btSpin 4s linear infinite;
-  }
-  /* reflet de lumière sur le vinyle */
-  .bt-disc::after { content: ""; position: absolute; inset: 0; border-radius: 50%; background: conic-gradient(from 20deg, transparent 0 12%, rgba(255,255,255,.14) 16%, transparent 22% 62%, rgba(255,255,255,.1) 66%, transparent 72%); }
-  .bt-link:hover .bt-disc, .bt-link:focus-visible .bt-disc { animation-duration: .9s; }
-  @keyframes btSpin { to { transform: rotate(360deg); } }
-
-  /* l'égaliseur */
-  .bt-eq { display: inline-flex; align-items: flex-end; gap: 3px; height: 1.35rem; }
-  .bt-eq i { width: 4px; height: 100%; border-radius: 2px; background: linear-gradient(var(--jaune), var(--rouge)); transform-origin: bottom; transform: scaleY(.35); animation: btEq 1.1s ease-in-out infinite alternate; }
-  .bt-eq i:nth-child(2) { animation-delay: -.35s; animation-duration: .9s; }
-  .bt-eq i:nth-child(3) { animation-delay: -.7s; animation-duration: 1.3s; }
-  .bt-eq i:nth-child(4) { animation-delay: -.15s; animation-duration: 1s; }
-  .bt-link:hover .bt-eq i, .bt-link:focus-visible .bt-eq i { animation-duration: .45s; }
-  @keyframes btEq { to { transform: scaleY(1); } }
-
-  /* ---------- Onglets = touches du lecteur ---------- */
-  .tabs { display: flex; flex-wrap: wrap; gap: .4rem; margin: 2.4rem 0 0; padding: .45rem; background: #0d0c0f; border-radius: 6px; width: fit-content; box-shadow: inset 0 2px 5px rgba(0,0,0,.6); }
-  .tab { font-size: .98rem; padding: .45rem 1rem; min-height: 2.6rem; }
-  .tab[aria-selected="true"] { transform: translateY(3px); border-bottom-width: 1px; background: linear-gradient(180deg, #ffd27a, var(--orange)); border-color: #a65a0a; box-shadow: inset 0 2px 4px rgba(0,0,0,.3); }
-  .tab:disabled { opacity: .45; cursor: not-allowed; }
-
-  /* ---------- Tracklist ---------- */
+  /* ---------- Résultats : une liste de titres, comme une appli de musique ---------- */
+  .section-head { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin: 2.4rem 0 .9rem; }
+  .section-head h2 { margin: 0; font: 700 1.15rem var(--texte); letter-spacing: -.01em; }
+  #status { min-height: 1.4rem; margin: .4rem 0; color: var(--gris); font-size: .92rem; }
+  #status:empty { margin: 0; }
+  #status.error { color: var(--danger); font-weight: 600; }
+  .demo { padding: .75rem 1rem; margin: 0 0 1rem; border-radius: var(--r-md); background: rgba(242, 107, 58, .12); color: var(--blanc); font-size: .9rem; }
   ol { list-style: none; margin: 0; padding: 0; counter-reset: piste; }
-  ol#results:not(:empty)::before {
-    content: "Face A"; display: block; margin: 1.4rem 0 .4rem;
-    font: 400 1.5rem/1 var(--feutre); color: var(--orange); transform: rotate(-2deg); transform-origin: left;
-  }
   li.result {
     counter-increment: piste;
-    display: grid; grid-template-columns: 2.4rem 3.8rem 1fr auto; gap: 1rem; align-items: start;
-    padding: 1.15rem 0; border-top: 1px solid var(--ligne);
+    display: grid; grid-template-columns: 1.6rem 3.4rem minmax(0, 1fr) auto; gap: .9rem; align-items: start;
+    padding: .8rem; border-radius: var(--r-md); transition: background .2s;
   }
-  li.result:last-child { border-bottom: 1px solid var(--ligne); }
-  li.result::before {
-    content: counter(piste, decimal-leading-zero);
-    font: 900 1.9rem/1 var(--texte); font-stretch: 62%; color: var(--orange); padding-top: .15rem;
-  }
-  .disc { width: 3.8rem; height: 3.8rem; border-radius: 3px; background: var(--coque); display: flex; align-items: center; justify-content: center; box-shadow: 0 3px 8px rgba(0,0,0,.5); }
-  .disc:not(.cover) { background: radial-gradient(circle, var(--orange) 0 .5rem, #111 .55rem .62rem, transparent .66rem), repeating-radial-gradient(circle, #1a1a1d 0 2px, #26252b 2px 3px); border-radius: 50%; }
+  li.result:hover { background: var(--coque); }
+  li.result::before { content: counter(piste); padding-top: 1rem; text-align: center; font: 500 .85rem var(--texte); color: var(--muet); font-variant-numeric: tabular-nums; }
+  .disc { width: 3.4rem; height: 3.4rem; border-radius: 10px; background: var(--coque-hi); display: grid; place-items: center; }
+  .disc:not(.cover) { background: radial-gradient(circle, var(--orange) 0 .4rem, #0b0b0c .43rem .5rem, transparent .53rem), repeating-radial-gradient(circle, #141416 0 2px, #1f1f22 2px 3px); border-radius: 50%; }
   .disc.cover { object-fit: cover; }
-  .title-row { display: flex; align-items: center; gap: .25rem; }
-  .title { font: 800 1.35rem/1.12 var(--texte); font-stretch: 70%; margin: 0; }
-  .meta { margin: .15rem 0 0; color: var(--gris); font-size: 1rem; }
-  a.open { color: var(--jaune); font-weight: 700; text-decoration: underline; text-underline-offset: 3px; padding: .5rem 0; font-size: .95rem; white-space: nowrap; }
+  .title-row { display: flex; align-items: center; gap: .3rem; }
+  .title { margin: 0; font: 600 1rem/1.3 var(--texte); }
+  .meta { margin: .1rem 0 0; color: var(--gris); font-size: .88rem; }
+  a.open { padding: .9rem 0 0; color: var(--gris); font-size: .85rem; font-weight: 600; white-space: nowrap; text-decoration: none; }
   a.open:hover { color: var(--blanc); }
-
-  .star { min-width: 2.75rem; padding: .1rem; background: transparent; color: #6c6a73; border: 0; box-shadow: none; font: 400 1.6rem/1 var(--texte); transition: color .2s, transform .15s; }
-  .star:hover { background: transparent; color: var(--jaune); transform: scale(1.12); filter: none; }
-  .star:active { transform: scale(.95); box-shadow: none; border-bottom-width: 0; }
-  .star.on { color: var(--jaune); }
+  .star { min-width: 2.2rem; min-height: 2.2rem; padding: 0; background: transparent; color: var(--muet); font-size: 1.15rem; }
+  .star:hover { background: transparent; color: var(--orange); transform: scale(1.12); }
+  .star.on { color: var(--orange); }
   .star.pop { animation: starpop .4s ease-out; }
-  @keyframes starpop { 0% { transform: scale(1); } 40% { transform: scale(1.4); } 100% { transform: scale(1); } }
-
-  .actions { display: flex; flex-wrap: wrap; align-items: flex-start; gap: .55rem; margin-top: .7rem; }
+  @keyframes starpop { 40% { transform: scale(1.45); } }
+  .actions { display: flex; flex-wrap: wrap; align-items: flex-start; gap: .45rem; margin-top: .65rem; }
   .player { display: flex; flex-direction: column; }
-  .play { display: inline-flex; align-items: center; gap: .55rem; font-size: .92rem; padding: .4rem .95rem; min-height: 2.5rem; }
-  .play.playing, .lyr-btn.open { transform: translateY(3px); border-bottom-width: 1px; background: linear-gradient(180deg, #ffd27a, var(--orange)); border-color: #a65a0a; box-shadow: inset 0 2px 4px rgba(0,0,0,.3); }
+  .play { display: inline-flex; align-items: center; gap: .45rem; min-height: 2.2rem; padding: 0 .95rem; font-size: .84rem; background: var(--coque-hi); color: var(--blanc); }
+  .play:hover { background: #2a2a2e; }
+  .play.playing, .lyr-btn.open { background: var(--blanc); color: #0b0b0c; }
   .play.pop { animation: pop .3s ease-out; }
-  @keyframes pop { 35% { filter: brightness(1.2); } }
-  .ico { display: inline-flex; align-items: center; justify-content: center; width: 1rem; height: 1rem; }
+  @keyframes pop { 35% { transform: scale(1.05); } }
+  .ico { display: inline-flex; align-items: center; justify-content: center; width: .9rem; height: .9rem; font-size: .7rem; }
   .ico .eq { display: none; align-items: flex-end; gap: 2px; height: 100%; }
-  .ico .eq i { width: 3px; height: 100%; background: var(--feutre-encre); transform: scaleY(.3); transform-origin: bottom; animation: eqbar .7s ease-in-out infinite alternate; }
-  .ico .eq i:nth-child(2) { animation-delay: .2s; }
-  .ico .eq i:nth-child(3) { animation-delay: .4s; }
+  .ico .eq i { width: 3px; height: 100%; background: currentColor; transform: scaleY(.3); transform-origin: bottom; animation: eqbar .7s ease-in-out infinite alternate; }
+  .ico .eq i:nth-child(2) { animation-delay: .2s; } .ico .eq i:nth-child(3) { animation-delay: .4s; }
   @keyframes eqbar { to { transform: scaleY(1); } }
-  .play.playing .tri { display: none; }
-  .play.playing .eq { display: inline-flex; }
-  .prog { height: 4px; margin-top: .5rem; background: var(--ligne); border-radius: 2px; overflow: hidden; }
+  .play.playing .tri { display: none; } .play.playing .eq { display: inline-flex; }
+  .prog { height: 3px; margin-top: .4rem; background: var(--ligne); border-radius: 2px; overflow: hidden; }
   .prog i { display: block; height: 100%; width: 0; background: var(--orange); transition: width .3s linear; }
-
-  .chev { display: inline-block; width: 1rem; text-align: center; transition: transform .35s ease; }
+  .chev { display: inline-block; transition: transform .35s ease; }
   .lyr-btn.open .chev { transform: rotate(180deg); }
-  .lyr-wrap { display: grid; grid-template-rows: 0fr; opacity: 0; transition: grid-template-rows .4s ease, opacity .3s ease; }
+  .lyr-wrap { grid-column: 3 / -1; display: grid; grid-template-rows: 0fr; opacity: 0; transition: grid-template-rows .4s ease, opacity .3s ease; }
   .lyr-wrap.open { grid-template-rows: 1fr; opacity: 1; }
   .lyr-inner { overflow: hidden; min-height: 0; }
-  .lyr-text {
-    position: relative; margin: .9rem 0 0; padding: 1rem 1.1rem; max-height: 17rem; overflow-y: auto;
-    white-space: pre-wrap; font-size: 1.05rem; line-height: 1.7; color: var(--blanc);
-    background: #1c1b20; border-left: 4px solid var(--orange); border-radius: 0 6px 6px 0;
-  }
-  .lyr-hint { margin: .8rem 0 0; font-size: .95rem; color: var(--gris); }
-  .lyr-text.synced { white-space: normal; padding-block: 1.2rem; }
-  /* paroles synchronisées : la ligne chantée passe en gros et en orange, comme au karaoké */
-  .ln { display: block; padding: .15rem 0; color: #75727d; cursor: pointer; transform-origin: left; transition: color .25s ease, transform .25s ease; }
+  .lyr-text { position: relative; margin: .8rem 0 0; padding: 1rem 1.1rem; max-height: 17rem; overflow-y: auto; white-space: pre-wrap; font-size: .98rem; line-height: 1.7; background: var(--coque); border-radius: var(--r-md); }
+  .lyr-hint { margin: .7rem 0 0; font-size: .88rem; color: var(--gris); }
+  .lyr-text.synced { white-space: normal; padding-block: 1.1rem; }
+  .ln { display: block; padding: .12rem 0; color: var(--muet); cursor: pointer; transform-origin: left; transition: color .25s ease, transform .25s ease; }
   .ln:hover { color: var(--blanc); }
-  .ln.active { color: var(--orange); font-weight: 800; font-stretch: 80%; transform: scale(1.08); }
-
-  .yt-frame { aspect-ratio: 16 / 9; width: 100%; max-width: 30rem; margin-top: .9rem; background: #000; border-radius: 6px; overflow: hidden; }
+  .ln.active { color: var(--orange); font-weight: 700; transform: scale(1.06); }
+  .yt-frame { aspect-ratio: 16 / 9; width: 100%; max-width: 30rem; margin-top: .8rem; background: #000; border-radius: var(--r-md); overflow: hidden; }
   .yt-frame iframe { display: block; }
-
-  .stat { margin: 1.6rem 0 0; color: var(--gris); font-size: 1rem; }
-  .stat strong { color: var(--orange); font: 900 1.25rem var(--texte); font-stretch: 65%; display: inline-block; }
+  .stat { margin: 1.4rem 0 0; color: var(--gris); font-size: .92rem; }
+  .stat strong { color: var(--orange); font-weight: 800; display: inline-block; }
   .stat strong.bump { animation: statpop .45s ease-out; }
-  @keyframes statpop { 40% { transform: scale(1.3); color: var(--jaune); } }
+  @keyframes statpop { 40% { transform: scale(1.3); } }
+  @media (max-width: 560px) {
+    li.result { grid-template-columns: 2.9rem minmax(0, 1fr); gap: .75rem; padding: .7rem .4rem; }
+    li.result::before { display: none; }
+    .disc { width: 2.9rem; height: 2.9rem; }
+    a.open { grid-column: 2; padding: 0; }
+    .lyr-wrap { grid-column: 1 / -1; }
+  }
 
-  /* ---------- Historique ---------- */
-  .hist { position: fixed; right: 1rem; bottom: calc(1rem + env(safe-area-inset-bottom, 0px)); z-index: 20; display: flex; flex-direction: column; align-items: flex-end; gap: .55rem; max-width: calc(100vw - 2rem); }
+  /* ---------- Les catégories du blind test, comme des pochettes d'album ---------- */
+  .covers { display: grid; grid-template-columns: repeat(auto-fill, minmax(8rem, 1fr)); gap: 1rem; }
+  .cover-card { display: block; color: inherit; text-decoration: none; }
+  .cover-art { position: relative; aspect-ratio: 1; border-radius: var(--r-lg); overflow: hidden; display: flex; align-items: flex-end; padding: .9rem;
+    background: var(--g, linear-gradient(135deg, #F26B3A, #b8322a)); transition: transform .35s cubic-bezier(.2, .9, .3, 1.2), box-shadow .35s; }
+  .cover-art b { position: relative; z-index: 1; font: 900 clamp(1.4rem, 2.6vw, 1.9rem)/.95 var(--texte); letter-spacing: -.03em; color: #fff; text-wrap: balance; }
+  .cover-art::before { content: ""; position: absolute; right: -22%; top: -22%; width: 75%; aspect-ratio: 1; border-radius: 50%;
+    background: radial-gradient(circle, rgba(0,0,0,.6) 0 6%, rgba(255,255,255,.85) 6.5% 20%, rgba(0,0,0,.6) 20.5% 22%, transparent 22.5%), repeating-radial-gradient(circle, rgba(0,0,0,.55) 0 2px, rgba(0,0,0,.4) 2px 3px);
+    transition: transform .6s ease; }
+  .cover-card:hover .cover-art { transform: translateY(-4px); box-shadow: 0 18px 36px rgba(0,0,0,.5); }
+  .cover-card:hover .cover-art::before { transform: rotate(120deg); }
+  .cover-card .ct { display: block; margin-top: .65rem; font-weight: 600; font-size: .93rem; }
+  .cover-card .cs { display: block; color: var(--gris); font-size: .82rem; }
+  .cover-card:focus-visible { outline: none; }
+  .cover-card:focus-visible .cover-art { outline: 3px solid var(--blanc); outline-offset: 3px; }
+
+  /* ---------- Historique (dans la colonne de droite) ---------- */
   .hist[hidden] { display: none; }
-  .hist-toggle { font-size: .95rem; padding: .45rem .95rem; }
-  .hist-toggle[aria-expanded="true"] { transform: translateY(3px); border-bottom-width: 1px; background: linear-gradient(180deg, #ffd27a, var(--orange)); }
-  .hist-panel { display: grid; grid-template-rows: 0fr; opacity: 0; width: 19rem; max-width: 100%; transition: grid-template-rows .35s ease, opacity .3s ease; }
+  .hist-toggle { width: 100%; justify-content: space-between; }
+  .hist-panel { display: grid; grid-template-rows: 0fr; opacity: 0; transition: grid-template-rows .35s ease, opacity .3s ease; }
   .hist-panel.open { grid-template-rows: 1fr; opacity: 1; }
   .hist-inner { overflow: hidden; min-height: 0; }
-  /* une jaquette de cassette avec la liste écrite à la main */
-  .hist-box { max-height: 50vh; overflow-y: auto; padding: .7rem .85rem .35rem; background: var(--etiquette); color: var(--feutre-encre); border-top: 6px solid var(--orange); border-radius: 4px; box-shadow: 0 10px 25px rgba(0,0,0,.6); }
-  .hist-head { display: flex; justify-content: space-between; align-items: center; font: 400 1.05rem var(--feutre); padding-bottom: .4rem; }
-  .hist-clear { background: transparent; color: #55525c; border: 0; box-shadow: none; font: 600 .9rem var(--texte); text-decoration: underline; text-underline-offset: 3px; min-height: 2.25rem; padding: .15rem .5rem; }
-  .hist-clear:hover, .hist-clear:active { background: transparent; color: var(--rouge); transform: none; box-shadow: none; filter: none; }
+  .hist-box { padding-top: .5rem; }
+  .hist-head { display: flex; justify-content: space-between; align-items: center; color: var(--gris); font-size: .82rem; }
+  .hist-clear { min-height: 2rem; padding: 0 .5rem; background: transparent; color: var(--gris); font-size: .8rem; text-decoration: underline; }
+  .hist-clear:hover { background: transparent; color: var(--blanc); }
   .hist-box ul { list-style: none; margin: 0; padding: 0; }
-  .hist-item { display: block; width: 100%; padding: .55rem .25rem; text-align: left; background: transparent; color: var(--feutre-encre); border: 0; border-top: 1px solid rgba(27,27,34,.15); border-radius: 0; box-shadow: none; font: 400 1rem var(--texte); }
-  .hist-item:hover { background: rgba(242, 140, 28, .15); filter: none; }
-  .hist-item:active { transform: none; box-shadow: none; }
-  .hist-title { display: block; font: 800 1rem/1.25 var(--texte); font-stretch: 78%; }
-  .hist-meta { display: block; color: #55525c; font-size: .88rem; }
-
-
-  /* ---------- Amis : bulle dans le coin + grande couche ---------- */
-  .friends-bubble {
-    position: fixed; right: 1rem; bottom: calc(4.6rem + env(safe-area-inset-bottom, 0px)); z-index: 21;
-    width: 3.9rem; height: 3.9rem; min-height: 0; padding: 0; border-radius: 50%;
-    flex-direction: column; gap: 0; display: inline-flex; align-items: center; justify-content: center;
-    border-bottom-width: 1px; box-shadow: 0 6px 18px rgba(0,0,0,.55), inset 0 1px 0 rgba(255,255,255,.8);
-  }
-  .friends-bubble[hidden] { display: none; }
-  /* messagerie : bouton « Mes messages » et nombre de non lus */
-  .open-messages { display: flex; align-items: center; gap: .55rem; width: 100%; margin: 1rem 0 .4rem; justify-content: flex-start; }
-  .open-messages svg { width: 1.2rem; height: 1.2rem; }
-  .open-messages b:empty { display: none; }
-  .open-messages b, .msg-count { margin-left: auto; min-width: 1.3rem; height: 1.3rem; padding: 0 .35rem; border-radius: 999px; background: var(--orange); color: #1b1b22; font: 800 .75rem/1.3rem var(--texte); text-align: center; }
-  .msg-count { margin-left: .4rem; display: inline-block; }
-  .friends-bubble:active { transform: scale(.94); border-bottom-width: 1px; }
-  .fb-ico { width: 1.55rem; height: 1.55rem; fill: var(--feutre-encre); }
-  .fb-lbl { font: 800 .68rem/1 var(--texte); font-stretch: 75%; margin-top: .1rem; }
-  .fb-count:empty { display: none; }
-  .fb-count { position: absolute; top: -.2rem; right: -.2rem; min-width: 1.35rem; height: 1.35rem; padding: 0 .3rem; border-radius: 999px; background: var(--rouge); color: #fff; font: 800 .78rem/1.35rem var(--texte); text-align: center; border: 2px solid var(--mur); }
-  .fb-online { position: absolute; bottom: .15rem; right: .15rem; width: .85rem; height: .85rem; border-radius: 50%; background: #3fbf6a; border: 2px solid var(--mur); }
-
-  dialog.friends-panel {
-    position: fixed; inset: auto 1rem calc(1rem + env(safe-area-inset-bottom, 0px)) auto; margin: 0;
-    width: min(31rem, calc(100vw - 2rem)); height: min(44rem, calc(100dvh - 2rem)); max-height: none; max-width: none;
-    display: flex; flex-direction: column;
-    border-top: 6px solid; border-radius: 0 0 10px 10px;
-    transform-origin: 100% 100%;
-  }
-  dialog.friends-panel:not([open]) { display: none; }
-  dialog.friends-panel[open] { animation: bulle .28s cubic-bezier(.2, .9, .3, 1.1); }
-  @keyframes bulle { from { transform: scale(.12); opacity: 0; border-radius: 50%; } to { transform: none; opacity: 1; } }
-  .fp-head { display: flex; align-items: center; gap: .9rem; padding: .9rem 1.2rem .8rem; border-bottom: 1px solid var(--ligne); }
-  .fp-head h2 { margin: 0; font: 900 1.9rem/1 var(--texte); font-stretch: 62%; text-transform: uppercase; }
-  /* bouton retour : à gauche, comme dans les applis, avec une grande zone pour le doigt */
-  .fp-back { display: inline-flex; align-items: center; gap: .3rem; min-height: 2.75rem; min-width: 2.75rem; padding: .3rem .85rem .3rem .55rem; border-radius: 999px; font-size: .98rem; }
-  .fp-back svg { width: 1.2rem; height: 1.2rem; }
-  /* empêche la page derrière de défiler quand la fenêtre est ouverte */
-  body:has(dialog[open]) { overflow: hidden; }
-  .fp-body { flex: 1; overflow-y: auto; padding: .4rem 1.2rem 1.4rem; overscroll-behavior: contain; }
-  .fp-body .friends { margin-top: .6rem; }
-  .friend-msg { min-height: 1.4rem; margin: .7rem 0 0; color: var(--jaune); font-weight: 600; }
-  .friend-msg:empty { min-height: 0; margin: 0; }
-  .friend-favs { list-style: none; margin: 0; padding: 0; }
-  /* réglages des notifications : discrets, en bas de la fenêtre Amis */
-  .notif-settings { margin: 2.2rem 0 0; padding-top: .8rem; border-top: 1px solid var(--ligne); color: var(--gris); font-size: .92rem; }
-  .notif-settings summary { cursor: pointer; width: fit-content; min-height: 2.2rem; display: flex; align-items: center; gap: .4rem; list-style: none; }
-  .notif-settings summary::-webkit-details-marker { display: none; }
-  .notif-settings summary::before { content: ""; width: .45rem; height: .45rem; border-right: 2px solid currentColor; border-bottom: 2px solid currentColor; transform: rotate(-45deg); transition: transform .2s; }
-  .notif-settings[open] summary::before { transform: rotate(45deg); }
-  .notif-settings summary:hover { color: var(--blanc); }
-  .switch { display: flex; align-items: center; gap: .7rem; min-height: 2.6rem; margin: 0; font-weight: 500; cursor: pointer; }
-  .switch input { position: absolute; opacity: 0; width: 1px; height: 1px; }
-  .switch span { position: relative; flex: none; width: 2.3rem; height: 1.3rem; border-radius: 999px; background: #3a3940; transition: background .2s; }
-  .switch span::after { content: ""; position: absolute; left: .18rem; top: .18rem; width: .94rem; height: .94rem; border-radius: 50%; background: #cfcdd4; transition: transform .2s; }
-  .switch input:checked + span { background: var(--orange); }
-  .switch input:checked + span::after { transform: translateX(1rem); background: #fff; }
-  .switch input:focus-visible + span { outline: 3px solid var(--jaune); outline-offset: 2px; }
-  .fav-item { display: grid; grid-template-columns: 2.6rem 1fr; gap: .7rem; align-items: center; width: 100%; min-height: 3.3rem; padding: .4rem .2rem; text-align: left; background: transparent; color: var(--blanc); border: 0; border-top: 1px solid var(--ligne); border-radius: 0; box-shadow: none; font: 400 1rem var(--texte); }
-  .fav-item:hover { background: rgba(255,255,255,.05); filter: none; }
-  .fav-item:active { transform: none; box-shadow: none; }
-  .fav-cover { width: 2.6rem; height: 2.6rem; border-radius: 3px; object-fit: cover; background: radial-gradient(circle, var(--orange) 0 .3rem, #111 .33rem .4rem, transparent .43rem), repeating-radial-gradient(circle, #1a1a1d 0 2px, #26252b 2px 3px); }
-  span.fav-cover { border-radius: 50%; }
-  .fp-body .hist-item { color: var(--blanc); border-top-color: var(--ligne); }
-  .fp-body .hist-item:hover { background: rgba(255,255,255,.05); }
-  .fp-body .hist-meta { color: var(--gris); }
-
-  @media (max-width: 560px) {
-    /* plein écran sur téléphone : on laisse la place à l'encoche et à la barre d'état en haut, et à la barre d'accueil en bas */
-    dialog.friends-panel { inset: 0; width: 100vw; height: 100dvh; border-radius: 0; border-top-width: 0; box-sizing: border-box; padding-top: env(safe-area-inset-top, 0px); background-clip: padding-box; }
-    dialog.friends-panel[open] { animation: monte .3s cubic-bezier(.2, .9, .3, 1); }
-    @keyframes monte { from { transform: translateY(100%); } to { transform: none; } }
-    .fp-head { position: relative; padding: .7rem 1rem .7rem .7rem; }
-    .fp-head::before { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 4px; background: linear-gradient(90deg, var(--rouge) 0 33%, var(--orange) 33% 66%, var(--jaune) 66%); }
-    .fp-head h2 { font-size: 1.7rem; }
-    .fp-body { padding: .4rem 1rem calc(1.6rem + env(safe-area-inset-bottom, 0px)); }
-  }
-
-  /* ---------- Notifications (invitations, demandes d'amis) ---------- */
-  .toast-stack {
-    position: fixed; inset: calc(.8rem + env(safe-area-inset-top, 0px)) 0 auto 0; margin: 0 auto; z-index: 60;
-    width: min(26rem, calc(100vw - 1.5rem)); max-height: none; padding: 0; border: 0; background: transparent; overflow: visible;
-    display: flex; flex-direction: column; gap: .6rem; pointer-events: none;
-  }
-  .toast-stack:empty { display: none; }
-  .invite-toast {
-    pointer-events: auto;
-    display: grid; grid-template-columns: auto 1fr; gap: .2rem .8rem; align-items: center;
-    padding: .9rem 1rem; background: #1d1c21; color: var(--blanc);
-    border-left: 5px solid var(--rouge); border-radius: 8px; box-shadow: 0 14px 40px rgba(0,0,0,.6);
-    animation: toastIn .35s cubic-bezier(.2, .9, .3, 1.2);
-    transition: opacity .25s ease, transform .25s ease;
-  }
-  .invite-toast[data-key^="req:"] { border-left-color: var(--vert, #3fbf6a); }
-  .invite-toast[data-key^="req:"] .it-dot { background: var(--vert, #3fbf6a); box-shadow: 0 0 0 4px rgba(63, 191, 106, .25); }
-  .invite-toast[data-key^="on:"] { border-left-color: var(--jaune); }
-  .invite-toast[data-key^="on:"] .it-dot { background: var(--jaune); box-shadow: 0 0 0 4px rgba(245, 196, 58, .25); }
-  .invite-toast.out { opacity: 0; transform: translateY(-12px); }
-  @keyframes toastIn { from { opacity: 0; transform: translateY(-110%); } to { opacity: 1; transform: none; } }
-  .invite-toast .it-dot { grid-row: span 2; width: .9rem; height: .9rem; border-radius: 50%; background: var(--rouge); box-shadow: 0 0 0 4px rgba(226, 65, 43, .25); }
-  .invite-toast p { margin: 0; line-height: 1.3; }
-  .invite-toast small { color: var(--gris); }
-  .invite-toast .it-actions { grid-column: 2; display: flex; flex-wrap: wrap; gap: .5rem; margin-top: .55rem; }
-  .invite-toast .it-actions a, .invite-toast .it-actions button { min-height: 2.4rem; padding: .35rem .95rem; font: 800 .95rem var(--texte); font-stretch: 78%; border-radius: 4px; text-decoration: none; display: inline-flex; align-items: center; box-shadow: none; transform: none; }
-  .invite-toast .it-actions button { background: transparent; color: var(--blanc); border: 1px solid var(--ligne); }
-  .invite-toast .it-actions .it-main { background: var(--chrome); color: #1b1b22; border: 1px solid #6f6f78; border-bottom: 4px solid #5b5b63; }
-  .invite-toast .it-actions button:disabled { opacity: .5; }
-
-
-  /* ---------- Fenêtre de bienvenue ---------- */
-  dialog.welcome { width: min(25rem, calc(100vw - 1.5rem)); padding: 0; border: 0; border-radius: 0; overflow: visible; background: transparent; box-shadow: none; }
-  dialog.welcome[open] { animation: welcomeIn .45s cubic-bezier(.2, .9, .3, 1.15); }
-  dialog.welcome[open]::backdrop { animation: fadeIn .35s ease; }
-  @keyframes welcomeIn { from { opacity: 0; transform: translateY(24px) scale(.96); } to { opacity: 1; transform: none; } }
-  @keyframes fadeIn { from { opacity: 0; } }
-  .welcome-in { position: relative; margin-top: 2.6rem; padding: 3.2rem 1.5rem 1.4rem; text-align: center; border-radius: 14px;
-    background: linear-gradient(180deg, var(--rouge) 0 5px, var(--orange) 5px 10px, var(--jaune) 10px 15px, transparent 15px), #1d1c21;
-    box-shadow: 0 24px 60px rgba(0,0,0,.7); }
-  /* le vinyle qui dépasse en haut de la fenêtre */
-  .welcome-disc { position: absolute; left: 50%; top: -2.6rem; width: 5.2rem; height: 5.2rem; margin-left: -2.6rem; border-radius: 50%;
-    background: radial-gradient(circle, #111 0 .25rem, var(--orange) .27rem 1.05rem, #111 1.08rem 1.18rem, transparent 1.2rem),
-      repeating-radial-gradient(circle, #19181c 0 2px, #2a2930 2px 3px);
-    box-shadow: 0 8px 20px rgba(0,0,0,.6), 0 0 0 4px #1d1c21; animation: btSpin 5s linear infinite; z-index: 1; }
-  .welcome h2 { margin: 0 0 .5rem; font: 900 2rem/1 var(--texte); font-stretch: 62%; text-transform: uppercase; }
-  .welcome p { margin: 0 auto 1rem; color: var(--gris); max-width: 20rem; }
-  .welcome-perks { list-style: none; margin: 0 0 1.4rem; padding: 0; text-align: left; display: grid; gap: .45rem; }
-  .welcome-perks li { position: relative; padding-left: 1.6rem; font-size: .98rem; }
-  .welcome-perks li::before { content: ""; position: absolute; left: .2rem; top: .45em; width: .65rem; height: .65rem; border-radius: 50%; background: var(--orange); box-shadow: 0 0 0 3px rgba(242, 140, 28, .2); }
-  .welcome-actions { display: grid; grid-template-columns: 1fr 1fr; gap: .6rem; }
-  .welcome-actions button { min-height: 3rem; }
-  .welcome-main { background: var(--enfonce, linear-gradient(180deg, #ffd27a, var(--orange))); border-color: #a65a0a; }
-  .welcome-guest { margin-top: .9rem; min-height: 2.6rem; width: 100%; background: transparent; color: var(--gris); border: 0; box-shadow: none; font: 600 .98rem var(--texte); text-decoration: underline; text-underline-offset: 4px; }
-  .welcome-guest:hover, .welcome-guest:active { background: transparent; color: var(--blanc); transform: none; box-shadow: none; filter: none; }
-  @media (max-width: 380px) { .welcome-actions { grid-template-columns: 1fr; } }
-
-  /* bouton « mon profil » dans la barre du haut */
-  .profile-btn { display: inline-flex; align-items: center; gap: .5rem; padding: .2rem .9rem .2rem .25rem !important; border-radius: 999px !important; }
-  .profile-btn[hidden] { display: none; }
-  .pb-av { width: 1.9rem; height: 1.9rem; border-radius: 50%; display: grid; place-items: center; background: linear-gradient(135deg, var(--jaune), var(--orange) 55%, var(--rouge)) center / cover; color: #1b1b22; font: 900 1rem var(--texte); font-stretch: 62%; }
-  .pb-name { max-width: 10rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-
-  /* ---------- Compte ---------- */
-  .account { display: flex; flex-wrap: wrap; align-items: center; gap: .55rem; }
-  .account [hidden] { display: none; }
-  .account button { min-height: 2.3rem; padding: .3rem .9rem; font-size: .93rem; }
-  .account-email { display: inline-block; max-width: 14rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--gris); font-size: .95rem; }
-  .linkbtn { background: transparent; color: var(--jaune); border: 0; box-shadow: none; font: 700 .98rem var(--texte); text-decoration: underline; text-underline-offset: 3px; min-height: 2.25rem; padding: .25rem 0; }
-  .linkbtn:hover, .linkbtn:active { background: transparent; color: var(--blanc); transform: none; box-shadow: none; filter: none; }
-
-  dialog { width: min(27rem, calc(100vw - 1.5rem)); padding: 0; background: #1d1c21; color: var(--blanc); border: 0; border-top: 6px solid; border-image: linear-gradient(90deg, var(--rouge) 0 33%, var(--orange) 33% 66%, var(--jaune) 66%) 1; border-radius: 0; box-shadow: 0 24px 60px rgba(0,0,0,.7); }
-  dialog::backdrop { background: rgba(10, 10, 12, .8); }
-  .auth { padding: 1.5rem 1.5rem 1.6rem; }
-  .auth h2 { margin: 0 0 .6rem; font: 900 1.9rem/1.05 var(--texte); font-stretch: 62%; text-transform: uppercase; }
-  .auth p { margin: 0 0 1.2rem; }
-  .auth label { margin-top: 1rem; }
-  .opt { color: var(--gris); font-weight: 400; }
-  .auth input, .friends input[type="text"] {
-    display: block; width: 100%; min-height: 2.9rem;
-    border: 1px solid var(--ligne); border-radius: 4px; background: #121115;
-    font: 500 1.08rem/1.3 var(--texte); color: var(--blanc);
-    padding: .5rem .8rem; caret-color: var(--orange);
-  }
-  .auth input:focus, .friends input[type="text"]:focus { outline: none; border-color: var(--orange); }
-  .auth-error { min-height: 1.5rem; margin: .75rem 0 .25rem; color: var(--danger); font-weight: 700; }
-  .auth-actions { display: flex; flex-wrap: wrap; gap: .7rem; }
-  .auth-switch { margin: .9rem 0 0; }
-
-  /* ---------- Amis ---------- */
-  .friends { margin: 1.4rem 0 .5rem; }
-  .friends[hidden] { display: none; }
-  .friends .field { display: flex; gap: .7rem; }
-  .friends .field input[type="text"] { flex: 1; width: auto; }
-  .friends h2 { font: 900 1.6rem var(--texte); font-stretch: 62%; text-transform: uppercase; margin: 1.6rem 0 .5rem; }
-  .friends h3 { font: 700 1rem var(--texte); font-stretch: 85%; color: var(--gris); margin: 1rem 0 .25rem; }
-  .friend-list { list-style: none; margin: 0; padding: 0; }
-  .friend-item { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .5rem; padding: .65rem 0; border-top: 1px solid var(--ligne); }
-  .friend-item:last-child { border-bottom: 1px solid var(--ligne); }
-  .friend-name { font: 800 1.1rem var(--texte); font-stretch: 78%; overflow-wrap: anywhere; }
-  .friend-who { display: flex; align-items: center; gap: .7rem; min-width: 0; }
-  .friend-av {
-    flex: none; width: 2.8rem; height: 2.8rem; min-height: 0; padding: 0; border-radius: 50% !important; overflow: hidden;
-    display: grid; place-items: center; border: 2px solid var(--ligne) !important; box-shadow: none !important;
-    background: linear-gradient(135deg, var(--jaune), var(--orange) 55%, var(--rouge)) !important; color: #1b1b22;
-    font: 900 1.25rem/1 var(--texte); font-stretch: 62%; cursor: pointer; transition: transform .15s, border-color .15s;
-  }
-  .friend-av img { width: 100%; height: 100%; object-fit: cover; display: block; }
-  .friend-av:hover { transform: scale(1.06); border-color: var(--orange) !important; filter: none; }
-  .friend-av:active { transform: scale(.95); border-bottom-width: 2px; }
-  /* statut en ligne : point vert qui pulse doucement, sinon « vu il y a… » */
-  .presence { display: inline-flex; align-items: center; gap: .4rem; margin-left: .7rem; font: 500 .85rem var(--texte); font-stretch: 90%; color: var(--gris); vertical-align: middle; }
-  .presence::before { content: ""; width: .55rem; height: .55rem; border-radius: 50%; background: #5d5b63; }
-  .presence.online { color: #6fdc8c; }
-  .presence.online::before { background: #3fbf6a; box-shadow: 0 0 0 0 rgba(63, 191, 106, .6); animation: online 2s ease-out infinite; }
-  /* en train de jouer au blind test : petit vinyle orange qui tourne */
-  .presence.ingame { color: #ffb15c; }
-  .presence.ingame::before { width: .7rem; height: .7rem; background: radial-gradient(circle, #ffb15c 0 18%, #1b1b22 20% 34%, #f28c1c 36% 100%); animation: ingame 1.6s linear infinite; }
-  @keyframes ingame { to { transform: rotate(360deg); } }
-  @media (prefers-reduced-motion: reduce) { .presence.ingame::before { animation: none; } }
-  @keyframes online { 70% { box-shadow: 0 0 0 6px rgba(63, 191, 106, 0); } 100% { box-shadow: 0 0 0 0 rgba(63, 191, 106, 0); } }
-  .friend-actions { display: flex; flex-wrap: wrap; gap: .5rem; }
-  .friend-actions button { min-height: 2.25rem; padding: .3rem .9rem; font-size: .92rem; }
-  .friend-empty { color: var(--gris); margin: .5rem 0 0; }
-  .friend-detail { margin-top: 1.6rem; padding-top: .5rem; border-top: 3px solid var(--orange); }
-  .friend-detail[hidden] { display: none; }
-
-  .reveal { animation: rise .3s ease-out; }
-  @keyframes rise { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: none; } }
-
-  @media (prefers-reduced-motion: reduce) {
-    *, *::before, *::after { animation: none !important; transition: none !important; }
-    .ln.active { transform: none; }
-  }
-
-  @media (max-width: 560px) {
-    main { padding: 1.4rem 1rem 2.5rem; }
-    .topbar { margin-bottom: 1.8rem; }
-    .tape { padding: .8rem .8rem 0; border-radius: 10px; }
-    .tape-label { padding: .8rem .85rem 0; }
-    .tape-label .field { flex-direction: column; align-items: stretch; }
-    #form button[type="submit"] { align-self: flex-start; }
-    .tape-stripes { margin: 0 -.85rem; height: 4.6rem; }
-    .tape-window { width: 78%; height: 3.3rem; }
-    .reel { width: 2.3rem; height: 2.3rem; }
-    li.result { grid-template-columns: 1.9rem 3.1rem 1fr; gap: .75rem; }
-    li.result::before { font-size: 1.5rem; }
-    .disc { width: 3.1rem; height: 3.1rem; }
-    a.open { grid-column: 3; }
-  }
+  .hist-item { display: block; width: 100%; min-height: 0; padding: .55rem .4rem; text-align: left; background: transparent; color: var(--blanc); border-radius: 10px; font-weight: 400; }
+  .hist-item:hover { background: var(--coque-hi); }
+  .hist-title { display: block; font-weight: 600; font-size: .9rem; }
+  .hist-meta { display: block; color: var(--gris); font-size: .8rem; }
 </style>
+
 </head>
 <body>
-<main>
-  <div class="topbar">
-    <p class="brand"><span aria-hidden="true">★</span> Star Song <span class="pa" aria-hidden="true"><b data-en="Explicit">Paroles</b><b data-en="lyrics">explicites</b></span></p>
-    <div class="account" id="account">
-      <button id="profileBtn" class="ghost profile-btn" type="button" hidden><span class="pb-av" aria-hidden="true"></span><span class="pb-name" data-notranslate></span></button>
-      <span id="accountEmail" class="account-email" hidden></span>
-      <button id="usernameBtn" type="button" hidden>Choisir un identifiant</button>
-      <button id="loginBtn" class="ghost" type="button" hidden>Se connecter</button>
-      <button id="signupBtn" type="button" hidden>Créer un compte</button>
-      <button id="logoutBtn" class="ghost" type="button" hidden>Se déconnecter</button>
-      <button id="installBtn" class="ghost" type="button" hidden>📲 Installer l’appli</button>
-    </div>
-  </div>
-  <h1 id="titre">Un refrain en tête et le titre qui a disparu ? On le retrouve.</h1>
-  <p class="intro">Tape quelques mots que l’artiste chante, même approximatifs, et on te donne le titre.</p>
+<div class="frame">
+  <!-- Menu de gauche -->
+  <aside class="side" aria-label="Menu principal">
+    <a class="brand" href="/"><span class="star-logo" aria-hidden="true">★</span>Star Song</a>
+    <p class="nav-title">Parcourir</p>
+    <ul class="nav">
+      <li><a href="/" aria-current="page"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 11l8-7 8 7v9h-5v-6H9v6H4z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>Accueil</a></li>
+      <li><a href="/blindtest"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="12" r="2.4" fill="currentColor"/></svg>Blind test</a></li>
+      <li><a href="/blindtest#playlistsBox"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h11M4 11h11M4 16h7M17 14v6M17 20a2 2 0 1 1-2-2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M17 14l4-1" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>Playlists</a></li>
+      <li><a href="#classement"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 20V11M12 20V5M19 20v-6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>Classement</a></li>
+    </ul>
+    <p class="nav-title">Social</p>
+    <ul class="nav">
+      <li>
+        <button id="tabFriends" class="friends-nav" type="button" hidden aria-haspopup="dialog" aria-controls="friendsDialog" aria-label="Ouvrir mes amis">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M3 19c.6-3.3 3-5 6-5s5.4 1.7 6 5M16 5.5a3 3 0 0 1 0 5.6M18 14c1.7.6 2.7 2.2 3 5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+          <span>Amis</span>
+          <span id="friendCount" class="nav-badge"></span>
+          <span id="friendOnlineDot" class="nav-online" hidden></span>
+        </button>
+      </li>
+      <li><button type="button" data-open="messages"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v11H9l-5 4z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg><span>Messages</span><span class="nav-badge" data-msg-badge></span></button></li>
+      <li><button type="button" data-open="notifs"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15zM10 20a2 2 0 0 0 4 0" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg><span>Notifications</span><span class="nav-badge" data-notif-badge></span></button></li>
+      <li><button type="button" data-open="profile" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="3.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M5 20c.8-3.6 3.6-5.5 7-5.5s6.2 1.9 7 5.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg><span>Mon profil</span></button></li>
+    </ul>
+  </aside>
 
-  <form id="form" role="search" class="tape">
-    <div class="tape-label">
-      <label for="q">Écris ce que t’as retenu du son</label>
-      <div class="field">
-        <input id="q" name="q" type="search" autocomplete="off" maxlength="200" placeholder="Ex : Finis les" required>
-        <button type="submit">Trouver</button>
-      </div>
-      <div class="tape-stripes" aria-hidden="true">
-        <div class="tape-window"><span class="reel"></span><span class="reel"></span></div>
-      </div>
-    </div>
-    <div class="tape-foot" aria-hidden="true"></div>
-  </form>
-  <p class="hint">Tu peux trouver tout ce que tu désires grâce à Kyky</p>
-  <a class="bt-link" href="/blindtest"><span class="bt-disc" aria-hidden="true"></span><span class="bt-label">Blind test</span><span class="bt-eq" aria-hidden="true"><i></i><i></i><i></i><i></i></span></a>
-
-  <div class="tabs" role="tablist" aria-label="Affichage">
-    <button id="tabSearch" class="tab" type="button" role="tab" aria-selected="true">Résultats</button>
-    <button id="tabFavs" class="tab" type="button" role="tab" aria-selected="false">★ Favoris <span id="favCount"></span></button>
-  </div>
-
-  <p id="status" role="status" aria-live="polite"></p>
-  <div id="demo" class="demo" hidden>Mode démo : ces résultats sont fictifs. Lance le site avec « npm start » pour obtenir de vraies chansons.</div>
-  <ol id="results"></ol>
-  <p id="stat" class="stat" role="status" hidden></p>
-</main>
-
-<aside id="hist" class="hist" hidden aria-label="Historique des recherches">
-  <div id="histPanel" class="hist-panel" inert>
-    <div class="hist-inner">
-      <div class="hist-box">
-        <div class="hist-head"><span>Tes dernières recherches</span><button id="histClear" class="hist-clear" type="button">Effacer</button></div>
-        <ul id="histList"></ul>
+  <!-- Barre du haut -->
+  <header class="top topbar">
+    <a class="mobile-brand" href="/"><span class="star-logo" aria-hidden="true">★</span>Star Song</a>
+    <nav class="crumbs" aria-label="Fil d’Ariane"><a href="/">Star Song</a><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><b>Paroles</b></nav>
+    <nav class="top-tabs" aria-label="Rubriques">
+      <a class="search-go" href="#q" aria-label="Aller à la recherche"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M16 16l4 4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></a>
+      <a href="/" aria-current="page">Paroles</a>
+      <a href="/blindtest">Blind test</a>
+      <a href="#classement">Classement</a>
+    </nav>
+    <div class="top-right">
+      <div class="account" id="account">
+        <button id="profileBtn" class="ghost profile-btn" type="button" hidden><span class="pb-av" aria-hidden="true"></span><span class="pb-name" data-notranslate></span></button>
+        <span id="accountEmail" class="account-email" hidden></span>
+        <button id="usernameBtn" type="button" hidden>Choisir un identifiant</button>
+        <button id="loginBtn" class="ghost" type="button" hidden>Se connecter</button>
+        <button id="signupBtn" type="button" hidden>Créer un compte</button>
+        <button id="logoutBtn" class="ghost" type="button" hidden>Se déconnecter</button>
+        <button id="installBtn" class="ghost" type="button" hidden>📲 Installer l’appli</button>
       </div>
     </div>
-  </div>
-  <button id="histToggle" class="hist-toggle" type="button" aria-expanded="false" aria-controls="histPanel">↺ Historique <span id="histCount"></span></button>
-</aside>
+  </header>
 
-<!-- Amis : une bulle dans le coin, qui ouvre une grande couche -->
-<button id="tabFriends" class="friends-bubble" type="button" hidden aria-haspopup="dialog" aria-controls="friendsDialog" aria-label="Ouvrir mes amis">
-  <svg class="fb-ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.4"/><path d="M2.5 19.5c.6-3.6 3.3-5.6 6.5-5.6s5.9 2 6.5 5.6z"/><circle cx="16.8" cy="9" r="2.7"/><path d="M15.6 14.2c.4-.1.8-.1 1.2-.1 2.6 0 4.6 1.6 5.1 4.6h-4.6c-.3-1.8-.9-3.3-1.7-4.5z"/></svg>
-  <span class="fb-lbl">Amis</span>
-  <span id="friendCount" class="fb-count"></span>
-  <span id="friendOnlineDot" class="fb-online" hidden></span>
-</button>
+  <!-- Contenu -->
+  <main class="main">
+    <section class="hero">
+      <div class="hero-txt">
+        <p class="eyebrow">Recherche par paroles</p>
+        <h1 id="titre">Un refrain en tête et le titre qui a disparu ? On le retrouve.</h1>
+        <p class="intro">Tape quelques mots que l’artiste chante, même approximatifs, et on te donne le titre.</p>
+        <form id="form" role="search">
+          <svg class="search-ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M16 16l4 4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+          <label for="q" class="sr-only">Écris ce que t’as retenu du son</label>
+          <input id="q" name="q" type="search" autocomplete="off" maxlength="200" placeholder="Ex : Finis les" required>
+          <button type="submit">Trouver</button>
+        </form>
+        <div class="hero-foot">
+          <span class="heart" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z" fill="#fff"/></svg></span>
+          <span>Tu peux trouver tout ce que tu désires grâce à Kyky</span>
+          <span class="dot" aria-hidden="true"></span>
+          <span>Paroles synchronisées, Spotify et Deezer</span>
+        </div>
+      </div>
+      <div class="hero-art" aria-hidden="true">
+        <div class="vinyl"></div>
+        <div class="sleeve"></div>
+        <svg class="wave" viewBox="0 0 400 80" preserveAspectRatio="none"><path d="M0 50 C40 10 80 70 120 40 S200 10 240 45 S320 75 400 30" fill="none" stroke="#fff" stroke-width="2"/></svg>
+      </div>
+    </section>
+
+    <div class="section-head">
+      <h2>Tes sons</h2>
+      <div class="tabs" role="tablist" aria-label="Affichage">
+        <button id="tabSearch" class="tab" type="button" role="tab" aria-selected="true">Résultats</button>
+        <button id="tabFavs" class="tab" type="button" role="tab" aria-selected="false">Favoris <span id="favCount"></span></button>
+      </div>
+    </div>
+    <p id="status" role="status" aria-live="polite"></p>
+    <div id="demo" class="demo" hidden>Mode démo : ces résultats sont fictifs. Lance le site avec « npm start » pour obtenir de vraies chansons.</div>
+    <ol id="results"></ol>
+    <p id="stat" class="stat" role="status" hidden></p>
+
+    <div class="section-head"><h2>Blind test</h2><a class="more-link" href="/blindtest">Tout voir</a></div>
+    <div class="covers">
+      <a class="cover-card" href="/blindtest?cat=rap-fr"><span class="cover-art" style="--g: linear-gradient(135deg, #f26b3a, #b8322a)"><b>Rap FR</b></span><span class="ct">Rap FR</span><span class="cs">SCH, Jul, Ninho…</span></a>
+      <a class="cover-card" href="/blindtest?cat=rap-us"><span class="cover-art" style="--g: linear-gradient(135deg, #3a7bd5, #1b2a6b)"><b>Rap US</b></span><span class="ct">Rap US</span><span class="cs">Drake, Kendrick…</span></a>
+      <a class="cover-card" href="/blindtest?cat=rnb"><span class="cover-art" style="--g: linear-gradient(135deg, #c0397a, #4a1640)"><b>R&amp;B</b></span><span class="ct">R&amp;B</span><span class="cs">Brent Faiyaz, SZA…</span></a>
+      <a class="cover-card" href="/blindtest?cat=pop"><span class="cover-art" style="--g: linear-gradient(135deg, #28c2a9, #0f5a6b)"><b>Pop</b></span><span class="ct">Pop</span><span class="cs">Les hits du moment</span></a>
+      <a class="cover-card" href="/blindtest?cat=annees-2000"><span class="cover-art" style="--g: linear-gradient(135deg, #f2b93a, #9a5a12)"><b>Années 2000</b></span><span class="ct">Années 2000</span><span class="cs">La nostalgie</span></a>
+      <a class="cover-card" href="/blindtest#playlistsBox"><span class="cover-art" style="--g: linear-gradient(135deg, #7d5cff, #2c1a7a)"><b>Tes playlists</b></span><span class="ct">Mes playlists</span><span class="cs">Tes sons à toi</span></a>
+    </div>
+
+    <div id="boardSlot"></div>
+  </main>
+
+  <!-- Colonne de droite -->
+  <aside class="rail" aria-label="En ce moment">
+    <section class="player-card">
+      <div class="pc-head"><span class="pc-cover" aria-hidden="true">🎧</span><div><b>Blind test express</b><small>10 sons · Rap FR · entre potes</small></div></div>
+      <svg class="pc-wave" viewBox="0 0 300 90" preserveAspectRatio="none" aria-hidden="true">
+        <defs><linearGradient id="pcGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f26b3a" stop-opacity=".45"/><stop offset="1" stop-color="#f26b3a" stop-opacity="0"/></linearGradient></defs>
+        <path class="area" d="M0 40 C25 70 45 15 70 35 S110 80 135 55 S175 10 200 30 S245 75 270 45 S290 30 300 35 V90 H0z"/>
+        <path class="line" d="M0 40 C25 70 45 15 70 35 S110 80 135 55 S175 10 200 30 S245 75 270 45 S290 30 300 35"/>
+      </svg>
+      <div class="pc-foot">
+        <a class="chip" href="/blindtest">Jouer</a>
+        <a class="chip" href="#classement">Classement</a>
+        <a class="pc-play" href="/blindtest?cat=rap-fr" aria-label="Lancer un blind test"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4l13 8-13 8z" fill="currentColor"/></svg></a>
+      </div>
+    </section>
+
+    <section class="card" id="railFriendsCard">
+      <div class="card-head"><h2>Amis</h2><button type="button" class="more" data-open="friends">Tout voir</button></div>
+      <ul id="railFriends" class="rail-list"><li class="rail-empty">Connecte-toi pour voir tes amis en ligne.</li></ul>
+    </section>
+
+    <section class="card">
+      <aside id="hist" class="hist" hidden aria-label="Historique des recherches">
+        <button id="histToggle" class="ghost hist-toggle" type="button" aria-expanded="false" aria-controls="histPanel"><span>↺ Historique</span> <span id="histCount"></span></button>
+        <div id="histPanel" class="hist-panel" inert>
+          <div class="hist-inner">
+            <div class="hist-box">
+              <div class="hist-head"><span>Tes dernières recherches</span><button id="histClear" class="hist-clear" type="button">Effacer</button></div>
+              <ul id="histList"></ul>
+            </div>
+          </div>
+        </div>
+      </aside>
+      <p class="rail-empty hist-none">Tes recherches récentes apparaîtront ici.</p>
+    </section>
+  </aside>
+</div>
+
+<!-- Lecteur en bas -->
+<div id="nowBar" class="now" hidden>
+  <div class="now-song"><img class="now-cover" alt=""><div class="now-txt"><b data-notranslate></b><span data-notranslate></span></div></div>
+  <div class="now-ctrl">
+    <button type="button" class="small" data-now="back" aria-label="Revenir au début"><svg viewBox="0 0 24 24"><path d="M6 5v14M19 5L9 12l10 7z" fill="currentColor" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg></button>
+    <button type="button" data-now="toggle" aria-label="Pause"><svg viewBox="0 0 24 24"><path d="M6 4h4v16H6zM14 4h4v16h-4z" fill="currentColor"/></svg></button>
+    <button type="button" class="small" data-now="stop" aria-label="Arrêter"><svg viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2" fill="currentColor"/></svg></button>
+  </div>
+  <div class="now-time"><span data-now-time>0:00</span></div>
+  <div class="now-bar"><i></i></div>
+</div>
+
+<!-- Onglets en bas (téléphone) -->
+<nav class="tabbar" aria-label="Menu">
+  <a href="/" aria-current="page"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 11l8-7 8 7v9h-5v-6H9v6H4z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>Accueil</a>
+  <a href="/blindtest"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="12" r="2.4" fill="currentColor"/></svg>Blind test</a>
+  <button type="button" data-open="friends"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M3 19c.6-3.3 3-5 6-5s5.4 1.7 6 5M16 5.5a3 3 0 0 1 0 5.6M18 14c1.7.6 2.7 2.2 3 5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>Amis<span class="nav-badge" data-friend-badge></span></button>
+  <button type="button" data-open="messages"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v11H9l-5 4z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>Messages<span class="nav-badge" data-msg-badge></span></button>
+  <button type="button" data-open="notifs"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15zM10 20a2 2 0 0 0 4 0" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>Notifs<span class="nav-badge" data-notif-badge></span></button>
+</nav>
+
+<!-- Notifications : explications + réglages -->
+<dialog id="notifDialog" class="notif-dialog" aria-labelledby="notifTitle">
+  <div class="nd-head"><h2 id="notifTitle">Notifications</h2><button type="button" class="ghost nd-close" aria-label="Fermer">✕</button></div>
+  <div class="nd-body">
+    <div class="nd-how">
+      <p class="nd-lead">Reçois une alerte sur ton téléphone quand un ami t’écrit, t’invite à un blind test, ou quand ta flamme 🔥 va s’éteindre, même quand Star Song est fermé.</p>
+      <ol class="nd-steps">
+        <li><b>Appuie sur « Activer les notifications »</b> juste en dessous.</li>
+        <li><b>Accepte</b> quand ton navigateur te demande l’autorisation.</li>
+        <li><b>Appuie sur « Envoyer un test »</b> pour vérifier que ça marche.</li>
+      </ol>
+      <p class="nd-ios"><b>Sur iPhone :</b> ouvre d’abord Star Song dans Safari, appuie sur Partager puis « Sur l’écran d’accueil ». Ouvre ensuite Star Song depuis cette icône, et active les notifications ici.</p>
+    </div>
+    <div class="notif-settings" id="notifSettings">
+      <p class="nd-sub">Ce que tu veux recevoir</p>
+      <label class="switch"><input type="checkbox" data-notif="online" checked><span></span>Quand un ami se connecte</label>
+      <label class="switch"><input type="checkbox" data-notif="req" checked><span></span>Demandes d’amis</label>
+      <label class="switch"><input type="checkbox" data-notif="inv" checked><span></span>Invitations au blind test</label>
+      <label class="switch"><input type="checkbox" data-notif="msg" checked><span></span>Nouveaux messages</label>
+      <label class="switch"><input type="checkbox" data-notif="streak" checked><span></span>Rappel quand ma flamme 🔥 va s’éteindre</label>
+    </div>
+  </div>
+</dialog>
+
 <dialog id="friendsDialog" class="friends-panel" aria-labelledby="friendsTitle">
   <div class="fp-head">
     <button id="friendsClose" class="ghost fp-back" type="button" aria-label="Fermer mes amis">
@@ -686,14 +394,6 @@
         <h3>Favoris</h3>
         <ul id="friendFavs" class="friend-favs"></ul>
       </div>
-      <details class="notif-settings">
-        <summary>Notifications</summary>
-        <label class="switch"><input type="checkbox" data-notif="online" checked><span></span>Quand un ami se connecte</label>
-        <label class="switch"><input type="checkbox" data-notif="req" checked><span></span>Demandes d’amis</label>
-        <label class="switch"><input type="checkbox" data-notif="inv" checked><span></span>Invitations au blind test</label>
-        <label class="switch"><input type="checkbox" data-notif="msg" checked><span></span>Nouveaux messages</label>
-        <label class="switch"><input type="checkbox" data-notif="streak" checked><span></span>Rappel quand ma flamme 🔥 va s’éteindre</label>
-      </details>
     </section>
   </div>
 </dialog>

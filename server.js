@@ -4,7 +4,7 @@ import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { join, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { handleAuth, clientIp, sessionUser, findFriend, recordBlindtest, blindtestLeaderboard, markInBlindtest, countStat, isAdmin, adminStats, recordActivity, recordListen, streakOf, notifyUser, usersStreak, getPlaylist, playlistsFor } from './auth.js';
+import { handleAuth, clientIp, sessionUser, findFriend, recordBlindtest, blindtestLeaderboard, markInBlindtest, countStat, isAdmin, adminStats, recordActivity, recordListen, streakOf, notifyUser, usersStreak, getPlaylist, playlistsFor, adminNotify } from './auth.js';
 import { createBlindtest } from './blindtest.js';
 import { CATEGORIES } from './categories.js';
 
@@ -390,6 +390,23 @@ const server = createServer(async (req, res) => {
 
   // Blind test entre amis : /api/bt/...
   if (await handleBlindtest(req, res, url)) return;
+
+  // Notification envoyée par l'admin à la personne de son choix
+  if (url.pathname === '/api/admin/notify' && req.method === 'POST') {
+    const user = sessionUser(req);
+    if (!isAdmin(user)) return sendJson(res, 404, { error: 'Introuvable.' });
+    let body = {};
+    try {
+      let raw = '';
+      for await (const chunk of req) { raw += chunk; if (raw.length > 5000) throw new Error('trop long'); }
+      body = JSON.parse(raw || '{}');
+    } catch { return sendJson(res, 400, { error: 'Requête invalide.' }); }
+    try {
+      return sendJson(res, 200, adminNotify(user, body.username, body));
+    } catch (err) {
+      return sendJson(res, err.status || 500, { error: err.message });
+    }
+  }
 
   // Statistiques du site : seulement pour l'admin (ADMIN_USERNAME sur Render)
   if (url.pathname === '/api/admin/stats') {

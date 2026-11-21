@@ -398,6 +398,11 @@ async function handlePush(req, res, url, me) {
     saveSoon();
     return send(res, 200, { prefs: me.notif });
   }
+  if (action === 'inbox-seen') { // la personne a vu le message de l'admin
+    me.inbox = (me.inbox || []).filter((x) => x.id !== body.id);
+    saveSoon();
+    return send(res, 200, { ok: true });
+  }
   if (action === 'gift-seen') {
     delete me.gift;
     saveSoon();
@@ -408,6 +413,31 @@ async function handlePush(req, res, url, me) {
     return send(res, 200, { ok: true });
   }
   throw new HttpError(404, 'Introuvable.');
+}
+
+// --- Notification envoyée par un admin à une personne ---
+// Elle part sur son téléphone (si les notifications sont activées) ET s'affiche sur le site à sa prochaine visite.
+export function adminNotify(fromUser, username, { title, body, url }) {
+  const target = findByUsername(username);
+  if (!target || !target.username) throw new HttpError(404, 'Ce compte n’existe pas.');
+  const clean = (x, n) => String(x || '').replace(/[\u0000-\u001f\u007f]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, n);
+  const t = clean(title, 80) || 'Message de Star Song';
+  const b = clean(body, 300);
+  if (!b) throw new HttpError(400, 'Écris le message de la notification.');
+  const link = /^\/[^\s]*$/.test(String(url || '')) ? String(url) : '/';
+  const item = { id: randomBytes(6).toString('base64url'), title: t, body: b, url: link, from: fromUser.username, at: Date.now() };
+  target.inbox = [...(target.inbox || []), item].slice(-10);
+  saveSoon();
+  const devices = (target.push || []).length;
+  if (devices && vapid) {
+    for (const sub of [...target.push]) {
+      sendPush(sub, { title: t, body: b, url: link, tag: 'admin:' + item.id }, vapid).then((r) => {
+        if (r === 'gone') { target.push = (target.push || []).filter((x) => x.endpoint !== sub.endpoint); saveSoon(); }
+      }).catch((err) => console.error('Notification admin :', err.message));
+    }
+  }
+  countStat('admin_notifs');
+  return { username: target.username, devices };
 }
 
 // Rappel du soir : « ta série va s'éteindre » (entre 19 h et 22 h, une fois par jour)
@@ -608,7 +638,7 @@ function sameSiteJson(req) {
   try { return new URL(origin).host === req.headers.host; } catch { return false; }
 }
 
-const publicUser = (u) => (u ? { username: u.username || '', email: u.email || '', name: u.username || u.email, ...(u.username ? { streak: streakOf(u), ...(u.gift ? { gift: u.gift } : {}) } : {}), ...(isAdmin(u) ? { admin: true } : {}) } : null);
+const publicUser = (u) => (u ? { username: u.username || '', email: u.email || '', name: u.username || u.email, ...(u.username ? { streak: streakOf(u), ...(u.gift ? { gift: u.gift } : {}), ...((u.inbox || []).length ? { inbox: u.inbox } : {}) } : {}), ...(isAdmin(u) ? { admin: true } : {}) } : null);
 const normEmail = (e) => String(e || '').trim().toLowerCase();
 const validEmail = (e) => e.length <= 254 && /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(e);
 // Identifiant : 3 à 30 caractères, sans @ (pour ne jamais être confondu avec un e-mail)
@@ -1011,7 +1041,8 @@ async function handleMessages(req, res, url, me) {
     other.chats[me.id] = { ...theirs, at, text: preview, from: me.id, unread: Math.min(99, (theirs.unread || 0) + 1) };
     countStat('messages');
     saveChatsSoon();
-    notifyUser(other.id, 'msg', { title: `Message de ${me.username}`, body: preview, url: '/?chat=' + encodeURIComponent(me.username), tag: 'msg:' + me.id });
+    // les messages arrivent toujours sur le téléphone, même si la personne a le site ouvert ailleurs
+    notifyUser(other.id, 'msg', { title: `Message de ${me.username}`, body: preview, url: '/?chat=' + encodeURIComponent(me.username), tag: 'msg:' + me.id }, { evenIfOnline: true });
     return at;
   };
 

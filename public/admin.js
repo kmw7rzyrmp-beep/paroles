@@ -37,6 +37,17 @@
   .adm td.r, .adm th.r { text-align: right; font-variant-numeric: tabular-nums; }
   .adm .muted { color: var(--gris); }
   .adm-err { color: var(--danger, #ff8a7a); }
+  .adm-notify { margin-top: .4rem; padding: 1rem; border-radius: 16px; background: #141317; }
+  .adm-notify h3 { margin-top: 0 !important; }
+  .adm-nf { display: grid; grid-template-columns: 1fr 1fr; gap: .7rem 1rem; align-items: end; }
+  .adm-nf label { display: grid; gap: .3rem; font-size: .82rem; color: var(--gris); margin: 0; }
+  .adm-nf label:nth-of-type(3) { grid-column: 1 / -1; }
+  .adm-nf input, .adm-nf textarea, .adm-nf select { width: 100%; min-height: 2.5rem; padding: .45rem .7rem; border: 1px solid var(--ligne); border-radius: 10px; background: #0b0b0c; color: var(--blanc); font: 500 .92rem var(--texte); resize: vertical; }
+  .adm-nf input:focus, .adm-nf textarea:focus, .adm-nf select:focus { outline: none; border-color: var(--orange); }
+  .adm-nf button { justify-self: start; }
+  .adm-nf-out { grid-column: 1 / -1; margin: 0; font-size: .85rem; color: var(--gris); }
+  .adm-nf-out.ok { color: #6fdc8c; } .adm-nf-out.err { color: var(--danger, #ff8a7a); }
+  @media (max-width: 560px) { .adm-nf { grid-template-columns: 1fr; } }
   .adm details summary { cursor: pointer; color: var(--gris); font-size: .85rem; margin-top: .6rem; }
   `;
   const style = document.createElement('style');
@@ -176,6 +187,45 @@
     return box;
   }
 
+  // Envoyer une notification à la personne de son choix
+  let draft = { username: '', title: '', body: '', url: '/' };
+  function notifyForm(d) {
+    const box = $('section', 'adm-notify');
+    box.append($('h3', '', 'Envoyer une notification'));
+    const f = $('form', 'adm-nf');
+    const field = (label, input) => { const l = $('label', ''); l.append($('span', '', label), input); return l; };
+    const who = $('input'); who.required = true; who.placeholder = 'Identifiant'; who.value = draft.username; who.setAttribute('list', 'admUsers'); who.autocomplete = 'off';
+    const dl = $('datalist'); dl.id = 'admUsers';
+    for (const u of d.recent || []) { const o = $('option'); o.value = u.username; dl.append(o); }
+    const title = $('input'); title.maxLength = 80; title.placeholder = 'Titre (ex : Nouveau défi !)'; title.value = draft.title;
+    const msg = $('textarea'); msg.required = true; msg.maxLength = 300; msg.rows = 3; msg.placeholder = 'Ton message'; msg.value = draft.body;
+    const link = $('select');
+    for (const [v, t] of [['/', 'Accueil'], ['/blindtest', 'Blind test'], ['/?amis=1', 'Fenêtre Amis'], ['/?notifs=1', 'Réglages des notifications']]) { const o = $('option', '', t); o.value = v; if (v === draft.url) o.selected = true; link.append(o); }
+    const send = $('button', '', 'Envoyer'); send.type = 'submit';
+    const out = $('p', 'adm-nf-out'); out.setAttribute('role', 'status');
+    const keep = () => { draft = { username: who.value, title: title.value, body: msg.value, url: link.value }; };
+    for (const x of [who, title, msg, link]) x.addEventListener('input', keep);
+    f.append(field('À qui', who), dl, field('Titre', title), field('Message', msg), field('En cliquant, ouvrir', link), send, out);
+    f.addEventListener('submit', async (e) => {
+      e.preventDefault(); keep();
+      send.disabled = true; out.className = 'adm-nf-out'; out.textContent = 'Envoi…';
+      try {
+        const r = await fetch('/api/admin/notify', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(draft) });
+        const j = await r.json().catch(() => ({}));
+        if (!r.ok) throw new Error(j.error || 'Erreur ' + r.status);
+        out.className = 'adm-nf-out ok';
+        out.textContent = j.devices
+          ? `Envoyé à ${j.username} : sur son téléphone (${j.devices} appareil${j.devices > 1 ? 's' : ''}) et sur le site.`
+          : `Envoyé à ${j.username}. Ses notifications téléphone ne sont pas activées : il le verra sur le site à sa prochaine visite.`;
+        draft = { username: '', title: '', body: '', url: '/' };
+        who.value = ''; title.value = ''; msg.value = '';
+      } catch (err) { out.className = 'adm-nf-out err'; out.textContent = err.message; }
+      finally { send.disabled = false; }
+    });
+    box.append(f);
+    return box;
+  }
+
   function render() {
     const d = data;
     dialog.querySelector('.adm-when').textContent = 'mis à jour à ' + new Date(d.generatedAt).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
@@ -226,7 +276,7 @@
     ]));
     cols3.append(l3, r3);
 
-    body.replaceChildren(tiles, h3('30 derniers jours'), chart(), cols, cols2, cols3);
+    body.replaceChildren(tiles, notifyForm(d), h3('30 derniers jours'), chart(), cols, cols2, cols3);
   }
 
   function open() {
@@ -235,7 +285,8 @@
     body.replaceChildren($('p', 'muted', 'Chargement…'));
     load();
     clearInterval(timer);
-    timer = setInterval(() => { if (document.visibilityState === 'visible') load(); }, 30_000);
+    // mise à jour toute seule, sauf pendant qu'on écrit une notification
+    timer = setInterval(() => { if (document.visibilityState === 'visible' && !document.activeElement?.closest('.adm-nf')) load(); }, 30_000);
   }
 
   // Le bouton n'apparaît que si le serveur dit que tu es l'admin

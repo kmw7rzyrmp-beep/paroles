@@ -1,32 +1,34 @@
 // Classement mondial du blind test, en version courte sur la page d'accueil (top 10 + ta place).
 (() => {
-  const anchor = document.querySelector('.bt-link');
+  const slot = document.getElementById('boardSlot');
+  const anchor = slot || document.querySelector('.bt-link');
   if (!anchor) return;
   const css = `
-  .hb { margin: 2.6rem 0 0; max-width: 40rem; }
+  .hb { margin: 2.4rem 0 0; }
   .hb-head { display: flex; align-items: baseline; gap: .8rem; flex-wrap: wrap; }
-  .hb-head h2 { margin: 0; font: 900 clamp(1.6rem, 5vw, 2.2rem)/1 var(--texte); font-stretch: 62%; text-transform: uppercase; }
+  .hb-head h2 { margin: 0; font: 700 1.15rem var(--texte); letter-spacing: -.01em; }
   .hb-head .hb-count { color: var(--gris); font-size: .92rem; }
-  .hb-head a { margin-left: auto; color: var(--jaune); font-weight: 700; font-size: .95rem; }
+  .hb-head a { margin-left: auto; color: var(--gris); font-size: .85rem; text-decoration: none; }
+  .hb-head a:hover { color: var(--blanc); }
   .hb-note { color: var(--gris); margin: .35rem 0 .9rem; min-height: 1.2rem; font-size: .95rem; }
   .hb-note a { color: var(--jaune); }
   .hb-list, .hb-me { list-style: none; margin: 0; padding: 0; }
   .hb-row {
     display: grid; grid-template-columns: 2.2rem 2.2rem 1fr auto; align-items: center; gap: .7rem;
-    padding: .5rem .75rem; margin: 0 0 .35rem; border-radius: 6px; background: var(--coque); cursor: pointer;
+    padding: .55rem .75rem; margin: 0 0 .35rem; border-radius: 14px; background: var(--coque); cursor: pointer;
     opacity: 0; transform: translateY(12px); transition: opacity .4s ease, transform .4s cubic-bezier(.2, .8, .2, 1), background .2s;
   }
   .hb-row.in { opacity: 1; transform: none; }
   .hb-row:hover { background-color: #302f37; }
   .hb-row:focus-visible { outline: 3px solid var(--jaune); outline-offset: 2px; }
-  .hb-row .rk { font: 900 1.4rem/1 var(--texte); font-stretch: 62%; color: var(--gris); text-align: center; }
-  .hb-row .av { width: 2.2rem; height: 2.2rem; border-radius: 50%; background: var(--coque-hi); display: grid; place-items: center; font-weight: 800; overflow: hidden; }
+  .hb-row .rk { font: 700 1rem/1 var(--texte); color: var(--gris); text-align: center; font-variant-numeric: tabular-nums; }
+  .hb-row .av { width: 2.2rem; height: 2.2rem; border-radius: 9px; background: var(--coque-hi); display: grid; place-items: center; font-weight: 800; overflow: hidden; }
   .hb-row .av img { width: 100%; height: 100%; object-fit: cover; }
   .hb-row .who { min-width: 0; }
-  .hb-row .name { display: block; font: 800 1.05rem/1.15 var(--texte); font-stretch: 75%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .hb-row .name { display: block; font: 600 .95rem/1.2 var(--texte); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .hb-row .name .fl { margin-left: .35rem; font-size: .8rem; color: #ffb15c; }
   .hb-row .meta { display: block; color: var(--gris); font-size: .8rem; }
-  .hb-row .pts { font: 900 1.3rem/1 var(--texte); font-stretch: 65%; font-variant-numeric: tabular-nums; text-align: right; }
+  .hb-row .pts { font: 700 1.05rem/1 var(--texte); font-variant-numeric: tabular-nums; text-align: right; }
   .hb-row .pts small { display: block; font: 500 .7rem var(--texte); color: var(--gris); }
   .hb-row.p1 { background: linear-gradient(90deg, rgba(245, 196, 58, .28), var(--coque) 70%); }
   .hb-row.p2 { background: linear-gradient(90deg, rgba(220, 220, 228, .18), var(--coque) 70%); }
@@ -53,7 +55,7 @@
     <p class="hb-note"></p>
     <ol class="hb-list"></ol>
     <ol class="hb-me" hidden></ol>`;
-  anchor.after(sec);
+  if (slot) slot.append(sec); else anchor.after(sec);
   const list = sec.querySelector('.hb-list'), meBox = sec.querySelector('.hb-me'), note = sec.querySelector('.hb-note'), count = sec.querySelector('.hb-count');
 
   function row(r, isMe) {

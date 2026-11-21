@@ -157,7 +157,7 @@
     const settings = document.querySelector('.notif-settings');
     if (!settings) return;
     let box = settings.querySelector('.push-box');
-    if (!box) { box = $('div', 'push-box'); settings.append(box); }
+    if (!box) { box = $('div', 'push-box'); if (settings.id === 'notifSettings') settings.prepend(box); else settings.append(box); }
     if (!me) { box.replaceChildren($('p', '', 'Connecte-toi pour recevoir les notifications sur ton téléphone.')); return; }
     const text = $('p');
     const row = $('div', 'row');
@@ -177,11 +177,11 @@
       const test = $('button', 'ghost', 'Envoyer un test'); test.type = 'button';
       test.onclick = async () => { await api('/api/push/test', {}).catch(() => {}); status.className = 'ok'; status.textContent = 'Envoyé ! Regarde tes notifications.'; };
       const off = $('button', 'ghost', 'Désactiver'); off.type = 'button';
-      off.onclick = async () => { await disablePush(); drawPushBox(); };
+      off.onclick = async () => { await disablePush(); drawPushBox(); window.dispatchEvent(new Event('notif-changed')); };
       row.append(test, off);
     } else {
       const go = $('button', '', 'Activer les notifications'); go.type = 'button';
-      go.onclick = async () => { if (await enablePush(status)) drawPushBox(); };
+      go.onclick = async () => { if (await enablePush(status)) { drawPushBox(); window.dispatchEvent(new Event('notif-changed')); } };
       row.append(go);
     }
     box.replaceChildren(text, row, status);
@@ -205,6 +205,15 @@
   });
   const settings = document.querySelector('.notif-settings');
   if (settings) settings.addEventListener('toggle', () => { if (settings.open) { drawPushBox(); syncSwitches(); } });
+  // la fenêtre « Notifications » du menu principal
+  window.addEventListener('notif-open', () => { drawPushBox(); syncSwitches(); });
+  // pastille « ! » sur « Notifications » tant qu'elles ne sont pas activées sur cet appareil
+  window.notifState = async () => {
+    if (!me) return 'guest';
+    if (!supported) return 'unsupported';
+    const sub = await currentSub();
+    return sub && Notification.permission === 'granted' ? 'on' : 'off';
+  };
 
   // liens des notifications : /?amis=1 ouvre la fenêtre Amis
   const q = new URLSearchParams(location.search);
