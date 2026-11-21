@@ -26,6 +26,7 @@ const MIME = {
   '.avif': 'image/avif',
   '.gif': 'image/gif',
   '.ico': 'image/x-icon',
+  '.webmanifest': 'application/manifest+json; charset=utf-8',
 };
 
 // Extensions testées pour l'image de fond (/fond -> public/fond.jpg, .png, .webp...)
@@ -300,7 +301,9 @@ const server = createServer(async (req, res) => {
     }
     const ext = file.slice(file.lastIndexOf('.')).toLowerCase();
     const headers = { 'Content-Type': MIME[ext] || 'application/octet-stream' };
-    if (ext !== '.html') headers['Cache-Control'] = 'public, max-age=3600';
+    // La page, le service worker et le manifeste doivent toujours être relus, pour que les mises à jour arrivent
+    if (ext === '.html' || url.pathname === '/sw.js' || ext === '.webmanifest') headers['Cache-Control'] = 'no-cache';
+    else headers['Cache-Control'] = 'public, max-age=3600';
     res.writeHead(200, headers);
     res.end(body);
   } catch {
