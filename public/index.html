@@ -542,6 +542,11 @@
   .presence::before { content: ""; width: .55rem; height: .55rem; border-radius: 50%; background: #5d5b63; }
   .presence.online { color: #6fdc8c; }
   .presence.online::before { background: #3fbf6a; box-shadow: 0 0 0 0 rgba(63, 191, 106, .6); animation: online 2s ease-out infinite; }
+  /* en train de jouer au blind test : petit vinyle orange qui tourne */
+  .presence.ingame { color: #ffb15c; }
+  .presence.ingame::before { width: .7rem; height: .7rem; background: radial-gradient(circle, #ffb15c 0 18%, #1b1b22 20% 34%, #f28c1c 36% 100%); animation: ingame 1.6s linear infinite; }
+  @keyframes ingame { to { transform: rotate(360deg); } }
+  @media (prefers-reduced-motion: reduce) { .presence.ingame::before { animation: none; } }
   @keyframes online { 70% { box-shadow: 0 0 0 6px rgba(63, 191, 106, 0); } 100% { box-shadow: 0 0 0 0 rgba(63, 191, 106, 0); } }
   .friend-actions { display: flex; flex-wrap: wrap; gap: .5rem; }
   .friend-actions button { min-height: 2.25rem; padding: .3rem .9rem; font-size: .92rem; }
@@ -1864,8 +1869,8 @@
     n.textContent = label ? label + name : name;
     if (presence) {
       const st = document.createElement('span');
-      st.className = 'presence' + (presence.online ? ' online' : '');
-      st.textContent = presence.online ? 'En ligne' : seenAgo(presence.lastSeen);
+      st.className = 'presence' + (presence.inBlindtest ? ' ingame' : presence.online ? ' online' : '');
+      st.textContent = presence.inBlindtest ? 'En blind test' : presence.online ? 'En ligne' : seenAgo(presence.lastSeen);
       n.append(st);
     }
     const actions = document.createElement('div');
