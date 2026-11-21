@@ -1668,8 +1668,10 @@
     }
   }
 
+  // Tant que le compte n'est pas encore chargé, on ne ferme pas la page Amis (ouverte par #amis au chargement)
+  let accountReady = false;
   async function loadFriends() {
-    if (!account || !account.username) { resetFriends(); return; }
+    if (!account || !account.username) { if (accountReady) resetFriends(); return; }
     try {
       friends = await friendsApi('/api/friends');
       renderFriends();
@@ -1783,6 +1785,9 @@
 
   // la bulle ouvre la grande couche des amis
   tabFriends.addEventListener('click', () => {
+    // On passe par l'adresse (#amis) : la page Amis remplace la page ouverte (Classement…) au lieu de se poser dessus,
+    // le menu s'allume au bon endroit et le bouton « retour » fonctionne.
+    if (location.pathname === '/' && location.hash !== '#amis') { location.hash = 'amis'; return; }
     friendMsg.textContent = '';
     friendsDialog.showModal();
     renderFriends();
@@ -1879,6 +1884,7 @@
     .then((d) => { account = d.user || null; })
     .catch(() => { account = null; })
     .finally(async () => {
+      accountReady = true;
       renderAccount();
       if (account) {
         await pullAccountData(false).catch(() => { /* on garde les données du navigateur */ });
@@ -1929,7 +1935,7 @@ document.addEventListener('visibilitychange', () => { if (document.visibilitySta
   stack.setAttribute('aria-live', 'polite');
   document.body.append(stack);
   function bringToFront() {
-    const open = [...document.querySelectorAll('dialog[open]')].pop();
+    const open = [...document.querySelectorAll('dialog[open]')].filter((d) => d.matches(':modal')).pop();
     const parent = open || document.body;
     if (stack.parentNode !== parent) parent.append(stack);
   }
@@ -2025,6 +2031,7 @@ document.addEventListener('visibilitychange', () => { if (document.visibilitySta
     for (const f of d.incoming || []) {
       const key = f.username.toLowerCase();
       if (seenReq.has(key)) continue;
+      if (location.hash === '#amis') { seenReq.add(key); saveSeen(); continue; } // la page Amis montre déjà la demande
       const answer = async (bx, action, ok) => {
         seenReq.add(key); saveSeen();
         bx.querySelectorAll('button').forEach((x) => { x.disabled = true; });
@@ -2047,6 +2054,12 @@ document.addEventListener('visibilitychange', () => { if (document.visibilitySta
     }
   }
 
+  // on arrive sur la page Amis : les notifications de demandes deviennent inutiles, on les retire
+  window.addEventListener('hashchange', () => {
+    if (location.hash !== '#amis') return;
+    for (const box of stack.querySelectorAll('[data-key^="req:"]')) { seenReq.add(box.dataset.key.slice(4)); close(box); }
+    saveSeen();
+  });
   const check = () => { if (document.visibilityState === 'visible') { checkInvites(); checkFriends(); } };
   setInterval(check, 10_000);
   setTimeout(check, 1500);
