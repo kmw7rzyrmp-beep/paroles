@@ -171,11 +171,13 @@ export function createBlindtest({ getJson, sameSong, clientIp, sessionUser, find
   async function fillArtist(cat, artiste, have) {
     // 1) retrouver l'artiste sur Deezer (le nom doit être exactement le même)
     const found = await deezer(`https://api.deezer.com/search/artist?${new URLSearchParams({ q: artiste, limit: '10' })}`);
-    const match = (found.data || []).filter((a) => simple(a.name) === simple(artiste))
+    const same = (x, y) => simple(x).replace(/ /g, '') === simple(y).replace(/ /g, ''); // « Supreme Nova » = « Supremenova »
+    const match = (found.data || []).filter((a) => same(a.name, artiste))
       .sort((x, y) => (y.nb_fan || 0) - (x.nb_fan || 0))[0];
     if (!match) return 0;
     // 2) ses sons les plus écoutés
     const top = await deezer(`https://api.deezer.com/artist/${match.id}/top?limit=100`);
+    if (have === 0) artiste = match.name; // nouvel artiste : on prend son nom exact sur Deezer
     const seen = new Set(cat.chansons.filter((s) => s.artiste === artiste).map((s) => baseTitle(s.titre)));
     let added = 0;
     for (const t of top.data || []) {
@@ -201,6 +203,8 @@ export function createBlindtest({ getJson, sameSong, clientIp, sessionUser, find
       if (!AUTO_FILL.has(cat.id)) continue;
       const counts = new Map();
       for (const s of cat.chansons) counts.set(s.artiste, (counts.get(s.artiste) || 0) + 1);
+      // artistes ajoutés seulement par leur nom (categories.js → artistesAuto) : on part de 0 son
+      for (const nom of cat.artistesAuto || []) if (![...counts.keys()].some((k) => simple(k) === simple(nom))) counts.set(nom, 0);
       for (const [artiste, have] of counts) {
         if (have >= TARGET_PER_ARTIST) continue;
         try { total += await fillArtist(cat, artiste, have); }
