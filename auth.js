@@ -32,7 +32,12 @@ const sessions = new Map(); // empreinte du jeton -> { userId, exp }
 // --- Stockage ---
 // Si SUPABASE_URL et SUPABASE_KEY sont définis (recommandé en ligne, par exemple sur Render),
 // tout est gardé dans une base Supabase qui ne s'efface jamais. Sinon, dans le fichier data/db.json.
-const SUPABASE_URL = (process.env.SUPABASE_URL || '').trim().replace(/\/+$/, '');
+// On ne garde que le début de l'adresse (https://xxxx.supabase.co), même si /rest/v1 ou autre chose a été collé après
+const SUPABASE_URL = (() => {
+  const raw = (process.env.SUPABASE_URL || '').trim();
+  if (!raw) return '';
+  try { return new URL(/^https?:\/\//.test(raw) ? raw : `https://${raw}`).origin; } catch { return raw.replace(/\/+$/, ''); }
+})();
 const SUPABASE_KEY = (process.env.SUPABASE_KEY || '').trim();
 const REMOTE = Boolean(SUPABASE_URL && SUPABASE_KEY);
 const TABLE = 'app_state';
