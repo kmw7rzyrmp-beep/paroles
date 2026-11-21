@@ -194,6 +194,7 @@ async function load() {
   const db = await readStore();
   if (db.stats) Object.assign(stats, db.stats);
   vapid = db.vapid || null;
+  migrations = new Set(db.migrations || []);
   if (!vapid) { vapid = newVapidKeys(); vapidIsNew = true; } // première fois : on crée les clés des notifications
   for (const u of db.users || []) {
     usersById.set(u.id, u);
@@ -214,6 +215,7 @@ function persist() {
     sessions: [...sessions].map(([h, s]) => ({ h, ...s })),
     stats,
     vapid,
+    migrations: [...migrations],
   });
   const job = writing.then(() => writeStore(snapshot));
   writing = job.catch(() => {});
@@ -278,6 +280,7 @@ const presence = (u) => {
 };
 // ===================== Flammes, badges, notifications =====================
 let vapid = null, vapidIsNew = false;
+let migrations = new Set(); // changements à faire une seule fois sur les comptes déjà créés
 let saveTimer = null;
 function saveSoon() { // une seule sauvegarde pour plein de petits changements
   if (saveTimer) return;
@@ -394,6 +397,11 @@ async function handlePush(req, res, url, me) {
     for (const k of NOTIF_TYPES) if (typeof body[k] === 'boolean') me.notif[k] = body[k];
     saveSoon();
     return send(res, 200, { prefs: me.notif });
+  }
+  if (action === 'gift-seen') {
+    delete me.gift;
+    saveSoon();
+    return send(res, 200, { ok: true });
   }
   if (action === 'test') {
     notifyUser(me.id, 'msg', { title: 'Star Song', body: 'Les notifications marchent ! 🔥', tag: 'test' }, { evenIfOnline: true });
@@ -520,7 +528,7 @@ function sameSiteJson(req) {
   try { return new URL(origin).host === req.headers.host; } catch { return false; }
 }
 
-const publicUser = (u) => (u ? { username: u.username || '', email: u.email || '', name: u.username || u.email, ...(u.username ? { streak: streakOf(u) } : {}), ...(isAdmin(u) ? { admin: true } : {}) } : null);
+const publicUser = (u) => (u ? { username: u.username || '', email: u.email || '', name: u.username || u.email, ...(u.username ? { streak: streakOf(u), ...(u.gift ? { gift: u.gift } : {}) } : {}), ...(isAdmin(u) ? { admin: true } : {}) } : null);
 const normEmail = (e) => String(e || '').trim().toLowerCase();
 const validEmail = (e) => e.length <= 254 && /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(e);
 // Identifiant : 3 à 30 caractères, sans @ (pour ne jamais être confondu avec un e-mail)
@@ -632,7 +640,13 @@ export function blindtestLeaderboard(userId, limit = 50) {
   const all = [...usersById.values()]
     .filter((u) => u.username && u.bt && u.bt.games > 0)
     .sort((a, b) => b.bt.points - a.bt.points || b.bt.wins - a.bt.wins || a.bt.games - b.bt.games || a.username.localeCompare(b.username));
-  const row = (u, i) => ({ rank: i + 1, username: u.username, points: u.bt.points, games: u.bt.games, wins: u.bt.wins, best: u.bt.best });
+  const row = (u, i) => {
+    const v = profileOf(u).avatarV;
+    return {
+      rank: i + 1, username: u.username, points: u.bt.points, games: u.bt.games, wins: u.bt.wins, best: u.bt.best,
+      streak: streakOf(u).count, avatarUrl: v ? `/api/profile/image?u=${encodeURIComponent(u.username)}&k=avatar&v=${v}` : '',
+    };
+  };
   const meIndex = userId ? all.findIndex((u) => u.id === userId) : -1;
   return {
     total: all.length,
@@ -1225,3 +1239,24 @@ export async function handleAuth(req, res, url) {
 
 await load();
 if (vapidIsNew) persist().catch((err) => console.error('Notifications, clés :', err.message));
+
+// Cadeau de lancement (une seule fois) : une flamme pour chaque compte déjà créé.
+// Elle s'éteint s'ils ne jouent pas ou ne cherchent pas un son demain, comme une flamme normale.
+if (!migrations.has('flame-gift-1')) {
+  const today = parisDay();
+  let n = 0;
+  for (const u of usersById.values()) {
+    if (!u.username) continue;
+    const st = u.streak || (u.streak = { count: 0, best: 0, last: '' });
+    if (streakOf(u).count === 0) { st.count = 1; st.last = today; st.best = Math.max(st.best || 0, 1); }
+    u.gift = 'flame-1'; // message affiché à la prochaine visite
+    n++;
+    notifyUser(u.id, 'streak', {
+      title: '🎁 Cadeau : une flamme 🔥 pour toi !',
+      body: 'Joue au blind test ou cherche un son chaque jour pour la garder, sinon elle s’éteint.',
+      url: '/blindtest', tag: 'gift',
+    }, { evenIfOnline: true });
+  }
+  migrations.add('flame-gift-1');
+  persist().then(() => console.log(`Cadeau : une flamme offerte à ${n} compte(s).`)).catch((err) => console.error('Cadeau flamme :', err.message));
+}

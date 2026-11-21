@@ -143,6 +143,53 @@
   .reveal .vinyl { border-radius: 50%; background: radial-gradient(circle, var(--orange) 0 .8rem, #111 .85rem 1rem, transparent 1.05rem), repeating-radial-gradient(circle, #1a1a1d 0 2px, #26252b 2px 3px); }
   .reveal .t { font: 900 1.7rem/1.05 var(--texte); font-stretch: 65%; }
   .reveal .a { color: var(--gris); }
+  /* ---------- Chat du salon et réactions ---------- */
+  .social[hidden] { display: none; }
+  .react-layer { position: fixed; inset: 0; pointer-events: none; z-index: 40; overflow: hidden; }
+  .float-react { position: absolute; bottom: -4rem; display: flex; flex-direction: column; align-items: center; gap: .1rem;
+    animation: reactUp 3.2s cubic-bezier(.25, .7, .3, 1) forwards; will-change: transform, opacity; }
+  .float-react .e { font-size: 2.6rem; line-height: 1; animation: reactWobble .9s ease-in-out infinite alternate; filter: drop-shadow(0 4px 8px rgba(0,0,0,.45)); }
+  .float-react .n { font-size: .72rem; font-weight: 700; padding: .05rem .4rem; border-radius: 999px; background: rgba(20,20,24,.75); color: var(--blanc); white-space: nowrap; }
+  .float-react.mine .n { background: var(--orange); color: #1b1b22; }
+  @keyframes reactUp {
+    0% { transform: translateY(0) scale(.4); opacity: 0; }
+    12% { transform: translateY(-14vh) scale(1.15); opacity: 1; }
+    80% { opacity: 1; }
+    100% { transform: translateY(-78vh) scale(.9); opacity: 0; }
+  }
+  @keyframes reactWobble { from { transform: rotate(-12deg) translateX(-6px); } to { transform: rotate(12deg) translateX(6px); } }
+  .react-bar { position: fixed; left: 50%; bottom: calc(.8rem + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); z-index: 30;
+    display: flex; gap: .15rem; padding: .3rem .4rem; border-radius: 999px; background: rgba(29, 28, 33, .92); border: 1px solid #3a3940; box-shadow: 0 8px 22px rgba(0,0,0,.5); }
+  .react-bar button { min-height: 2.5rem; min-width: 2.5rem; padding: 0; font-size: 1.35rem; line-height: 1; background: none; border: 0; box-shadow: none; border-radius: 50%; transition: transform .12s; }
+  .react-bar button:hover { transform: scale(1.2); background: #2a2930; }
+  .react-bar button:active { transform: scale(.88); background: #2a2930; box-shadow: none; }
+  .chat-toggle { position: fixed; right: 1rem; bottom: calc(4.6rem + env(safe-area-inset-bottom, 0px)); z-index: 31; display: inline-flex; align-items: center; gap: .4rem;
+    min-height: 2.6rem; padding: .3rem .9rem; border-radius: 999px; background: #1d1c21; border: 1px solid #3a3940; color: var(--blanc); box-shadow: 0 8px 22px rgba(0,0,0,.5); font-size: .92rem; }
+  .chat-toggle svg { width: 1.1rem; height: 1.1rem; }
+  .chat-toggle b { min-width: 1.3rem; height: 1.3rem; padding: 0 .35rem; border-radius: 999px; background: var(--orange); color: #1b1b22; font: 800 .75rem/1.3rem var(--texte); text-align: center; }
+  .chat-toggle b:empty { display: none; }
+  .chat-panel { position: fixed; right: 1rem; bottom: calc(8rem + env(safe-area-inset-bottom, 0px)); z-index: 31; width: min(20rem, calc(100vw - 2rem)); max-height: min(24rem, 55vh);
+    display: flex; flex-direction: column; background: #1d1c21; border: 1px solid #3a3940; border-radius: 12px; box-shadow: 0 18px 40px rgba(0,0,0,.6); overflow: hidden; }
+  .chat-panel[hidden] { display: none; }
+  .chat-list { list-style: none; margin: 0; padding: .6rem .7rem; flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: .35rem; min-height: 6rem; overscroll-behavior: contain; }
+  .chat-list li { font-size: .9rem; line-height: 1.3; overflow-wrap: anywhere; }
+  .chat-list li b { color: var(--jaune); margin-right: .3rem; }
+  .chat-list li.mine b { color: var(--orange); }
+  .chat-list li.empty { color: var(--gris); font-style: italic; }
+  .chat-form { display: flex; gap: .4rem; padding: .5rem; border-top: 1px solid #3a3940; }
+  .chat-form input { flex: 1; min-width: 0; min-height: 2.4rem; padding: .3rem .7rem; border-radius: 999px; border: 1px solid #3a3940; background: #121115; color: var(--blanc); font: inherit; font-size: .92rem; }
+  .chat-form input:focus { outline: none; border-color: var(--orange); }
+  .chat-form button { min-height: 2.4rem; min-width: 2.4rem; padding: 0; border-radius: 50%; }
+  .chat-form button svg { width: 1rem; height: 1rem; }
+  .chat-err { margin: 0; padding: 0 .7rem .5rem; font-size: .8rem; color: var(--danger); }
+  .chat-err:empty { display: none; }
+  #game, #lobby, #end { padding-bottom: 4.5rem; } /* place pour la barre de réactions */
+  @media (prefers-reduced-motion: reduce) {
+    .float-react { animation: reactFade 2.4s ease forwards; bottom: 20vh; }
+    .float-react .e { animation: none; }
+    @keyframes reactFade { 0% { opacity: 0; } 15% { opacity: 1; } 80% { opacity: 1; } 100% { opacity: 0; } }
+  }
+
   /* ---------- Récompenses de fin de partie : flamme et badges ---------- */
   .rewards { display: flex; flex-wrap: wrap; gap: .6rem; margin: 1.2rem 0 .4rem; }
   .rewards[hidden] { display: none; }
@@ -549,6 +596,24 @@
     </section>
   </section>
 </main>
+<!-- Chat du salon + réactions emoji -->
+<div id="roomSocial" class="social" hidden>
+  <div id="reactLayer" class="react-layer" aria-hidden="true"></div>
+  <div id="reactBar" class="react-bar" role="group" aria-label="Réactions"></div>
+  <button id="chatToggle" class="chat-toggle" type="button" aria-expanded="false" aria-controls="chatPanel">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v11H9l-5 4z" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"/></svg>
+    <span class="chat-toggle-lbl">Chat</span><b id="chatUnread"></b>
+  </button>
+  <section id="chatPanel" class="chat-panel" hidden aria-label="Chat du salon">
+    <ol id="chatList" class="chat-list" aria-live="polite"></ol>
+    <form id="chatForm" class="chat-form">
+      <input id="chatInput" type="text" maxlength="200" autocomplete="off" placeholder="Écris aux joueurs…" aria-label="Message aux joueurs" data-notranslate>
+      <button type="submit" aria-label="Envoyer"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12l16-8-6 16-2.5-6.5z" fill="currentColor"/></svg></button>
+    </form>
+    <p id="chatErr" class="chat-err" role="status"></p>
+  </section>
+</div>
+
 
 <script>
 (() => {
@@ -599,7 +664,10 @@
     return data;
   }
 
-  const show = (id) => ['home', 'lobby', 'game', 'end'].forEach((s) => { $(s).hidden = s !== id; });
+  const show = (id) => {
+    ['home', 'lobby', 'game', 'end'].forEach((s) => { $(s).hidden = s !== id; });
+    document.getElementById('roomSocial').hidden = id === 'home'; // chat et réactions : seulement dans un salon
+  };
   const myName = () => $('nameInput').value.trim();
   const saveSession = () => { try { localStorage.setItem('bt-session', JSON.stringify(session)); } catch {} };
 
@@ -854,7 +922,7 @@
     }
     try {
       const d = await api('/categories');
-      cats = d.categories; roundsChoices = d.rounds; if (d.maxRounds) maxRounds = d.maxRounds; if (d.levels) levels = d.levels; if (d.modes) modes = d.modes;
+      cats = d.categories; roundsChoices = d.rounds; if (d.reactions) reactions = d.reactions; if (d.maxRounds) maxRounds = d.maxRounds; if (d.levels) levels = d.levels; if (d.modes) modes = d.modes;
     } catch (err) { $('homeMsg').textContent = err.message; }
     drawHomeChips();
 
@@ -948,8 +1016,104 @@
     }));
   }
 
+  // --- Chat du salon et réactions emoji ---
+  let reactions = ['🔥', '😂', '😱', '👏', '💀', '😭', '🤯', '❤️'];
+  const seenReacts = new Set();
+  let chatSeen = 0, chatSig = '', chatOpen = false, socialRoom = '';
+  function social() {
+    const s = state;
+    if (!s || !s.code) return;
+    if (socialRoom !== s.code) { // nouveau salon : on repart de zéro
+      socialRoom = s.code; seenReacts.clear(); chatSig = '';
+      chatSeen = (s.chat || []).length ? s.chat[s.chat.length - 1].id : 0;
+    }
+    // barre de réactions (une fois)
+    const bar = $('reactBar');
+    if (!bar.childElementCount) {
+      for (const e of reactions) {
+        const b = document.createElement('button');
+        b.type = 'button'; b.textContent = e; b.setAttribute('aria-label', 'Réagir ' + e);
+        b.onclick = () => {
+          floatReact({ id: 'local' + Date.now(), emoji: e, name: myName() || 'Toi', mine: true });
+          api(`/rooms/${state.code}/react`, { token: session.token, emoji: e }).then((d) => {
+            for (const r of d.reacts || []) if (r.mine) seenReacts.add(r.id); // déjà affichée
+          }).catch(() => {});
+        };
+        bar.append(b);
+      }
+    }
+    // réactions des autres : elles s'envolent
+    for (const r of s.reacts || []) {
+      if (seenReacts.has(r.id)) continue;
+      seenReacts.add(r.id);
+      if (!r.mine) floatReact(r);
+    }
+    // chat
+    const msgs = s.chat || [];
+    const sig = msgs.map((m) => m.id).join(',');
+    if (sig !== chatSig) {
+      chatSig = sig;
+      const list = $('chatList');
+      const atBottom = list.scrollHeight - list.scrollTop - list.clientHeight < 40;
+      list.replaceChildren(...(msgs.length ? msgs.map((m) => {
+        const li = document.createElement('li');
+        if (m.mine) li.className = 'mine';
+        const b = document.createElement('b'); b.textContent = m.name; b.setAttribute('data-notranslate', '');
+        const t = document.createElement('span'); t.textContent = m.text; t.setAttribute('data-notranslate', '');
+        li.append(b, t); return li;
+      }) : [Object.assign(document.createElement('li'), { className: 'empty', textContent: 'Personne n’a encore écrit. Lance la discussion !' })]));
+      if (atBottom || chatOpen) list.scrollTop = list.scrollHeight;
+    }
+    const last = msgs.length ? msgs[msgs.length - 1].id : 0;
+    if (chatOpen) chatSeen = last;
+    const unread = msgs.filter((m) => m.id > chatSeen && !m.mine).length;
+    $('chatUnread').textContent = unread ? String(Math.min(9, unread)) + (unread > 9 ? '+' : '') : '';
+  }
+  function floatReact(r) {
+    const layer = $('reactLayer');
+    if (layer.childElementCount > 30) return; // pas trop à la fois
+    const d = document.createElement('div');
+    d.className = 'float-react' + (r.mine ? ' mine' : '');
+    d.style.left = (8 + Math.random() * 80) + '%';
+    d.style.animationDuration = (2.8 + Math.random() * 0.9) + 's';
+    const e = document.createElement('span'); e.className = 'e'; e.textContent = r.emoji;
+    e.style.animationDelay = (-Math.random()) + 's';
+    const n = document.createElement('span'); n.className = 'n'; n.textContent = r.mine ? 'Toi' : r.name;
+    d.append(e, n);
+    layer.append(d);
+    d.addEventListener('animationend', (ev) => { if (ev.target === d) d.remove(); });
+    setTimeout(() => d.remove(), 5000);
+  }
+  $('chatToggle').addEventListener('click', () => {
+    chatOpen = !chatOpen;
+    $('chatPanel').hidden = !chatOpen;
+    $('chatToggle').setAttribute('aria-expanded', String(chatOpen));
+    if (chatOpen) {
+      const list = $('chatList'); list.scrollTop = list.scrollHeight;
+      chatSeen = (state.chat || []).length ? state.chat[state.chat.length - 1].id : 0;
+      $('chatUnread').textContent = '';
+      if (matchMedia('(hover: hover)').matches) $('chatInput').focus();
+    }
+  });
+  $('chatForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const input = $('chatInput');
+    const text = input.value.trim();
+    if (!text) return;
+    $('chatErr').textContent = '';
+    input.value = '';
+    try {
+      state = await api(`/rooms/${state.code}/chat`, { token: session.token, text });
+      render();
+    } catch (err) {
+      input.value = text;
+      $('chatErr').textContent = err.message;
+    }
+  });
+
   function render() {
     const s = state;
+    social();
     if (s.phase === 'lobby' || s.phase === 'loading') return renderLobby();
     if (s.phase === 'end') return renderEnd();
     renderGame();

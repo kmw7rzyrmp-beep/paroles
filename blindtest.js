@@ -22,6 +22,9 @@ const ALL = 'tout';
 // Modes de jeu : classique (aux points) ou battle royale (une erreur = éliminé, le dernier debout gagne)
 const MODES = [{ id: 'classique', nom: 'Normal' }, { id: 'br', nom: 'Battle royale' }];
 const MODE_IDS = MODES.map((m) => m.id);
+// Chat et réactions dans les salons
+const CHAT_MAX = 200;
+const REACTIONS = ['🔥', '😂', '😱', '👏', '💀', '😭', '🤯', '❤️'];
 
 const rooms = new Map(); // code -> salon
 const previewCache = new Map(); // "titre|artiste" -> url ('' = aucun extrait)
@@ -120,7 +123,15 @@ export function createBlindtest({ getJson, sameSong, clientIp, sessionUser, find
     deezerSlot = Math.max(deezerSlot, now) + 125;
     return new Promise((r) => setTimeout(r, deezerSlot - 125 - now));
   };
-  async function fetchPopularity(song) {
+  // une seule demande à la fois par son (sinon la file d'attente Deezer grossit pour rien)
+  const popInflight = new Map();
+  function fetchPopularity(song) {
+    const key = songKey(song);
+    if (popularity.has(key)) return Promise.resolve(popularity.get(key));
+    if (!popInflight.has(key)) popInflight.set(key, fetchPopularityNow(song).finally(() => popInflight.delete(key)));
+    return popInflight.get(key);
+  }
+  async function fetchPopularityNow(song) {
     const key = songKey(song);
     if (popularity.has(key)) return popularity.get(key);
     if (demo) {
@@ -252,12 +263,14 @@ export function createBlindtest({ getJson, sameSong, clientIp, sessionUser, find
     const wanted = artists ? new Set(artists) : null;
     const songs = wanted ? all.filter((s) => wanted.has(s.artiste)) : all;
     if (songs.length < 3) throw new BtError(400, 'Pas assez de sons avec ces artistes : coche-en quelques-uns de plus.');
-    // popularité manquante (serveur qui vient de démarrer) : on la cherche maintenant
-    // (on attend 6 s au maximum : les sons pas encore classés comptent comme « Intermédiaire » pour cette partie)
-    await Promise.race([
-      Promise.all(songs.filter((s) => !popularity.has(songKey(s))).map(fetchPopularity)),
-      new Promise((r) => setTimeout(r, 6000)),
-    ]);
+    // popularité manquante (serveur qui vient de démarrer) : on la cherche, mais sans faire attendre les joueurs.
+    // Si la plupart des sons sont déjà classés, on démarre tout de suite ; sinon on patiente 1,5 s au maximum.
+    // Les sons pas encore classés comptent comme « Intermédiaire » pour cette partie.
+    const missing = songs.filter((s) => !popularity.has(songKey(s)));
+    if (missing.length) {
+      const jobs = shuffle(missing).slice(0, 60).map(fetchPopularity);
+      if (missing.length / songs.length > 0.4) await Promise.race([Promise.all(jobs), new Promise((r) => setTimeout(r, 1500))]);
+    }
     // les niveaux se calculent parmi les sons choisis (par catégorie pour « Tout mélangé »)
     const byCat = new Map();
     for (const s of songs) { if (!byCat.has(s.cat)) byCat.set(s.cat, []); byCat.get(s.cat).push(s); }
@@ -456,9 +469,13 @@ export function createBlindtest({ getJson, sameSong, clientIp, sessionUser, find
   function view(room, me) {
     tick(room);
     const g = room.game;
+    const now = Date.now();
     const out = {
       code: room.code,
       phase: room.phase,
+      // le chat du salon (40 derniers messages) et les réactions des 6 dernières secondes
+      chat: (room.chat || []).slice(-40).map((m) => ({ id: m.id, name: m.name, text: m.text, at: m.at, mine: m.pid === me.id })),
+      reacts: (room.reacts || []).filter((r) => now - r.at < 6000).map((r) => ({ id: r.id, emoji: r.emoji, name: r.name, mine: r.pid === me.id })),
       category: room.category,
       categoryName: categoryName(room.category),
       rounds: room.roundCount,
@@ -521,8 +538,8 @@ export function createBlindtest({ getJson, sameSong, clientIp, sessionUser, find
       // en battle royale, on joue jusqu'à ce qu'il ne reste qu'un survivant
       const target = room.mode === 'br' || room.roundCount === INFINITE ? Infinity : room.roundCount;
       const g = { rounds: [], deck, target, exhausted: false, filling: null, index: 0, phaseEnd: 0, roundStart: 0 };
-      await fillRounds(g, Math.min(target, 4)); // les premiers sons tout de suite, la suite pendant la partie
-      if (g.rounds.length < Math.min(target, 3)) throw new BtError(502, 'Impossible de charger assez d’extraits avec ces artistes. Ajoute des artistes ou réessaie dans un instant.');
+      await fillRounds(g, Math.min(target, 2)); // les 2 premiers sons tout de suite, la suite pendant le compte à rebours
+      if (g.rounds.length < Math.min(target, 1)) throw new BtError(502, 'Impossible de charger assez d’extraits avec ces artistes. Ajoute des artistes ou réessaie dans un instant.');
       g.phaseEnd = Date.now() + COUNTDOWN_MS;
       room.game = g;
       room.phase = 'countdown';
@@ -595,6 +612,7 @@ export function createBlindtest({ getJson, sameSong, clientIp, sessionUser, find
           rounds: ROUND_CHOICES,
           maxRounds: MAX_ROUNDS,
           levels: LEVELS,
+          reactions: REACTIONS,
           modes: MODES,
         });
       }
@@ -639,7 +657,7 @@ export function createBlindtest({ getJson, sameSong, clientIp, sessionUser, find
         const artists = cleanArtists(category, body.artists);
         let code;
         do code = newCode(); while (rooms.has(code));
-        const room = { code, phase: 'lobby', category, roundCount, level, mode, artists, players: new Map(), hostId: '', game: null, seen: Date.now(), error: '' };
+        const room = { code, phase: 'lobby', category, roundCount, level, mode, artists, players: new Map(), hostId: '', game: null, seen: Date.now(), error: '', chat: [], reacts: [], seq: 0 };
         const host = addPlayer(room, body.name, sessionUser(req));
         room.hostId = host.id;
         rooms.set(code, room);
@@ -706,6 +724,33 @@ export function createBlindtest({ getJson, sameSong, clientIp, sessionUser, find
         if (!room.game || !['countdown', 'playing', 'reveal'].includes(room.phase)) throw new BtError(409, 'Aucune partie en cours.');
         if (room.phase === 'countdown') { room.phase = 'lobby'; room.game = null; return send(res, 200, view(room, me)); }
         endGame(room);
+        return send(res, 200, view(room, me));
+      }
+
+      if (action === 'chat') { // message dans le chat du salon
+        const text = String(body.text || '').replace(/[\u0000-\u001f\u007f]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, CHAT_MAX);
+        if (!text) throw new BtError(400, 'Écris un message.');
+        if (limited('chat:' + me.id, 20)) throw new BtError(429, 'Doucement sur le chat !');
+        tick(room);
+        // pas de spoil : pendant une manche, on refuse un message qui contient la réponse
+        if (room.phase === 'playing') {
+          const flat = (x) => String(x).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '');
+          const answer = flat(room.game.rounds[room.game.index].song.titre);
+          if (answer.length >= 3 && flat(text).includes(answer)) throw new BtError(400, 'Pas de spoil pendant la manche ! 🤫');
+        }
+        room.chat.push({ id: ++room.seq, pid: me.id, name: me.name, text, at: Date.now() });
+        if (room.chat.length > 80) room.chat.splice(0, room.chat.length - 80);
+        return send(res, 200, view(room, me));
+      }
+
+      if (action === 'react') { // réaction emoji animée
+        const emoji = String(body.emoji || '');
+        if (!REACTIONS.includes(emoji)) throw new BtError(400, 'Réaction inconnue.');
+        if (limited('react:' + me.id, 40)) throw new BtError(429, 'Doucement sur les réactions !');
+        const now = Date.now();
+        room.reacts = room.reacts.filter((r) => now - r.at < 6000);
+        if (room.reacts.filter((r) => r.pid === me.id && now - r.at < 1500).length >= 4) throw new BtError(429, 'Doucement sur les réactions !');
+        room.reacts.push({ id: ++room.seq, pid: me.id, name: me.name, emoji, at: now });
         return send(res, 200, view(room, me));
       }
 

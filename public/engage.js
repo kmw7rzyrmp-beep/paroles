@@ -8,6 +8,10 @@
   .flame-chip.lit { border-color: #f28c1c; box-shadow: 0 0 0 2px rgba(242, 140, 28, .18); }
   .flame-chip.pop .fl { display: inline-block; animation: flPop .9s cubic-bezier(.2, 1.6, .4, 1); }
   @keyframes flPop { 0% { transform: scale(.4); } 60% { transform: scale(1.4); } 100% { transform: scale(1); } }
+  .gift-toast { border-left-color: #f28c1c !important; }
+  .gift-toast .gift-ic { font-size: 1.8rem; line-height: 1; animation: flPop .9s cubic-bezier(.2, 1.6, .4, 1); }
+  .gift-toast small { display: block; margin-top: .2rem; }
+  .gift-toast a.it-main { text-decoration: none; display: inline-flex; align-items: center; }
   .friend-flame { margin-left: .35rem; font-size: .82rem; font-weight: 800; color: #ffb15c; white-space: nowrap; }
   .push-box { margin: .9rem 0 .3rem; padding: .8rem; border: 1px dashed #3a3940; border-radius: 8px; }
   .push-box p { margin: 0 0 .55rem; font-size: .88rem; color: var(--gris); }
@@ -67,8 +71,38 @@
       const s = me.streak || { count: 0 };
       drawFlame(s, lastCount !== null && s.count > lastCount);
       lastCount = s.count;
+      if (me.gift === 'flame-1') showGift(s);
     } catch { /* hors ligne */ }
   }
+  // le cadeau de lancement : une flamme offerte, expliquée une seule fois
+  let giftShown = false;
+  function showGift(streak) {
+    if (giftShown) return;
+    giftShown = true;
+    api('/api/push/gift-seen', {}).catch(() => {});
+    if (!streak.count) return; // déjà éteinte : inutile d'en parler
+    let stack = document.querySelector('.toast-stack');
+    if (!stack) { stack = $('div', 'toast-stack'); document.body.append(stack); }
+    const box = $('div', 'invite-toast gift-toast');
+    box.setAttribute('role', 'alert');
+    const ic = $('span', 'gift-ic', '🔥'); ic.setAttribute('aria-hidden', 'true');
+    const txt = $('div');
+    const p = $('p'); p.append($('b', '', 'Cadeau : ta première flamme !'));
+    txt.append(p, $('small', '', streak.today
+      ? 'Elle est allumée pour aujourd’hui. Reviens demain jouer au blind test ou chercher un son pour la garder, sinon elle s’éteint.'
+      : 'Joue au blind test ou cherche un son aujourd’hui pour la garder, sinon elle s’éteint à minuit.'));
+    const row = $('div', 'it-actions');
+    const close = () => { box.classList.add('out'); setTimeout(() => box.remove(), 250); };
+    const play = $('a', 'it-main', 'Jouer au blind test'); play.href = '/blindtest';
+    const ok = $('button', '', 'OK'); ok.type = 'button'; ok.onclick = close;
+    row.append(play, ok);
+    box.append(ic, txt, row);
+    stack.append(box);
+    setTimeout(() => box.isConnected && close(), 20_000);
+    const chip = document.querySelector('#account .flame-chip');
+    if (chip) { chip.classList.remove('pop'); void chip.offsetWidth; chip.classList.add('pop'); }
+  }
+
   refreshMe();
   // après une recherche, la flamme peut s'allumer : on revérifie
   const realFetch = window.fetch;
