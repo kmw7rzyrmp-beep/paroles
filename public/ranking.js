@@ -203,7 +203,9 @@
       const spot = el('div', `rk-spot p${place}` + (r ? '' : ' empty'));
       spot.append(avatar(r, 'rk-av'));
       const nm = el('span', 'rk-name', r ? at(r.username) : '—'); nm.setAttribute('data-notranslate', '');
-      spot.append(nm, el('span', 'rk-val', r ? show(def, r.value) : 'Place libre'), el('div', 'rk-step', String(place)));
+      const val = el('span', 'rk-val', r ? show(def, r.value) : 'Place libre');
+      if (r && board === 'time' && r.me && window.ssLiveTime) window.ssLiveTime(val, r.value, '{t}', String(r.username).replace(/^@/, '').toLowerCase());
+      spot.append(nm, val, el('div', 'rk-step', String(place)));
       if (r) { spot.tabIndex = 0; spot.setAttribute('role', 'button'); spot.onclick = () => openProfile(r); spot.onkeydown = (e) => { if (e.key === 'Enter') openProfile(r); }; }
       podium.append(spot);
     });
@@ -249,7 +251,10 @@
       if (board !== 'badges' && r.badges) extra.push(`🏅 ${r.badges}`);
       if (board === 'time' && r.time) extra.unshift(`⏱️ ${dur(r.time)} au total`);
       w.append(b, el('span', '', extra.slice(0, 3).join(' · ') || `${r.games} partie${r.games > 1 ? 's' : ''}`));
-      const v = el('span', 'v', def.fmt ? def.fmt(r.value) : nf.format(r.value)); v.append(el('small', '', def.fmt ? 'sur le site' : def.unit));
+      const v = el('span', 'v');
+      const num = el('span', '', def.fmt ? def.fmt(r.value) : nf.format(r.value));
+      if (board === 'time' && r.me && window.ssLiveTime) window.ssLiveTime(num, r.value, '{t}', String(r.username).replace(/^@/, '').toLowerCase()); // ton temps avance chaque seconde
+      v.append(num, el('small', '', def.fmt ? 'sur le site' : def.unit));
       li.append(bar, n, avatar(r, 'a'), w, v);
       li.tabIndex = 0;
       li.setAttribute('role', 'button');

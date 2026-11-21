@@ -4,6 +4,12 @@
 // tag : 'new' (nouveauté), 'better' (amélioration), 'fix' (correction), 'removed' (retiré)
 export const PATCH_NOTES = [
   {
+    version: '2.15', date: '2026-11-21', time: '21:30', title: 'Temps en direct',
+    items: [
+      ['better', 'Le temps passé sur le site avance seconde par seconde sur ton profil, sur celui des personnes en ligne, et dans le classement.'],
+    ],
+  },
+  {
     version: '2.14', date: '2026-11-21', time: '21:25', title: 'Blind test vraiment instantané',
     items: [
       ['better', 'Les extraits sont pré-chargés au démarrage du serveur : les parties se lancent sans attente, même avec beaucoup de sons.'],

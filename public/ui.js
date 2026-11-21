@@ -82,6 +82,37 @@
     li.focus();
   };
 
+  // --- Temps passé sur le site, qui avance seconde par seconde ---
+  // Un élément avec data-live-secs="1234" (et data-live-tpl="⏱️ {t} sur le site") est mis à jour chaque seconde.
+  // Le serveur reste la référence : à chaque nouvel affichage, on repart de son chiffre.
+  window.ssDur = (t) => {
+    t = Math.max(0, Math.floor(t));
+    const d = Math.floor(t / 86400), h = Math.floor((t % 86400) / 3600), m = Math.floor((t % 3600) / 60), s = t % 60;
+    const p2 = (n) => String(n).padStart(2, '0');
+    if (d) return `${d} j ${h} h ${p2(m)} min ${p2(s)} s`;
+    if (h) return `${h} h ${p2(m)} min ${p2(s)} s`;
+    if (m) return `${m} min ${p2(s)} s`;
+    return `${s} s`;
+  };
+  // key : la même personne affichée plusieurs fois (profil, classement) -> on ne recule jamais
+  // (le serveur ne reçoit un signe de vie que toutes les 30 s, son chiffre peut avoir quelques secondes de retard)
+  const shown = new Map();
+  window.ssLiveTime = (node, secs, tpl = '{t}', key = '') => {
+    if (key && shown.has(key)) { const k = shown.get(key); secs = Math.max(secs, k.secs + (Date.now() - k.at) / 1000); }
+    if (key) shown.set(key, { secs, at: Date.now() });
+    node.dataset.liveSecs = String(secs);
+    node.dataset.liveStart = String(Date.now());
+    node.dataset.liveTpl = tpl;
+    node.textContent = tpl.replace('{t}', window.ssDur(secs));
+  };
+  setInterval(() => {
+    if (document.visibilityState !== 'visible') return;
+    for (const n of document.querySelectorAll('[data-live-secs]')) {
+      const t = Number(n.dataset.liveSecs) + (Date.now() - Number(n.dataset.liveStart)) / 1000;
+      n.textContent = n.dataset.liveTpl.replace('{t}', window.ssDur(t));
+    }
+  }, 1000);
+
   // --- « Content de te revoir » : 40 phrases tirées au hasard ---
   const HELLO = [
     'Hey, ça fait longtemps qu’on ne t’a pas vu !', 'Un plaisir de te revoir !', 'Te revoilà ! Le son n’attendait que toi.', 'Bon retour parmi nous !',

@@ -69,9 +69,9 @@
       meta.append(fl);
     }
     if (typeof p.timeOnSite === 'number') {
-      const t = p.timeOnSite, h = Math.floor(t / 3600), m = Math.floor((t % 3600) / 60), sec = t % 60, p2 = (n) => String(n).padStart(2, '0');
-      const txt = h ? `${h} h ${p2(m)} min ${p2(sec)} s` : m ? `${m} min ${p2(sec)} s` : `${sec} s`;
-      const ts = el('span', 'pp-time', `⏱️ ${txt} sur le site`);
+      const ts = el('span', 'pp-time');
+      if (p.relation === 'me' || p.online) window.ssLiveTime(ts, p.timeOnSite, '⏱️ {t} sur le site', String(p.username).replace(/^@/, '').toLowerCase()); // avance chaque seconde
+      else ts.textContent = `⏱️ ${window.ssDur(p.timeOnSite)} sur le site`;
       ts.title = 'Temps passé sur Star Song';
       meta.append(ts);
     }
