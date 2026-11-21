@@ -309,7 +309,8 @@ export function createBlindtest({ getJson, sameSong, clientIp, sessionUser, find
     const missing = songs.filter((s) => !popularity.has(songKey(s)));
     if (missing.length) {
       const jobs = shuffle(missing).slice(0, 60).map(fetchPopularity);
-      if (missing.length / songs.length > 0.4) await Promise.race([Promise.all(jobs), new Promise((r) => setTimeout(r, 1500))]);
+      // petite sélection : on patiente un peu (0,8 s max) pour avoir de bons niveaux ; grosse sélection : on démarre tout de suite
+      if (songs.length <= 120 && missing.length / songs.length > 0.4) await Promise.race([Promise.all(jobs), new Promise((r) => setTimeout(r, 800))]);
     }
     // les niveaux se calculent parmi les sons choisis (par catégorie pour « Tout mélangé »)
     const byCat = new Map();
@@ -366,11 +367,21 @@ export function createBlindtest({ getJson, sameSong, clientIp, sessionUser, find
   // Ajoute des manches à la partie jusqu'à en avoir « upto » (on cherche les extraits par paquets de 6)
   async function fillRounds(g, upto) {
     const deck = g.deck;
+    // On cherche les extraits par paquets de 8 en parallèle, et on n'attend PAS le plus lent :
+    // dès qu'on a assez de manches, on continue (les autres arrivent en arrière-plan).
     while (g.rounds.length < Math.min(upto, g.target) && deck.pos < deck.pool.length) {
-      const batch = deck.pool.slice(deck.pos, deck.pos + 6);
+      const batch = deck.pool.slice(deck.pos, deck.pos + 8);
       deck.pos += batch.length;
-      const res = await Promise.all(batch.map(async (s) => ({ s, r: await resolveSong(s) })));
-      for (const { s, r } of res) if ((r.preview || demo) && g.rounds.length < g.target) g.rounds.push(makeRound(deck, { ...s, ...r }));
+      g.pending = (g.pending || 0) + batch.length;
+      await new Promise((done) => {
+        let left = batch.length;
+        for (const s of batch) {
+          resolveSong(s)
+            .then((r) => { if ((r.preview || demo) && g.rounds.length < g.target) g.rounds.push(makeRound(deck, { ...s, ...r })); })
+            .catch(() => {})
+            .finally(() => { left -= 1; g.pending -= 1; if (!left || g.rounds.length >= Math.min(upto, g.target)) done(); });
+        }
+      });
     }
     if (deck.pos >= deck.pool.length) g.exhausted = true; // plus aucun son à piocher
   }
@@ -384,7 +395,7 @@ export function createBlindtest({ getJson, sameSong, clientIp, sessionUser, find
   }
 
   // La partie est-elle finie ? (nombre de sons atteint, ou plus aucun son disponible)
-  const noMoreRounds = (g) => g.index + 1 >= g.rounds.length && (g.rounds.length >= g.target || (g.exhausted && !g.filling));
+  const noMoreRounds = (g) => g.index + 1 >= g.rounds.length && (g.rounds.length >= g.target || (g.exhausted && !g.filling && !g.pending));
 
   // Battle royale : qui est encore en vie
   const alive = (room) => [...room.players.values()].filter((p) => p.out === null);
@@ -549,7 +560,8 @@ export function createBlindtest({ getJson, sameSong, clientIp, sessionUser, find
       modeName: MODES.find((m) => m.id === room.mode).nom,
       players: ranking(room).map((p) => ({ id: p.id, name: p.name, score: p.score, out: room.mode === 'br' && p.out !== null, ready: Boolean(p.ready), lives: p.lives ?? 1 })),
       lives: room.lives || 1,
-      allReady: [...room.players.values()].every((p) => p.ready),
+      // l'hôte n'a pas besoin d'être « prêt » : c'est lui qui lance
+      allReady: [...room.players.values()].every((p) => p.ready || p.id === room.hostId),
       meOut: room.mode === 'br' && me.out !== null && room.phase !== 'lobby',
     };
     if (!g || room.phase === 'lobby' || room.phase === 'loading') return out;
@@ -601,7 +613,7 @@ export function createBlindtest({ getJson, sameSong, clientIp, sessionUser, find
       // en battle royale, on joue jusqu'à ce qu'il ne reste qu'un survivant
       const target = room.mode === 'br' || room.roundCount === INFINITE ? Infinity : room.roundCount;
       const g = { rounds: [], deck, target, exhausted: false, filling: null, index: 0, phaseEnd: 0, roundStart: 0 };
-      await fillRounds(g, Math.min(target, 2)); // les 2 premiers sons tout de suite, la suite pendant le compte à rebours
+      await fillRounds(g, 1); // le 1er son tout de suite, la suite pendant le compte à rebours
       if (g.rounds.length < Math.min(target, 1)) throw new BtError(502, 'Impossible de charger assez d’extraits avec ces artistes. Ajoute des artistes ou réessaie dans un instant.');
       g.phaseEnd = Date.now() + COUNTDOWN_MS;
       room.game = g;
@@ -828,9 +840,8 @@ export function createBlindtest({ getJson, sameSong, clientIp, sessionUser, find
         if (room.phase !== 'lobby' && room.phase !== 'end') throw new BtError(409, 'La partie est déjà lancée.');
         if (room.mode === 'br' && room.players.size < 2) throw new BtError(400, 'Il faut être au moins 2 pour jouer en battle royale. Invite un pote !');
         // tout le monde doit avoir cliqué sur « Je suis prêt »
-        const waiting = [...room.players.values()].filter((p) => !p.ready);
-        if (waiting.length) throw new BtError(409, waiting.length === 1 && waiting[0].id === me.id ? 'Clique d’abord sur « Je suis prêt ».'
-          : `Tout le monde doit être prêt. Pas encore prêt${waiting.length > 1 ? 's' : ''} : ${waiting.map((p) => p.name).join(', ')}.`);
+        const waiting = [...room.players.values()].filter((p) => !p.ready && p.id !== room.hostId);
+        if (waiting.length) throw new BtError(409, `Tout le monde doit être prêt. Pas encore prêt${waiting.length > 1 ? 's' : ''} : ${waiting.map((p) => p.name).join(', ')}.`);
         start(room); // continue en arrière-plan : les joueurs voient « chargement »
         return send(res, 202, view(room, me));
       }

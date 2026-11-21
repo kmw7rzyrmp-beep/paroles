@@ -165,18 +165,29 @@ async function randomCover() {
   const rap = CATEGORIES.filter((c) => c.id === 'rap-fr' || c.id === 'rap-us');
   const artists = [...new Set(rap.flatMap((c) => c.chansons.map((s) => s.artiste)))];
   if (!artists.length || DEMO) return { cover: '' };
-  for (let tries = 0; tries < 3; tries++) {
+  for (let tries = 0; tries < 4; tries++) {
     const artist = artists[Math.floor(Math.random() * artists.length)];
     let albums = albumCache.get(artist);
     if (!albums) {
+      albums = [];
+      // 1) Deezer (albums de l'artiste), 2) iTunes en secours
       try {
-        const params = new URLSearchParams({ term: artist, media: 'music', entity: 'album', attribute: 'artistTerm', limit: '25', country: 'FR' });
-        const json = await getJson(`https://itunes.apple.com/search?${params}`, 'iTunes');
-        albums = (json.results || []).filter((r) => r.artworkUrl100 && norm(r.artistName).includes(norm(artist).slice(0, 6)))
-          .map((r) => ({ cover: r.artworkUrl100.replace('100x100bb', '600x600bb'), album: r.collectionName, artist: r.artistName }));
-      } catch { albums = []; }
-      albumCache.set(artist, albums);
-      if (albumCache.size > 300) albumCache.delete(albumCache.keys().next().value);
+        const json = await getJson(`https://api.deezer.com/search/album?${new URLSearchParams({ q: `artist:"${artist}"`, limit: '25' })}`, 'Deezer');
+        albums = (json.data || []).filter((a) => a.cover_xl && norm(a.artist?.name).includes(norm(artist).slice(0, 5)))
+          .map((a) => ({ cover: a.cover_xl, album: a.title, artist: a.artist.name }));
+      } catch (err) { console.error('Pochette (Deezer) :', err.message); }
+      if (!albums.length) {
+        try {
+          const params = new URLSearchParams({ term: artist, media: 'music', entity: 'album', limit: '25', country: 'FR' });
+          const json = await getJson(`https://itunes.apple.com/search?${params}`, 'iTunes');
+          albums = (json.results || []).filter((r) => r.artworkUrl100 && norm(r.artistName).includes(norm(artist).slice(0, 5)))
+            .map((r) => ({ cover: r.artworkUrl100.replace('100x100bb', '600x600bb'), album: r.collectionName, artist: r.artistName }));
+        } catch (err) { console.error('Pochette (iTunes) :', err.message); }
+      }
+      if (albums.length) { // on ne garde en mémoire que les réussites (un échec sera réessayé plus tard)
+        albumCache.set(artist, albums);
+        if (albumCache.size > 300) albumCache.delete(albumCache.keys().next().value);
+      }
     }
     if (albums.length) return albums[Math.floor(Math.random() * albums.length)];
   }

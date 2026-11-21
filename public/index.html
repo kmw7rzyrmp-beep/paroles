@@ -2185,7 +2185,7 @@ document.addEventListener('visibilitychange', () => { if (document.visibilitySta
     busy = true;
     try {
       const d = await (await fetch('/api/cover/random', { cache: 'no-store' })).json();
-      if (!d.cover) return;
+      if (!d.cover) { if (!newCover.retried) { newCover.retried = true; setTimeout(newCover, 4000); } return; }
       const pre = new Image();
       pre.referrerPolicy = 'no-referrer';
       pre.onload = () => {

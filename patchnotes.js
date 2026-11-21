@@ -4,6 +4,15 @@
 // tag : 'new' (nouveauté), 'better' (amélioration), 'fix' (correction), 'removed' (retiré)
 export const PATCH_NOTES = [
   {
+    version: '2.8', date: '2026-11-21', time: '21:15', title: 'Lancement plus rapide et « prêt » à côté de la difficulté',
+    items: [
+      ['better', 'Le bouton « Prêt » est à côté de la difficulté. L’hôte n’a plus besoin d’être prêt (son bouton est grisé) : c’est lui qui lance.'],
+      ['better', 'Les parties avec beaucoup de sons se lancent bien plus vite (le 1er son suffit pour démarrer, la suite se charge pendant le compte à rebours).'],
+      ['fix', 'La pochette d’album de l’accueil passe maintenant par Deezer (et iTunes en secours), avec un nouvel essai si elle ne vient pas.'],
+      ['better', 'La commande « aide » de la console admin est plus lisible.'],
+    ],
+  },
+  {
     version: '2.7', date: '2026-11-21', time: '21:00', title: 'Années 80-90',
     items: [
       ['new', 'Nouvelle catégorie de blind test « Années 80-90 » : environ 130 tubes (Michael Jackson, Madonna, Queen, Nirvana, Goldman, Indochine, IAM, NTM…).'],

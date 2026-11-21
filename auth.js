@@ -510,7 +510,7 @@ function notifyAll(admin, title, body, url = '/') {
   return { people, devices };
 }
 export const ADMIN_COMMANDS = [
-  { name: 'aide', use: 'aide', help: 'Affiche toutes les commandes.', run: () => ADMIN_COMMANDS.map((c) => `${c.use.padEnd(34)} ${c.help}`).join('\n') },
+  { name: 'aide', use: 'aide', help: 'Affiche toutes les commandes.', run: () => ADMIN_COMMANDS.map((c) => `• ${c.use}\n    ${c.help}`).join('\n') },
   { name: 'notif', use: 'notif @pseudo message', help: 'Envoie une notification à une personne.',
     run: ([name, ...rest], admin) => { const r = adminNotify(admin, name, { title: 'Message de Star Song', body: rest.join(' ') }); return `Notification envoyée à @${r.username} (${r.devices} appareil${r.devices > 1 ? 's' : ''}).`; } },
   { name: 'notif-tous', use: 'notif-tous message', help: 'Envoie une notification à TOUS les utilisateurs.',
