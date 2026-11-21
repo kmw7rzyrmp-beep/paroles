@@ -189,10 +189,25 @@ export function createBlindtest({ getJson, sameSong, clientIp, sessionUser, find
     }
     if (picked.length < Math.min(count, 3)) throw new BtError(502, 'Impossible de charger assez d’extraits avec ces artistes. Ajoute des artistes ou réessaie dans un instant.');
     return picked.map((song) => {
-      // mauvaises réponses : parmi les artistes choisis s'il y a assez de sons, sinon dans toute la catégorie
-      const source = songs.length >= 4 ? songs : all;
-      // les artistes alternent aussi dans les mauvaises réponses (sinon la bonne saute aux yeux)
-      const others = fair(source.filter((x) => x.titre !== song.titre || x.artiste !== song.artiste)).slice(0, 3);
+      // Mauvaises réponses : d'abord d'autres sons DU MÊME ARTISTE (reconnaître la voix ne suffit plus),
+      // puis, s'il n'en a pas assez, des sons d'autres artistes (leurs noms sont cachés pendant la manche).
+      const tkey = (x) => String(x.titre).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]/g, '');
+      const used = new Set([tkey(song)]);
+      const take = (list, n) => {
+        const out = [];
+        for (const x of list) {
+          if (out.length >= n) break;
+          if (used.has(tkey(x))) continue; // jamais deux titres identiques
+          used.add(tkey(x));
+          out.push(x);
+        }
+        return out;
+      };
+      const others = take(shuffle(all.filter((x) => x.artiste === song.artiste)), 3);
+      if (others.length < 3) {
+        const source = songs.length >= 4 ? songs : all;
+        others.push(...take(fair(source.filter((x) => x.artiste !== song.artiste)), 3 - others.length));
+      }
       const options = shuffle([song, ...others]).map((x) => ({ titre: x.titre, artiste: x.artiste }));
       return {
         song: { titre: song.titre, artiste: song.artiste, cover: song.cover || '', level: song.level },
@@ -308,7 +323,8 @@ export function createBlindtest({ getJson, sameSong, clientIp, sessionUser, find
     out.roundStart = g.roundStart;
     out.roundMs = ROUND_MS;
     out.preview = round.preview;
-    out.options = round.options;
+    // pendant la manche, on ne montre que les titres : les artistes apparaissent avec la réponse
+    out.options = room.phase === 'playing' ? round.options.map((o) => ({ titre: o.titre })) : round.options;
     const mine = round.answers.get(me.id);
     out.myChoice = mine ? mine.choice : null;
     out.answered = round.answers.size;
