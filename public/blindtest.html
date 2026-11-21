@@ -183,6 +183,38 @@
   .invite-list button { min-height: 2.3rem; padding: .3rem .9rem; font-size: .92rem; }
   .invite-list button.sent { background: transparent; color: var(--gris); border: 1px solid var(--ligne); box-shadow: none; }
 
+  /* ---------- Classement mondial ---------- */
+  .board { margin: 3.5rem 0 0; }
+  .board-head { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; }
+  .board-head h2 { margin: 0; }
+  .board-count { color: var(--gris); font-size: .95rem; }
+  .board-note { color: var(--gris); margin: .4rem 0 1rem; min-height: 1.2rem; }
+  .board-note a { color: var(--jaune); }
+  .board-list, .board-me { list-style: none; margin: 0; padding: 0; position: relative; }
+  .board-row {
+    display: grid; grid-template-columns: 2.8rem 1fr auto; align-items: center; gap: .8rem;
+    padding: .65rem .8rem; margin: 0 0 .4rem; border-radius: 6px; background: var(--coque);
+    opacity: 0; transform: translateY(14px);
+    transition: opacity .45s ease, transform .45s cubic-bezier(.2, .8, .2, 1), background .3s;
+  }
+  .board-row.in { opacity: 1; transform: none; }
+  .board-row .rk { font: 900 1.6rem/1 var(--texte); font-stretch: 62%; color: var(--gris); text-align: center; }
+  .board-row .who { min-width: 0; }
+  .board-row .name { display: block; font: 800 1.12rem/1.15 var(--texte); font-stretch: 75%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .board-row .meta { display: block; color: var(--gris); font-size: .85rem; }
+  .board-row .pts { font: 900 1.45rem/1 var(--texte); font-stretch: 65%; font-variant-numeric: tabular-nums; text-align: right; }
+  .board-row .pts small { display: block; font: 500 .72rem var(--texte); color: var(--gris); }
+  /* podium : or, argent, bronze façon bandes de cassette */
+  .board-row.p1 { background: linear-gradient(90deg, rgba(245, 196, 58, .28), var(--coque) 70%); }
+  .board-row.p2 { background: linear-gradient(90deg, rgba(220, 220, 228, .18), var(--coque) 70%); }
+  .board-row.p3 { background: linear-gradient(90deg, rgba(242, 140, 28, .22), var(--coque) 70%); }
+  .board-row.p1 .rk { color: var(--jaune); }
+  .board-row.p2 .rk { color: #dcdce4; }
+  .board-row.p3 .rk { color: var(--orange); }
+  .board-row.me { outline: 2px solid var(--orange); outline-offset: -2px; }
+  .board-me { margin-top: .8rem; padding-top: .8rem; border-top: 1px dashed var(--ligne); }
+  .board-empty { color: var(--gris); font-style: italic; }
+
   /* icône son */
   .sound-btn {
     position: fixed; right: 1rem; bottom: calc(1rem + env(safe-area-inset-bottom, 0px)); z-index: 30;
@@ -202,7 +234,10 @@
   .sound-btn.blocked .sound-tip { display: block; }
   @keyframes soundPulse { 50% { box-shadow: 0 0 0 10px rgba(245, 196, 58, .35), 0 6px 16px rgba(0,0,0,.5); } }
 
-  @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation: none !important; transition: none !important; }
+    .board-row { opacity: 1; transform: none; }
+  }
   @media (max-width: 520px) {
     .options { grid-template-columns: 1fr; }
     .options button { min-height: 4rem; }
@@ -250,6 +285,13 @@
       <button id="createBtn" class="big rec" type="button">Créer la partie</button>
     </div>
     <p id="homeMsg" class="msg" role="alert"></p>
+
+    <section class="board" data-board aria-label="Classement mondial">
+      <div class="board-head"><h2>Classement mondial</h2><span class="board-count"></span></div>
+      <p class="board-note"></p>
+      <ol class="board-list"></ol>
+      <div class="board-me" hidden></div>
+    </section>
   </section>
 
   <!-- Salon d'attente -->
@@ -331,6 +373,13 @@
       <button id="quitBtn" class="ghost" type="button">Quitter la partie</button>
     </div>
     <p id="endWait" class="wait"></p>
+
+    <section class="board" data-board aria-label="Classement mondial">
+      <div class="board-head"><h2>Classement mondial</h2><span class="board-count"></span></div>
+      <p class="board-note"></p>
+      <ol class="board-list"></ol>
+      <div class="board-me" hidden></div>
+    </section>
   </section>
 </main>
 
@@ -392,6 +441,131 @@
     chips($('catChips'), cats.map((c) => [c.id, c.nom]), pick.category, (v) => { pick.category = v; drawHomeChips(); });
     chips($('roundChips'), roundsChoices.map((n) => [n, String(n)]), pick.rounds, (v) => { pick.rounds = v; drawHomeChips(); });
   }
+
+
+  // --- Classement mondial : apparition en cascade, points qui défilent, lignes qui glissent quand ça bouge ---
+  const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const fmt = (n) => n.toLocaleString('fr-FR');
+  function countUp(el, from, to) {
+    if (reduceMotion || from === to) { el.textContent = fmt(to); return; }
+    const t0 = performance.now(), dur = 900;
+    const step = (t) => {
+      const k = Math.min(1, (t - t0) / dur), e = 1 - Math.pow(1 - k, 3);
+      el.textContent = fmt(Math.round(from + (to - from) * e));
+      if (k < 1) requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
+  }
+  function boardRow(r, isMe) {
+    const li = document.createElement('li');
+    li.dataset.user = r.username.toLowerCase();
+    li.className = 'board-row';
+    const rk = document.createElement('span'); rk.className = 'rk';
+    const who = document.createElement('span'); who.className = 'who';
+    const name = document.createElement('span'); name.className = 'name';
+    const meta = document.createElement('span'); meta.className = 'meta';
+    who.append(name, meta);
+    const pts = document.createElement('span'); pts.className = 'pts';
+    const num = document.createElement('span'); num.className = 'num'; num.textContent = '0';
+    const lbl = document.createElement('small'); lbl.textContent = 'points';
+    pts.append(num, lbl);
+    li.append(rk, who, pts);
+    li._pts = 0;
+    return li;
+  }
+  function fillRow(li, r, isMe) {
+    li.querySelector('.rk').textContent = r.rank;
+    li.querySelector('.name').textContent = r.username + (isMe ? ' (toi)' : '');
+    li.querySelector('.meta').textContent =
+      `${r.games} partie${r.games > 1 ? 's' : ''}, ${r.wins} victoire${r.wins > 1 ? 's' : ''}, record ${fmt(r.best)}`;
+    li.classList.toggle('p1', r.rank === 1);
+    li.classList.toggle('p2', r.rank === 2);
+    li.classList.toggle('p3', r.rank === 3);
+    li.classList.toggle('me', isMe);
+  }
+
+  function mountBoard(section) {
+    const list = section.querySelector('.board-list');
+    const meBox = section.querySelector('.board-me');
+    const note = section.querySelector('.board-note');
+    const count = section.querySelector('.board-count');
+    let visible = false, loaded = false, data = null;
+
+    function draw(d) {
+      const meName = d.me ? d.me.username.toLowerCase() : '';
+      // 1) positions avant (pour faire glisser les lignes qui changent de place)
+      const before = new Map([...list.children].map((li) => [li.dataset.user, li.getBoundingClientRect().top]));
+      const existing = new Map([...list.children].filter((li) => li.dataset.user).map((li) => [li.dataset.user, li]));
+      const rows = d.top.map((r) => {
+        const key = r.username.toLowerCase();
+        const li = existing.get(key) || boardRow(r);
+        existing.delete(key);
+        fillRow(li, r, key === meName);
+        return [li, r];
+      });
+      for (const li of existing.values()) li.remove();
+      list.replaceChildren(...rows.map(([li]) => li));
+      if (!d.top.length) {
+        const p = document.createElement('li');
+        p.className = 'board-empty';
+        p.textContent = 'Personne n’a encore joué. Lance une partie et prends la première place !';
+        list.append(p);
+      }
+      // 2) on joue l'animation : nouvelles lignes en cascade, anciennes qui glissent
+      rows.forEach(([li, r], i) => {
+        const old = before.get(li.dataset.user);
+        if (old === undefined) {
+          li.style.transitionDelay = reduceMotion ? '0ms' : `${Math.min(i, 15) * 55}ms`;
+          requestAnimationFrame(() => requestAnimationFrame(() => li.classList.add('in')));
+        } else if (!reduceMotion) {
+          const dy = old - li.getBoundingClientRect().top;
+          if (dy) {
+            li.style.transitionDelay = '0ms';
+            li.style.transition = 'none';
+            li.style.transform = `translateY(${dy}px)`;
+            requestAnimationFrame(() => { li.style.transition = ''; li.style.transform = ''; });
+          }
+        }
+        countUp(li.querySelector('.num'), li._pts, r.points);
+        li._pts = r.points;
+      });
+      // 3) ma place si je ne suis pas dans le top
+      const showMe = d.me && !d.top.some((r) => r.username.toLowerCase() === meName);
+      meBox.hidden = !showMe;
+      if (showMe) {
+        let li = meBox.firstElementChild;
+        if (!li) { li = boardRow(d.me); meBox.append(li); requestAnimationFrame(() => requestAnimationFrame(() => li.classList.add('in'))); }
+        fillRow(li, d.me, true);
+        countUp(li.querySelector('.num'), li._pts, d.me.points);
+        li._pts = d.me.points;
+      }
+      count.textContent = d.total ? `${d.total} joueur${d.total > 1 ? 's' : ''}` : '';
+      note.replaceChildren();
+      if (!d.loggedIn) {
+        const a = document.createElement('a'); a.href = '/'; a.textContent = 'Connecte-toi sur Star Song';
+        note.append(a, ' pour apparaître dans le classement.');
+      } else if (!d.me) note.textContent = 'Joue une partie pour entrer dans le classement.';
+      else note.textContent = d.me.rank === 1 ? 'T’es numéro 1 mondial. Garde ta place.' : `T’es ${d.me.rank}e. Encore un effort.`;
+    }
+
+    async function refresh() {
+      if (!visible || section.offsetParent === null) return; // pas affiché : on ne charge rien
+      try {
+        const d = await api('/leaderboard');
+        const sig = JSON.stringify(d);
+        if (sig !== data) { data = sig; draw(d); }
+        loaded = true;
+      } catch { if (!loaded) note.textContent = 'Classement indisponible pour le moment.'; }
+    }
+    // on charge (et on anime) seulement quand le classement arrive à l'écran
+    new IntersectionObserver((entries) => {
+      visible = entries.some((e) => e.isIntersecting);
+      if (visible) refresh();
+    }, { threshold: 0.1 }).observe(section);
+    setInterval(refresh, 20_000);
+    return { refresh: () => { data = null; refresh(); } };
+  }
+  const boards = [...document.querySelectorAll('[data-board]')].map(mountBoard);
 
   // --- Accueil ---
   async function init() {
@@ -739,8 +913,13 @@
   });
 
   // --- Fin ---
+  let endShown = '';
   function renderEnd() {
     show('end');
+    if (endShown !== state.code + (state.history || []).map((x) => x.titre).join()) {
+      endShown = state.code + (state.history || []).map((x) => x.titre).join();
+      setTimeout(() => boards.forEach((b) => b.refresh()), 400);
+    }
     stopAudio();
     const s = state;
     const top = s.players[0];
