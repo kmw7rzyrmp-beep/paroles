@@ -175,8 +175,14 @@ function currentUser(req) {
   if (!token) return null;
   const s = sessions.get(hashToken(token));
   if (!s || s.exp < Date.now()) return null;
-  return usersById.get(s.userId) || null;
+  const u = usersById.get(s.userId) || null;
+  if (u) u.lastSeen = Date.now(); // présence : la page envoie un signe de vie toutes les 30 s
+  return u;
 }
+
+// Considéré « en ligne » si un signe de vie est arrivé il y a moins de 75 s
+const ONLINE_MS = 75_000;
+const presence = (u) => ({ online: Boolean(u.lastSeen) && Date.now() - u.lastSeen < ONLINE_MS, lastSeen: u.lastSeen || 0 });
 
 const isSecure = (req) => Boolean(req.socket.encrypted) || req.headers['x-forwarded-proto'] === 'https';
 
@@ -340,12 +346,15 @@ function findByUsername(v) {
 }
 
 function listFriends(me) {
-  const names = (ids) => ids
-    .map((id) => usersById.get(id))
-    .filter((u) => u && u.username)
+  const users = (ids) => ids.map((id) => usersById.get(id)).filter((u) => u && u.username);
+  const names = (ids) => users(ids)
     .map((u) => ({ username: u.username }))
     .sort((a, b) => a.username.localeCompare(b.username));
-  return { friends: names(me.friends), incoming: names(me.incoming), outgoing: names(me.outgoing) };
+  // Seuls les amis voient si tu es en ligne (pas les demandes en attente)
+  const friends = users(me.friends)
+    .map((u) => ({ username: u.username, ...presence(u) }))
+    .sort((a, b) => b.online - a.online || a.username.localeCompare(b.username));
+  return { friends, incoming: names(me.incoming), outgoing: names(me.outgoing) };
 }
 
 const FRIEND_ACTIONS = new Set(['request', 'accept', 'decline', 'cancel', 'remove']);
@@ -457,6 +466,8 @@ export async function handleAuth(req, res, url) {
 
     if (path === '/api/logout') {
       const token = readCookie(req, COOKIE);
+      const leaving = currentUser(req);
+      if (leaving) leaving.lastSeen = Date.now() - ONLINE_MS; // n'apparaît plus « en ligne » tout de suite
       if (token && sessions.delete(hashToken(token))) await persist();
       return send(res, 200, { user: null }, { 'Set-Cookie': cookie(req, '', 0) });
     }
