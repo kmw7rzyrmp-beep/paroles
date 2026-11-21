@@ -133,7 +133,7 @@
   function avatar(name, url, p) {
     const a = $('span', 'ch-av');
     a.setAttribute('aria-hidden', 'true');
-    if (url) { const img = $('img'); img.src = url; img.alt = ''; img.loading = 'lazy'; a.append(img); } else a.textContent = name.slice(0, 1).toUpperCase();
+    if (url) { const img = $('img'); img.src = url; img.alt = ''; img.loading = 'lazy'; a.append(img); } else a.textContent = name.replace(/^@/, '').slice(0, 1).toUpperCase();
     if (p && (p.online || p.inBlindtest)) a.append($('i', p.inBlindtest ? 'game' : ''));
     return a;
   }
@@ -599,7 +599,7 @@
   window.openChat = async (name) => {
     if (loggedIn === false) { alertLogin(); return; }
     if (!dialog) build();
-    document.querySelectorAll('dialog[open]').forEach((d) => { if (d !== dialog) d.close(); });
+    document.querySelectorAll('dialog[open]').forEach((d) => { if (d !== dialog && !d.classList.contains('as-page')) d.close(); });
     if (!dialog.open) dialog.showModal();
     if (name) showConv(name); else showList();
   };

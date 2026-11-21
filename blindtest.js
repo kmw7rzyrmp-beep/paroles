@@ -45,6 +45,8 @@ const shuffle = (arr) => {
 const ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // sans I, O, 0, 1 : impossibles à confondre
 const newCode = () => Array.from({ length: 4 }, () => ALPHABET[randomInt(ALPHABET.length)]).join('');
 const newToken = () => randomBytes(18).toString('base64url');
+// les pseudos des comptes s'affichent avec un « @ » devant
+const atReplacer = (k, v) => ((k === 'owner' || k === 'from' || k === 'username') && typeof v === 'string' && v && v[0] !== '@' ? '@' + v : v);
 const cleanName = (v) => String(v || '').replace(/\s+/g, ' ').trim().slice(0, 20);
 
 // Les playlists des joueurs : « pl:<id> » (le contenu vient des comptes, voir auth.js)
@@ -478,7 +480,7 @@ export function createBlindtest({ getJson, sameSong, clientIp, sessionUser, find
       if (again) return again;
     }
     if (room.players.size >= MAX_PLAYERS) throw new BtError(409, `La partie est pleine (${MAX_PLAYERS} joueurs maximum).`);
-    let base = cleanName(name);
+    let base = user && user.username ? '@' + user.username : cleanName(name).replace(/^@+/, ''); // « @ » réservé aux comptes
     if (!base) throw new BtError(400, 'Choisis un pseudo.');
     let n = base;
     for (let i = 2; [...room.players.values()].some((p) => p.name.toLowerCase() === n.toLowerCase()); i++) n = `${base.slice(0, 17)} ${i}`;
@@ -498,6 +500,8 @@ export function createBlindtest({ getJson, sameSong, clientIp, sessionUser, find
       // le chat du salon (40 derniers messages) et les réactions des 6 dernières secondes
       chat: (room.chat || []).slice(-40).map((m) => ({ id: m.id, name: m.name, text: m.text, at: m.at, mine: m.pid === me.id })),
       reacts: (room.reacts || []).filter((r) => now - r.at < 6000).map((r) => ({ id: r.id, emoji: r.emoji, name: r.name, mine: r.pid === me.id })),
+      // qui est en train d'écrire dans le chat (sauf soi)
+      typing: [...(room.typing || new Map()).entries()].filter(([pid, t]) => pid !== me.id && now - t.at < 3500).map(([, t]) => t.name).slice(0, 4),
       category: room.category,
       categoryName: categoryName(room.category),
       rounds: room.roundCount,
@@ -605,7 +609,7 @@ export function createBlindtest({ getJson, sameSong, clientIp, sessionUser, find
 
   const send = (res, code, body) => {
     res.writeHead(code, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
-    res.end(JSON.stringify(body));
+    res.end(JSON.stringify(body, atReplacer));
     return true;
   };
 
@@ -755,7 +759,7 @@ export function createBlindtest({ getJson, sameSong, clientIp, sessionUser, find
         const key = friend.username.toLowerCase();
         if (!invites.has(key)) invites.set(key, new Map());
         invites.get(key).set(room.code, { from: user.username, code: room.code, at: Date.now() });
-        notifyUser(friend.id, 'inv', { title: `${user.username} t’invite à un blind test`, body: 'Rejoins la partie avant qu’elle commence !', url: '/blindtest?room=' + room.code, tag: 'inv:' + room.code });
+        notifyUser(friend.id, 'inv', { title: `@${user.username} t’invite à un blind test`, body: 'Rejoins la partie avant qu’elle commence !', url: '/blindtest?room=' + room.code, tag: 'inv:' + room.code });
         return send(res, 200, { ok: true, invited: friend.username });
       }
 
@@ -800,8 +804,16 @@ export function createBlindtest({ getJson, sameSong, clientIp, sessionUser, find
           if (answer.length >= 3 && flat(text).includes(answer)) throw new BtError(400, 'Pas de spoil pendant la manche ! 🤫');
         }
         room.chat.push({ id: ++room.seq, pid: me.id, name: me.name, text, at: Date.now() });
+        room.typing?.delete(me.id);
         if (room.chat.length > 80) room.chat.splice(0, room.chat.length - 80);
         return send(res, 200, view(room, me));
+      }
+
+      if (action === 'typing') { // « … est en train d'écrire »
+        if (limited('typing:' + me.id, 40)) return send(res, 200, { ok: true });
+        if (!room.typing) room.typing = new Map();
+        room.typing.set(me.id, { name: me.name, at: Date.now() });
+        return send(res, 200, { ok: true });
       }
 
       if (action === 'react') { // réaction emoji animée

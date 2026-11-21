@@ -19,7 +19,7 @@
 <script src="/admin.js" defer></script>
 <script src="/chat.js" defer></script>
 <script src="/engage.js" defer></script>
-<script src="/board-home.js" defer></script>
+<script src="/ranking.js" defer></script>
 <script src="/app.js" defer></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -184,7 +184,7 @@
       <li><a href="/" aria-current="page"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 11l8-7 8 7v9h-5v-6H9v6H4z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>Accueil</a></li>
       <li><a href="/blindtest"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="12" r="2.4" fill="currentColor"/></svg>Blind test</a></li>
       <li><a href="/blindtest#playlistsBox"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h11M4 11h11M4 16h7M17 14v6M17 20a2 2 0 1 1-2-2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M17 14l4-1" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>Playlists</a></li>
-      <li><a href="#classement"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 20V11M12 20V5M19 20v-6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>Classement</a></li>
+      <li><a href="#classement" data-page-link="classement"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 20V11M12 20V5M19 20v-6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>Classement</a></li>
     </ul>
     <p class="nav-title">Social</p>
     <ul class="nav">
@@ -210,7 +210,7 @@
       <a class="search-go" href="#q" aria-label="Aller à la recherche"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M16 16l4 4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></a>
       <a href="/" aria-current="page">Paroles</a>
       <a href="/blindtest">Blind test</a>
-      <a href="#classement">Classement</a>
+      <a href="#classement" data-page-link="classement">Classement</a>
     </nav>
     <div class="top-right">
       <div class="account" id="account">
@@ -274,8 +274,47 @@
       <a class="cover-card" href="/blindtest#playlistsBox"><span class="cover-art" style="--g: linear-gradient(135deg, #7d5cff, #2c1a7a)"><b>Tes playlists</b></span><span class="ct">Mes playlists</span><span class="cs">Tes sons à toi</span></a>
     </div>
 
-    <div id="boardSlot"></div>
   </main>
+
+  <!-- Page « Notifications » : l'historique + les réglages -->
+  <section id="pageNotifs" class="page" hidden aria-labelledby="notifTitle">
+    <div class="page-head">
+      <button type="button" class="ghost page-back" data-page-close aria-label="Retour"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+      <div><p class="page-eyebrow">Ta boîte</p><h1 id="notifTitle">Notifications</h1></div>
+      <div class="page-actions"><button type="button" class="ghost" id="nfReadAll">Tout marquer comme lu</button></div>
+    </div>
+    <div class="page-cols">
+      <div class="page-col-main">
+        <div class="nf-filters" role="tablist" aria-label="Filtrer les notifications"></div>
+        <div id="nfList" class="nf-list" aria-live="polite"></div>
+      </div>
+      <aside class="page-col-side">
+        <section class="card nd-card">
+          <div class="card-head"><h2>Sur ton téléphone</h2></div>
+          <div class="nd-how">
+            <p class="nd-lead">Reçois une alerte quand un ami t’écrit, t’invite à un blind test, ou quand ta flamme 🔥 va s’éteindre, même quand Star Song est fermé.</p>
+            <ol class="nd-steps">
+              <li><b>Appuie sur « Activer les notifications »</b> juste en dessous.</li>
+              <li><b>Accepte</b> quand ton navigateur te demande l’autorisation.</li>
+              <li><b>Appuie sur « Envoyer un test »</b> pour vérifier que ça marche.</li>
+            </ol>
+            <p class="nd-ios"><b>Sur iPhone :</b> ouvre d’abord Star Song dans Safari, appuie sur Partager puis « Sur l’écran d’accueil ». Ouvre ensuite Star Song depuis cette icône, et active les notifications ici.</p>
+          </div>
+          <div class="notif-settings" id="notifSettings">
+            <p class="nd-sub">Ce que tu veux recevoir</p>
+            <label class="switch"><input type="checkbox" data-notif="online" checked><span></span>Quand un ami se connecte</label>
+            <label class="switch"><input type="checkbox" data-notif="req" checked><span></span>Demandes d’amis</label>
+            <label class="switch"><input type="checkbox" data-notif="inv" checked><span></span>Invitations au blind test</label>
+            <label class="switch"><input type="checkbox" data-notif="msg" checked><span></span>Nouveaux messages</label>
+            <label class="switch"><input type="checkbox" data-notif="streak" checked><span></span>Rappel quand ma flamme 🔥 va s’éteindre</label>
+          </div>
+        </section>
+      </aside>
+    </div>
+  </section>
+
+  <!-- Page « Classement » (remplie par ranking.js) -->
+  <section id="pageRanking" class="page" hidden aria-labelledby="rkTitle"></section>
 
   <!-- Colonne de droite -->
   <aside class="rail" aria-label="En ce moment">
@@ -336,29 +375,7 @@
   <button type="button" data-open="notifs"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15zM10 20a2 2 0 0 0 4 0" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>Notifs<span class="nav-badge" data-notif-badge></span></button>
 </nav>
 
-<!-- Notifications : explications + réglages -->
-<dialog id="notifDialog" class="notif-dialog" aria-labelledby="notifTitle">
-  <div class="nd-head"><h2 id="notifTitle">Notifications</h2><button type="button" class="ghost nd-close" aria-label="Fermer">✕</button></div>
-  <div class="nd-body">
-    <div class="nd-how">
-      <p class="nd-lead">Reçois une alerte sur ton téléphone quand un ami t’écrit, t’invite à un blind test, ou quand ta flamme 🔥 va s’éteindre, même quand Star Song est fermé.</p>
-      <ol class="nd-steps">
-        <li><b>Appuie sur « Activer les notifications »</b> juste en dessous.</li>
-        <li><b>Accepte</b> quand ton navigateur te demande l’autorisation.</li>
-        <li><b>Appuie sur « Envoyer un test »</b> pour vérifier que ça marche.</li>
-      </ol>
-      <p class="nd-ios"><b>Sur iPhone :</b> ouvre d’abord Star Song dans Safari, appuie sur Partager puis « Sur l’écran d’accueil ». Ouvre ensuite Star Song depuis cette icône, et active les notifications ici.</p>
-    </div>
-    <div class="notif-settings" id="notifSettings">
-      <p class="nd-sub">Ce que tu veux recevoir</p>
-      <label class="switch"><input type="checkbox" data-notif="online" checked><span></span>Quand un ami se connecte</label>
-      <label class="switch"><input type="checkbox" data-notif="req" checked><span></span>Demandes d’amis</label>
-      <label class="switch"><input type="checkbox" data-notif="inv" checked><span></span>Invitations au blind test</label>
-      <label class="switch"><input type="checkbox" data-notif="msg" checked><span></span>Nouveaux messages</label>
-      <label class="switch"><input type="checkbox" data-notif="streak" checked><span></span>Rappel quand ma flamme 🔥 va s’éteindre</label>
-    </div>
-  </div>
-</dialog>
+
 
 <dialog id="friendsDialog" class="friends-panel" aria-labelledby="friendsTitle">
   <div class="fp-head">
@@ -371,9 +388,9 @@
   <div class="fp-body">
     <section id="friendsView" class="friends" aria-label="Amis">
       <form id="friendForm">
-        <label for="friendName">Ajouter un ami avec son identifiant</label>
+        <label for="friendName">Ajouter un ami avec son @pseudo</label>
         <div class="field">
-          <input id="friendName" type="text" autocomplete="off" maxlength="30" autocapitalize="none" spellcheck="false" placeholder="Identifiant de ton ami" required>
+          <input id="friendName" type="text" autocomplete="off" maxlength="30" autocapitalize="none" spellcheck="false" placeholder="@pseudo de ton ami" required>
           <button type="submit">Inviter</button>
         </div>
         <p class="hint">Vos favoris et vos historiques de recherche sont visibles entre amis, une fois la demande acceptée.</p>
@@ -428,8 +445,9 @@
   <form id="authForm" class="auth">
     <h2 id="authTitle">Créer un compte</h2>
     <div id="signupFields">
-      <label for="authUsername">Identifiant</label>
-      <input id="authUsername" name="username" type="text" autocomplete="username" maxlength="30" autocapitalize="none" spellcheck="false">
+      <label for="authUsername">Pseudo</label>
+      <div class="at-input"><span aria-hidden="true">@</span><input id="authUsername" name="username" type="text" autocomplete="username" maxlength="30" autocapitalize="none" spellcheck="false" aria-describedby="authUserRule"></div>
+      <p id="authUserRule" class="hint">Unique, en minuscules : lettres, chiffres, points, tirets.</p>
       <div id="emailField">
         <label for="authEmail">Adresse e-mail <span class="opt">(facultative)</span></label>
         <input id="authEmail" name="email" type="email" autocomplete="email" maxlength="254">
@@ -1301,7 +1319,7 @@
     av.replaceChildren();
     av.style.backgroundImage = '';
     if (avatarUrl) av.style.backgroundImage = `url("${avatarUrl}")`;
-    else av.textContent = account && account.username ? account.username.slice(0, 1).toUpperCase() : '';
+    else av.textContent = account && account.username ? account.username.replace(/^@/, '').slice(0, 1).toUpperCase() : '';
     profileBtn.querySelector('.pb-name').textContent = account && account.username ? account.username : '';
     profileBtn.title = 'Afficher le profil';
   }
@@ -1570,7 +1588,7 @@
       const img = document.createElement('img');
       img.src = url; img.alt = ''; img.loading = 'lazy';
       b.append(img);
-    } else b.textContent = name.slice(0, 1).toUpperCase();
+    } else b.textContent = String(name).replace(/^@/, '').slice(0, 1).toUpperCase();
     b.addEventListener('click', () => window.openProfile && window.openProfile(name));
     return b;
   }

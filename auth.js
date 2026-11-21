@@ -130,7 +130,7 @@ setInterval(() => {
 }, 60_000).unref();
 
 // L'admin : les identifiants listés dans ADMIN_USERNAME (sur Render), séparés par des virgules
-const ADMINS = new Set(String(process.env.ADMIN_USERNAME || '').split(',').map((x) => x.trim().toLowerCase()).filter(Boolean));
+const ADMINS = new Set(String(process.env.ADMIN_USERNAME || '').split(',').map((x) => x.trim().replace(/^@+/, '').toLowerCase()).filter(Boolean));
 export const isAdmin = (u) => Boolean(u && u.username && ADMINS.has(u.username.toLowerCase()));
 
 export function adminStats(extra = {}) {
@@ -358,8 +358,30 @@ export function badgesOf(u, limit = 60) {
 const NOTIF_TYPES = ['req', 'inv', 'msg', 'streak'];
 const prefsOf = (u) => ({ req: true, inv: true, msg: true, streak: true, ...(u.notif || {}) });
 // on prévient seulement si la personne n'est pas déjà sur le site (sinon elle voit la notification dans la page)
+// --- Historique des notifications (visible dans l'onglet « Notifications ») ---
+// On garde les 100 dernières. Plusieurs messages d'une même personne se regroupent en une seule ligne.
+export function logNotif(userId, type, data) {
+  const u = usersById.get(userId);
+  if (!u || !u.username) return;
+  const list = u.notifs || (u.notifs = []);
+  const now = Date.now();
+  const group = data.group || '';
+  const same = group && list.find((n) => n.group === group && !n.read);
+  if (same) {
+    Object.assign(same, { title: data.title, body: data.body || '', url: data.url || '/', at: now, count: (same.count || 1) + 1 });
+    list.splice(list.indexOf(same), 1);
+    list.push(same);
+  } else {
+    list.push({ id: randomBytes(6).toString('base64url'), type, title: data.title, body: data.body || '', url: data.url || '/', at: now, read: false, group, from: data.from || '' });
+  }
+  if (list.length > 100) list.splice(0, list.length - 100);
+  saveSoon();
+}
+const notifUnread = (u) => (u.notifs || []).filter((n) => !n.read).length;
+
 export function notifyUser(userId, type, data, { evenIfOnline = false } = {}) {
   const u = usersById.get(userId);
+  if (u && u.username && type !== 'streak-silent') logNotif(userId, type, data); // toujours dans l'historique
   if (!u || !vapid || !(u.push || []).length || !prefsOf(u)[type]) return;
   if (!evenIfOnline && presence(u).online) return;
   const payload = { title: data.title, body: data.body || '', url: data.url || '/', tag: data.tag || type };
@@ -375,6 +397,7 @@ async function handlePush(req, res, url, me) {
   if (action === 'key' && req.method === 'GET') return send(res, 200, { publicKey: vapid ? vapid.publicKey : '' });
   if (!me || !me.username) throw new HttpError(401, 'Connecte-toi pour activer les notifications.');
   if (action === 'prefs' && req.method === 'GET') return send(res, 200, { prefs: prefsOf(me), devices: (me.push || []).length });
+  if (action === 'history' && req.method === 'GET') return send(res, 200, { items: [...(me.notifs || [])].reverse(), unread: notifUnread(me) });
   const body = await readJson(req, 6_000);
   if (action === 'subscribe') {
     const sub = body.subscription || {};
@@ -397,6 +420,12 @@ async function handlePush(req, res, url, me) {
     for (const k of NOTIF_TYPES) if (typeof body[k] === 'boolean') me.notif[k] = body[k];
     saveSoon();
     return send(res, 200, { prefs: me.notif });
+  }
+  if (action === 'history' && req.method === 'POST') { // tout marquer comme lu / effacer
+    if (body.clear) me.notifs = [];
+    else for (const n of me.notifs || []) if (!body.id || n.id === body.id) n.read = true;
+    saveSoon();
+    return send(res, 200, { ok: true, unread: notifUnread(me) });
   }
   if (action === 'inbox-seen') { // la personne a vu le message de l'admin
     me.inbox = (me.inbox || []).filter((x) => x.id !== body.id);
@@ -427,6 +456,7 @@ export function adminNotify(fromUser, username, { title, body, url }) {
   const link = /^\/[^\s]*$/.test(String(url || '')) ? String(url) : '/';
   const item = { id: randomBytes(6).toString('base64url'), title: t, body: b, url: link, from: fromUser.username, at: Date.now() };
   target.inbox = [...(target.inbox || []), item].slice(-10);
+  logNotif(target.id, 'admin', { title: t, body: b, url: link, from: fromUser.username });
   saveSoon();
   const devices = (target.push || []).length;
   if (devices && vapid) {
@@ -492,6 +522,7 @@ export function getPlaylist(id, userId, noCheck = false) {
   }
   return null;
 }
+const AS_MAX = 20, AS_ARTISTS = 60; // playlists d'artistes : 20 max, 60 artistes chacune
 async function handlePlaylists(req, res, url, me) {
   if (!me || !me.username) throw new HttpError(401, 'Connecte-toi pour créer tes playlists.');
   me.playlists ||= [];
@@ -526,6 +557,40 @@ async function handlePlaylists(req, res, url, me) {
     Object.assign(pl, { name, emoji, songs, updatedAt: Date.now() });
     await persist();
     return send(res, 200, { playlist: { ...pl } });
+  }
+  // playlists d'artistes : une sélection d'artistes d'une catégorie, rechargée en un clic dans le blind test
+  if (action.startsWith('artists')) {
+    me.artistSets ||= [];
+    if (req.method === 'GET' && action === 'artists') return send(res, 200, { sets: me.artistSets, max: AS_MAX });
+    if (req.method === 'POST' && action === 'artists/save') {
+      const body = await readJson(req, 20_000);
+      const name = clean(body.name, PL_NAME);
+      if (!name) throw new HttpError(400, 'Donne un nom à ta playlist d’artistes.');
+      const category = String(body.category || '').slice(0, 40);
+      if (!/^[a-z0-9-]+$/.test(category)) throw new HttpError(400, 'Choisis une catégorie.');
+      const artists = [...new Set((Array.isArray(body.artists) ? body.artists : []).map((a) => clean(a, 80)).filter(Boolean))].slice(0, AS_ARTISTS);
+      if (!artists.length) throw new HttpError(400, 'Choisis au moins un artiste.');
+      const emoji = ['⭐', ...PL_EMOJIS].includes(body.emoji) ? body.emoji : '⭐';
+      let set = body.id ? me.artistSets.find((x) => x.id === body.id) : null;
+      if (body.id && !set) throw new HttpError(404, 'Cette playlist d’artistes n’existe plus.');
+      if (!set) {
+        if (me.artistSets.length >= AS_MAX) throw new HttpError(400, `Tu as déjà ${AS_MAX} playlists d’artistes : supprimes-en une d’abord.`);
+        set = { id: randomBytes(6).toString('base64url'), createdAt: Date.now() };
+        me.artistSets.push(set);
+      }
+      Object.assign(set, { name, emoji, category, artists, updatedAt: Date.now() });
+      await persist();
+      return send(res, 200, { set, sets: me.artistSets });
+    }
+    if (req.method === 'POST' && action === 'artists/delete') {
+      const body = await readJson(req, 2_000);
+      const before = me.artistSets.length;
+      me.artistSets = me.artistSets.filter((x) => x.id !== body.id);
+      if (me.artistSets.length === before) throw new HttpError(404, 'Cette playlist d’artistes n’existe plus.');
+      await persist();
+      return send(res, 200, { ok: true, sets: me.artistSets });
+    }
+    throw new HttpError(404, 'Introuvable.');
   }
   if (req.method === 'POST' && action === 'delete') {
     const body = await readJson(req, 2_000);
@@ -609,9 +674,14 @@ class HttpError extends Error {
   constructor(status, message) { super(message); this.status = status; }
 }
 
+// Les pseudos s'affichent toujours avec un « @ » devant : on l'ajoute au moment d'envoyer la réponse.
+// (dans la base, ils restent sans « @ » et en minuscules)
+const AT_KEYS = new Set(['username', 'owner', 'from', 'by']);
+export const atReplacer = (k, v) => (AT_KEYS.has(k) && typeof v === 'string' && v && v[0] !== '@' && !v.includes('/') ? '@' + v : v);
+
 function send(res, code, body, headers = {}) {
   res.writeHead(code, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', ...headers });
-  res.end(JSON.stringify(body));
+  res.end(JSON.stringify(body, atReplacer));
   return true;
 }
 
@@ -638,7 +708,7 @@ function sameSiteJson(req) {
   try { return new URL(origin).host === req.headers.host; } catch { return false; }
 }
 
-const publicUser = (u) => (u ? { username: u.username || '', email: u.email || '', name: u.username || u.email, ...(u.username ? { streak: streakOf(u), ...(u.gift ? { gift: u.gift } : {}), ...((u.inbox || []).length ? { inbox: u.inbox } : {}) } : {}), ...(isAdmin(u) ? { admin: true } : {}) } : null);
+const publicUser = (u) => (u ? { username: u.username || '', email: u.email || '', name: u.username ? '@' + u.username : u.email, ...(u.username ? { streak: streakOf(u), ...(u.gift ? { gift: u.gift } : {}), ...((u.inbox || []).length ? { inbox: u.inbox } : {}), notifUnread: notifUnread(u) } : {}), ...(isAdmin(u) ? { admin: true } : {}) } : null);
 const normEmail = (e) => String(e || '').trim().toLowerCase();
 const validEmail = (e) => e.length <= 254 && /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(e);
 // Identifiant : 3 à 30 caractères, sans @ (pour ne jamais être confondu avec un e-mail)
@@ -701,8 +771,11 @@ const ensureFriendFields = (u) => {
   u.outgoing ||= [];
 };
 
+// enlève le « @ » d'affichage et met en minuscules
+export const normUsername = (v) => String(v || '').trim().replace(/^@+/, '').toLowerCase();
+
 function findByUsername(v) {
-  const name = String(v || '').trim();
+  const name = normUsername(v);
   if (!validUsername(name)) return null; // un identifiant ne contient jamais « @ » : on ne peut pas tomber sur un e-mail
   return usersByLogin.get(name.toLowerCase()) || null;
 }
@@ -765,6 +838,48 @@ export function blindtestLeaderboard(userId, limit = 50) {
   };
 }
 
+// --- Classements (page « Classement ») : plusieurs façons d'être le meilleur ---
+export function rankings(viewerId) {
+  const viewer = usersById.get(viewerId);
+  const friendIds = new Set(viewer ? [viewer.id, ...(viewer.friends || [])] : []);
+  const users = [...usersById.values()].filter((u) => u.username);
+  const avatarOf = (u) => { const v = profileOf(u).avatarV; return v ? `/api/profile/image?u=${encodeURIComponent(u.username)}&k=avatar&v=${v}` : ''; };
+  const badgeCount = (u) => Object.values(u.listens || {}).filter((x) => x.n >= BADGE_TIERS[0].min).length;
+  const topTier = (u) => { let best = 0; for (const x of Object.values(u.listens || {})) { const i = BADGE_TIERS.findLastIndex((t) => x.n >= t.min); if (i + 1 > best) best = i + 1; } return best ? BADGE_TIERS[best - 1].id : ''; };
+  const base = (u) => ({
+    username: u.username, avatarUrl: avatarOf(u), friend: friendIds.has(u.id) && u.id !== viewerId, me: u.id === viewerId,
+    points: u.bt?.points || 0, games: u.bt?.games || 0, wins: u.bt?.wins || 0, best: u.bt?.best || 0,
+    streak: streakOf(u).count, bestStreak: streakOf(u).best, badges: badgeCount(u), tier: topTier(u),
+  });
+  const all = users.map(base);
+  const board = (key, filter) => {
+    const list = all.filter(filter).sort((a, b) => b[key] - a[key] || b.points - a.points || a.username.localeCompare(b.username));
+    return list.map((x, i) => ({ ...x, rank: i + 1, value: x[key] }));
+  };
+  const played = (x) => x.games > 0;
+  const boards = {
+    points: board('points', played),
+    wins: board('wins', (x) => x.wins > 0),
+    streak: board('streak', (x) => x.streak > 0),
+    best: board('best', played),
+    badges: board('badges', (x) => x.badges > 0),
+  };
+  const out = {};
+  for (const [k, list] of Object.entries(boards)) {
+    out[k] = { total: list.length, top: list.slice(0, 50), me: list.find((x) => x.me) || null, friends: list.filter((x) => x.friend || x.me).slice(0, 50) };
+  }
+  return {
+    boards: out,
+    totals: {
+      players: all.filter(played).length,
+      games: Math.round(all.reduce((n, x) => n + x.games, 0)),
+      points: all.reduce((n, x) => n + x.points, 0),
+      flames: all.reduce((n, x) => n + x.streak, 0),
+    },
+    loggedIn: Boolean(viewer && viewer.username),
+  };
+}
+
 const FRIEND_ACTIONS = new Set(['request', 'accept', 'decline', 'cancel', 'remove']);
 
 async function handleFriends(req, res, url, me) {
@@ -809,12 +924,12 @@ async function handleFriends(req, res, url, me) {
     if (me.incoming.includes(target.id)) befriend(); // il t'avait déjà invité : c'est accepté
     else {
       add(me.outgoing, target.id); add(target.incoming, me.id);
-      notifyUser(target.id, 'req', { title: `${me.username} veut être ton ami`, body: 'Ouvre Star Song pour accepter.', url: '/?amis=1', tag: 'req:' + me.id });
+      notifyUser(target.id, 'req', { title: `@${me.username} veut être ton ami`, body: 'Ouvre Star Song pour accepter.', url: '/#amis', tag: 'req:' + me.id, from: me.username });
     }
   } else if (action === 'accept') {
     if (!me.incoming.includes(target.id)) throw new HttpError(404, 'Aucune demande de cette personne.');
     befriend();
-    notifyUser(target.id, 'req', { title: `${me.username} a accepté ta demande d’ami`, body: 'Vous pouvez vous écrire et jouer ensemble.', url: '/?amis=1', tag: 'acc:' + me.id });
+    notifyUser(target.id, 'req', { title: `@${me.username} a accepté ta demande d’ami`, body: 'Vous pouvez vous écrire et jouer ensemble.', url: '/#amis', tag: 'acc:' + me.id, from: me.username });
   } else if (action === 'decline') {
     rm(me.incoming, target.id); rm(target.outgoing, me.id);
   } else if (action === 'cancel') {
@@ -1042,7 +1157,7 @@ async function handleMessages(req, res, url, me) {
     countStat('messages');
     saveChatsSoon();
     // les messages arrivent toujours sur le téléphone, même si la personne a le site ouvert ailleurs
-    notifyUser(other.id, 'msg', { title: `Message de ${me.username}`, body: preview, url: '/?chat=' + encodeURIComponent(me.username), tag: 'msg:' + me.id }, { evenIfOnline: true });
+    notifyUser(other.id, 'msg', { title: `Message de @${me.username}`, body: preview, url: '/?chat=' + encodeURIComponent(me.username), tag: 'msg:' + me.id, group: 'msg:' + me.id, from: me.username }, { evenIfOnline: true });
     return at;
   };
 
@@ -1198,7 +1313,7 @@ async function handleProfile(req, res, url) {
   throw new HttpError(404, 'Introuvable.');
 }
 
-const ROUTES = new Set(['/api/me', '/api/signup', '/api/login', '/api/logout', '/api/data', '/api/username']);
+const ROUTES = new Set(['/api/me', '/api/signup', '/api/login', '/api/logout', '/api/data', '/api/username', '/api/rankings']);
 
 // Renvoie true si la requête a été traitée ici
 export async function handleAuth(req, res, url) {
@@ -1212,6 +1327,11 @@ export async function handleAuth(req, res, url) {
 
   try {
     if (isProfile) return await handleProfile(req, res, url);
+
+    if (path === '/api/rankings') {
+      const me = currentUser(req);
+      return send(res, 200, rankings(me ? me.id : null));
+    }
 
     if (path === '/api/me') {
       if (req.method !== 'GET') throw new HttpError(405, 'Méthode non autorisée.');
@@ -1270,7 +1390,7 @@ export async function handleAuth(req, res, url) {
       const me = currentUser(req);
       if (!me) throw new HttpError(401, 'Connecte-toi d’abord.');
       if (me.username) throw new HttpError(409, 'Tu as déjà un identifiant.');
-      const username = String((await readJson(req)).username || '').trim();
+      const username = normUsername((await readJson(req)).username);
       if (!validUsername(username)) throw new HttpError(400, USERNAME_HELP);
       if (usersByLogin.has(username.toLowerCase())) throw new HttpError(409, 'Cet identifiant est déjà pris.');
       me.username = username;
@@ -1291,7 +1411,7 @@ export async function handleAuth(req, res, url) {
 
     if (path === '/api/signup') {
       const email = normEmail(body.email);
-      const username = String(body.username || '').trim();
+      const username = normUsername(body.username);
       if (!username) throw new HttpError(400, 'Choisis un identifiant.');
       if (email && !validEmail(email)) throw new HttpError(400, 'Adresse e-mail invalide.');
       if (!validUsername(username)) throw new HttpError(400, USERNAME_HELP);
@@ -1326,7 +1446,7 @@ export async function handleAuth(req, res, url) {
     }
 
     // /api/login : identifiant ou e-mail
-    const login = String(body.login ?? body.email ?? '').trim().toLowerCase();
+    const login = normUsername(body.login ?? body.email ?? '');
     if (!login || login.length > 254 || typeof password !== 'string' || password.length > 128) {
       throw new HttpError(400, 'Renseigne ton identifiant (ou e-mail) et ton mot de passe.');
     }
@@ -1352,6 +1472,24 @@ export async function handleAuth(req, res, url) {
 
 await load();
 if (vapidIsNew) persist().catch((err) => console.error('Notifications, clés :', err.message));
+
+// Pseudos (une seule fois) : tous en minuscules. Si deux comptes tombent sur le même pseudo,
+// le plus récent reçoit un chiffre à la fin (et on garde la trace dans u.oldUsername).
+if (!migrations.has('usernames-lower-1')) {
+  const users = [...usersById.values()].filter((u) => u.username).sort((a, b) => String(a.createdAt || '').localeCompare(String(b.createdAt || '')));
+  for (const u of users) unindexUser(u);
+  const taken = new Set();
+  let changed = 0;
+  for (const u of users) {
+    let name = u.username.toLowerCase().replace(/^@+/, '');
+    if (taken.has(name)) { let i = 2; while (taken.has(`${name.slice(0, 28)}${i}`)) i++; name = `${name.slice(0, 28)}${i}`; }
+    taken.add(name);
+    if (name !== u.username) { u.oldUsername = u.username; u.username = name; changed++; }
+  }
+  for (const u of usersById.values()) indexUser(u);
+  migrations.add('usernames-lower-1');
+  persist().then(() => console.log(`Pseudos : ${changed} passé(s) en minuscules.`)).catch((err) => console.error('Pseudos :', err.message));
+}
 
 // Cadeau de lancement (une seule fois) : une flamme pour chaque compte déjà créé.
 // Elle s'éteint s'ils ne jouent pas ou ne cherchent pas un son demain, comme une flamme normale.

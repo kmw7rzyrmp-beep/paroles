@@ -215,7 +215,7 @@
     return sub && Notification.permission === 'granted' ? 'on' : 'off';
   };
 
-  // liens des notifications : /?amis=1 ouvre la fenêtre Amis
+  // anciens liens des notifications : /?amis=1 et /?notifs=1 deviennent /#amis et /#notifications
   const q = new URLSearchParams(location.search);
-  if (q.get('amis')) window.addEventListener('load', () => setTimeout(() => document.getElementById('tabFriends')?.click(), 300));
+  if (location.pathname === '/' && (q.get('amis') || q.get('notifs'))) history.replaceState(null, '', '/#' + (q.get('amis') ? 'amis' : 'notifications'));
 })();

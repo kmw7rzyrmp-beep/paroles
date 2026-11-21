@@ -1,10 +1,11 @@
 // Serveur sans dépendance (Node 20.12+). Sert la page et relaie la recherche vers Genius.
+import { PATCH_NOTES } from './patchnotes.js';
 import { createServer } from 'node:http';
 import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { join, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { handleAuth, clientIp, sessionUser, findFriend, recordBlindtest, blindtestLeaderboard, markInBlindtest, countStat, isAdmin, adminStats, recordActivity, recordListen, streakOf, notifyUser, usersStreak, getPlaylist, playlistsFor, adminNotify } from './auth.js';
+import { handleAuth, clientIp, sessionUser, findFriend, recordBlindtest, blindtestLeaderboard, markInBlindtest, countStat, isAdmin, adminStats, recordActivity, recordListen, streakOf, notifyUser, usersStreak, getPlaylist, playlistsFor, adminNotify, atReplacer } from './auth.js';
 import { createBlindtest } from './blindtest.js';
 import { CATEGORIES } from './categories.js';
 
@@ -366,7 +367,7 @@ async function searchLyrics(q) {
 
 function sendJson(res, code, body) {
   res.writeHead(code, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
-  res.end(JSON.stringify(body));
+  res.end(JSON.stringify(body, atReplacer));
 }
 
 const handleBlindtest = createBlindtest({ getJson, sameSong, clientIp, sessionUser, findFriend, recordBlindtest, blindtestLeaderboard, markInBlindtest, countStat, recordListen, streakOf: usersStreak, notifyUser, getPlaylist, playlistsFor, demo: DEMO });
@@ -392,6 +393,10 @@ const server = createServer(async (req, res) => {
   if (await handleBlindtest(req, res, url)) return;
 
   // Notification envoyée par l'admin à la personne de son choix
+  if (url.pathname === '/api/admin/patchnotes') { // le patch note : réservé aux admins
+    if (!isAdmin(sessionUser(req))) return sendJson(res, 404, { error: 'Introuvable.' });
+    return sendJson(res, 200, { notes: PATCH_NOTES });
+  }
   if (url.pathname === '/api/admin/notify' && req.method === 'POST') {
     const user = sessionUser(req);
     if (!isAdmin(user)) return sendJson(res, 404, { error: 'Introuvable.' });

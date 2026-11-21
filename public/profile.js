@@ -33,7 +33,7 @@
     if (p.avatarUrl) {
       const img = el('img'); img.src = p.avatarUrl; img.alt = ''; a.append(img);
     } else {
-      a.textContent = (p.username || '?').slice(0, 1).toUpperCase();
+      a.textContent = (p.username || '?').replace(/^@/, '').slice(0, 1).toUpperCase();
       a.classList.add('letter');
     }
     return a;

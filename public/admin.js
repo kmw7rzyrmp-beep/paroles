@@ -200,7 +200,7 @@
     const title = $('input'); title.maxLength = 80; title.placeholder = 'Titre (ex : Nouveau défi !)'; title.value = draft.title;
     const msg = $('textarea'); msg.required = true; msg.maxLength = 300; msg.rows = 3; msg.placeholder = 'Ton message'; msg.value = draft.body;
     const link = $('select');
-    for (const [v, t] of [['/', 'Accueil'], ['/blindtest', 'Blind test'], ['/?amis=1', 'Fenêtre Amis'], ['/?notifs=1', 'Réglages des notifications']]) { const o = $('option', '', t); o.value = v; if (v === draft.url) o.selected = true; link.append(o); }
+    for (const [v, t] of [['/', 'Accueil'], ['/blindtest', 'Blind test'], ['/#amis', 'Page Amis'], ['/#notifications', 'Notifications'], ['/#classement', 'Classement']]) { const o = $('option', '', t); o.value = v; if (v === draft.url) o.selected = true; link.append(o); }
     const send = $('button', '', 'Envoyer'); send.type = 'submit';
     const out = $('p', 'adm-nf-out'); out.setAttribute('role', 'status');
     const keep = () => { draft = { username: who.value, title: title.value, body: msg.value, url: link.value }; };
