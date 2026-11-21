@@ -266,6 +266,8 @@
     'Tes sons à toi': 'Your own songs',
     'Tes playlists': 'Your playlists',
     'Années 2000': '2000s',
+    'Années 80-90': '80s-90s',
+    'Les tubes rétro': 'Retro hits',
     'Ce que tu veux recevoir': 'What you want to get',
     'Reçois une alerte sur ton téléphone quand un ami t’écrit, t’invite à un blind test, ou quand ta flamme 🔥 va s’éteindre, même quand Star Song est fermé.': 'Get an alert on your phone when a friend writes to you, invites you to a blind test, or when your 🔥 streak is about to end, even when Star Song is closed.',
     '🔔 Nouveau : les notifications': '🔔 New: notifications',
@@ -701,7 +703,7 @@
     [/^En attente que l’hôte lance la partie \((.+?), (Facile|Intermédiaire|HARRR MODE), (\d+ sons?|mode infini|battle royale)(?:, artistes : (.+?)(?: et (\d+) autres)?)?\)\.$/,
       (m) => `Waiting for the host to start the game (${t(m[1])}, ${t(m[2])}, ${m[3] === 'battle royale' ? 'battle royale' : m[3] === 'mode infini' ? 'endless mode' : m[3].replace(/sons?/, (x) => (x === 'son' ? 'track' : 'tracks'))}` + (m[4] ? `, artists: ${m[4]}${m[5] ? ` and ${m[5]} more` : ''}` : '') + ').'],
     [/^(.+), partie ([A-Z0-9]{4})$/, (m) => `${list(m[1])}, game ${m[2]}`],
-    [/^(Rap FR|Rap US|Pop|R&B|Rock|Années 2000|Classique|Tout mélangé), (Facile|Intermédiaire|HARRR MODE)$/, (m) => `${t(m[1])}, ${t(m[2])}`],
+    [/^(Rap FR|Rap US|Pop|R&B|Rock|Années 2000|Années 80-90|Classique|Tout mélangé), (Facile|Intermédiaire|HARRR MODE)$/, (m) => `${t(m[1])}, ${t(m[2])}`],
     [/^La partie est pleine \((\d+) joueurs maximum\)\.$/, (m) => `The game is full (${m[1]} players max).`],
     [/^(.+) a (\d+) sons? en favoris?\.$/, (m) => `${m[1]} has ${m[2]} favorite ${plural(m[2], 'track', 'tracks')}.`],
   ];

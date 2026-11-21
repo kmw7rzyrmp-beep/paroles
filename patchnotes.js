@@ -4,6 +4,12 @@
 // tag : 'new' (nouveauté), 'better' (amélioration), 'fix' (correction), 'removed' (retiré)
 export const PATCH_NOTES = [
   {
+    version: '2.7', date: '2026-11-21', time: '21:00', title: 'Années 80-90',
+    items: [
+      ['new', 'Nouvelle catégorie de blind test « Années 80-90 » : environ 130 tubes (Michael Jackson, Madonna, Queen, Nirvana, Goldman, Indochine, IAM, NTM…).'],
+    ],
+  },
+  {
     version: '2.6', date: '2026-11-21', time: '20:55', title: 'Admin, prêt, battle royale et nouveau logo',
     items: [
       ['new', 'Nouveau logo Star Song (vinyle noir, étiquette orange, étoile).'],

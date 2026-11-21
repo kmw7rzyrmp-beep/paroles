@@ -1651,6 +1651,228 @@ export const CATEGORIES = [
     ],
   },
   {
+    id: 'annees-80-90',
+    nom: 'Années 80-90',
+    chansons: [
+      // --- Michael Jackson ---
+      { titre: 'Billie Jean', artiste: 'Michael Jackson' },
+      { titre: 'Beat It', artiste: 'Michael Jackson' },
+      { titre: 'Thriller', artiste: 'Michael Jackson' },
+      { titre: 'Smooth Criminal', artiste: 'Michael Jackson' },
+      { titre: 'Black or White', artiste: 'Michael Jackson' },
+      { titre: 'Bad', artiste: 'Michael Jackson' },
+      // --- Madonna ---
+      { titre: 'Like a Prayer', artiste: 'Madonna' },
+      { titre: 'Like a Virgin', artiste: 'Madonna' },
+      { titre: 'Vogue', artiste: 'Madonna' },
+      { titre: 'Material Girl', artiste: 'Madonna' },
+      { titre: 'La Isla Bonita', artiste: 'Madonna' },
+      // --- Whitney Houston ---
+      { titre: 'I Wanna Dance with Somebody (Who Loves Me)', artiste: 'Whitney Houston' },
+      { titre: 'I Will Always Love You', artiste: 'Whitney Houston' },
+      { titre: 'How Will I Know', artiste: 'Whitney Houston' },
+      // --- Prince ---
+      { titre: 'Purple Rain', artiste: 'Prince' },
+      { titre: 'Kiss', artiste: 'Prince' },
+      { titre: 'When Doves Cry', artiste: 'Prince' },
+      // --- Queen ---
+      { titre: 'Another One Bites the Dust', artiste: 'Queen' },
+      { titre: 'Radio Ga Ga', artiste: 'Queen' },
+      { titre: 'I Want to Break Free', artiste: 'Queen' },
+      { titre: 'Under Pressure', artiste: 'Queen' },
+      // --- A-ha ---
+      { titre: 'Take On Me', artiste: 'A-ha' },
+      // --- Toto ---
+      { titre: 'Africa', artiste: 'Toto' },
+      // --- Cyndi Lauper ---
+      { titre: 'Girls Just Want to Have Fun', artiste: 'Cyndi Lauper' },
+      { titre: 'Time After Time', artiste: 'Cyndi Lauper' },
+      // --- Bon Jovi ---
+      { titre: 'Livin’ on a Prayer', artiste: 'Bon Jovi' },
+      { titre: 'It’s My Life', artiste: 'Bon Jovi' },
+      { titre: 'You Give Love a Bad Name', artiste: 'Bon Jovi' },
+      // --- Europe ---
+      { titre: 'The Final Countdown', artiste: 'Europe' },
+      // --- Wham! ---
+      { titre: 'Wake Me Up Before You Go-Go', artiste: 'Wham!' },
+      { titre: 'Last Christmas', artiste: 'Wham!' },
+      // --- George Michael ---
+      { titre: 'Careless Whisper', artiste: 'George Michael' },
+      { titre: 'Faith', artiste: 'George Michael' },
+      // --- Tears for Fears ---
+      { titre: 'Everybody Wants to Rule the World', artiste: 'Tears for Fears' },
+      { titre: 'Shout', artiste: 'Tears for Fears' },
+      // --- Eurythmics ---
+      { titre: 'Sweet Dreams (Are Made of This)', artiste: 'Eurythmics' },
+      // --- Survivor ---
+      { titre: 'Eye of the Tiger', artiste: 'Survivor' },
+      // --- Kenny Loggins ---
+      { titre: 'Footloose', artiste: 'Kenny Loggins' },
+      // --- Rick Astley ---
+      { titre: 'Never Gonna Give You Up', artiste: 'Rick Astley' },
+      // --- Dire Straits ---
+      { titre: 'Money for Nothing', artiste: 'Dire Straits' },
+      { titre: 'Sultans of Swing', artiste: 'Dire Straits' },
+      // --- The Police ---
+      { titre: 'Every Breath You Take', artiste: 'The Police' },
+      // --- Guns N’ Roses ---
+      { titre: 'Sweet Child O’ Mine', artiste: 'Guns N’ Roses' },
+      { titre: 'Welcome to the Jungle', artiste: 'Guns N’ Roses' },
+      { titre: 'November Rain', artiste: 'Guns N’ Roses' },
+      // --- Bonnie Tyler ---
+      { titre: 'Total Eclipse of the Heart', artiste: 'Bonnie Tyler' },
+      // --- Simple Minds ---
+      { titre: 'Don’t You (Forget About Me)', artiste: 'Simple Minds' },
+      // --- Lionel Richie ---
+      { titre: 'All Night Long (All Night)', artiste: 'Lionel Richie' },
+      { titre: 'Hello', artiste: 'Lionel Richie' },
+      // --- Phil Collins ---
+      { titre: 'In the Air Tonight', artiste: 'Phil Collins' },
+      { titre: 'Another Day in Paradise', artiste: 'Phil Collins' },
+      // --- U2 ---
+      { titre: 'With or Without You', artiste: 'U2' },
+      { titre: 'One', artiste: 'U2' },
+      // --- Depeche Mode ---
+      { titre: 'Enjoy the Silence', artiste: 'Depeche Mode' },
+      { titre: 'Personal Jesus', artiste: 'Depeche Mode' },
+      // --- Nirvana ---
+      { titre: 'Smells Like Teen Spirit', artiste: 'Nirvana' },
+      { titre: 'Come as You Are', artiste: 'Nirvana' },
+      // --- R.E.M. ---
+      { titre: 'Losing My Religion', artiste: 'R.E.M.' },
+      // --- Oasis ---
+      { titre: 'Wonderwall', artiste: 'Oasis' },
+      { titre: 'Don’t Look Back in Anger', artiste: 'Oasis' },
+      // --- Spice Girls ---
+      { titre: 'Wannabe', artiste: 'Spice Girls' },
+      // --- Backstreet Boys ---
+      { titre: 'I Want It That Way', artiste: 'Backstreet Boys' },
+      { titre: 'Everybody (Backstreet’s Back)', artiste: 'Backstreet Boys' },
+      // --- Britney Spears ---
+      { titre: '...Baby One More Time', artiste: 'Britney Spears' },
+      // --- Céline Dion ---
+      { titre: 'My Heart Will Go On', artiste: 'Céline Dion' },
+      { titre: 'Pour que tu m’aimes encore', artiste: 'Céline Dion' },
+      // --- Mariah Carey ---
+      { titre: 'All I Want for Christmas Is You', artiste: 'Mariah Carey' },
+      { titre: 'Fantasy', artiste: 'Mariah Carey' },
+      // --- TLC ---
+      { titre: 'No Scrubs', artiste: 'TLC' },
+      { titre: 'Waterfalls', artiste: 'TLC' },
+      // --- Coolio ---
+      { titre: 'Gangsta’s Paradise', artiste: 'Coolio' },
+      // --- Dr. Alban ---
+      { titre: 'It’s My Life', artiste: 'Dr. Alban' },
+      // --- Haddaway ---
+      { titre: 'What Is Love', artiste: 'Haddaway' },
+      // --- Snap! ---
+      { titre: 'Rhythm Is a Dancer', artiste: 'Snap!' },
+      // --- Ace of Base ---
+      { titre: 'All That She Wants', artiste: 'Ace of Base' },
+      { titre: 'The Sign', artiste: 'Ace of Base' },
+      // --- Eiffel 65 ---
+      { titre: 'Blue (Da Ba Dee)', artiste: 'Eiffel 65' },
+      // --- Aqua ---
+      { titre: 'Barbie Girl', artiste: 'Aqua' },
+      // --- Vengaboys ---
+      { titre: 'Boom, Boom, Boom, Boom!!', artiste: 'Vengaboys' },
+      // --- La Bouche ---
+      { titre: 'Be My Lover', artiste: 'La Bouche' },
+      // --- 2 Unlimited ---
+      { titre: 'No Limit', artiste: '2 Unlimited' },
+      // --- Corona ---
+      { titre: 'The Rhythm of the Night', artiste: 'Corona' },
+      // --- Gala ---
+      { titre: 'Freed from Desire', artiste: 'Gala' },
+      // --- Lou Bega ---
+      { titre: 'Mambo No. 5 (A Little Bit Of...)', artiste: 'Lou Bega' },
+      // --- Ricky Martin ---
+      { titre: 'Livin’ la Vida Loca', artiste: 'Ricky Martin' },
+      // --- Los Del Rio ---
+      { titre: 'Macarena', artiste: 'Los Del Rio' },
+      // --- Alanis Morissette ---
+      { titre: 'Ironic', artiste: 'Alanis Morissette' },
+      // --- The Cranberries ---
+      { titre: 'Zombie', artiste: 'The Cranberries' },
+      // --- No Doubt ---
+      { titre: 'Don’t Speak', artiste: 'No Doubt' },
+      // --- Radiohead ---
+      { titre: 'Creep', artiste: 'Radiohead' },
+      // --- Red Hot Chili Peppers ---
+      { titre: 'Californication', artiste: 'Red Hot Chili Peppers' },
+      { titre: 'Under the Bridge', artiste: 'Red Hot Chili Peppers' },
+      // --- Daft Punk ---
+      { titre: 'Around the World', artiste: 'Daft Punk' },
+      { titre: 'Da Funk', artiste: 'Daft Punk' },
+      // --- Modjo ---
+      { titre: 'Lady (Hear Me Tonight)', artiste: 'Modjo' },
+      // --- Stardust ---
+      { titre: 'Music Sounds Better with You', artiste: 'Stardust' },
+      // --- Fugees ---
+      { titre: 'Killing Me Softly with His Song', artiste: 'Fugees' },
+      // --- Dr. Dre ---
+      { titre: 'Still D.R.E.', artiste: 'Dr. Dre' },
+      // --- Will Smith ---
+      { titre: 'Men in Black', artiste: 'Will Smith' },
+      // --- Indochine ---
+      { titre: 'L’aventurier', artiste: 'Indochine' },
+      { titre: 'J’ai demandé à la lune', artiste: 'Indochine' },
+      // --- Jean-Jacques Goldman ---
+      { titre: 'Envole-moi', artiste: 'Jean-Jacques Goldman' },
+      { titre: 'Quand la musique est bonne', artiste: 'Jean-Jacques Goldman' },
+      { titre: 'Je te donne', artiste: 'Jean-Jacques Goldman' },
+      // --- Daniel Balavoine ---
+      { titre: 'L’Aziza', artiste: 'Daniel Balavoine' },
+      { titre: 'Le chanteur', artiste: 'Daniel Balavoine' },
+      { titre: 'SOS d’un terrien en détresse', artiste: 'Daniel Balavoine' },
+      // --- Mylène Farmer ---
+      { titre: 'Libertine', artiste: 'Mylène Farmer' },
+      { titre: 'Désenchantée', artiste: 'Mylène Farmer' },
+      { titre: 'Pourvu qu’elles soient douces', artiste: 'Mylène Farmer' },
+      // --- Téléphone ---
+      { titre: 'Un autre monde', artiste: 'Téléphone' },
+      { titre: 'Ça (c’est vraiment toi)', artiste: 'Téléphone' },
+      // --- Images ---
+      { titre: 'Les démons de minuit', artiste: 'Images' },
+      // --- Gold ---
+      { titre: 'Capitaine abandonné', artiste: 'Gold' },
+      // --- Partenaire Particulier ---
+      { titre: 'Partenaire particulier', artiste: 'Partenaire Particulier' },
+      // --- Desireless ---
+      { titre: 'Voyage, voyage', artiste: 'Desireless' },
+      // --- Niagara ---
+      { titre: 'Pendant que les champs brûlent', artiste: 'Niagara' },
+      // --- Patrick Bruel ---
+      { titre: 'Casser la voix', artiste: 'Patrick Bruel' },
+      // --- Florent Pagny ---
+      { titre: 'Savoir aimer', artiste: 'Florent Pagny' },
+      // --- Pascal Obispo ---
+      { titre: 'Lucie', artiste: 'Pascal Obispo' },
+      // --- IAM ---
+      { titre: 'Je danse le Mia', artiste: 'IAM' },
+      { titre: 'Petit frère', artiste: 'IAM' },
+      // --- NTM ---
+      { titre: 'La fièvre', artiste: 'NTM' },
+      { titre: 'Ma Benz', artiste: 'NTM' },
+      // --- MC Solaar ---
+      { titre: 'Bouge de là', artiste: 'MC Solaar' },
+      { titre: 'Caroline', artiste: 'MC Solaar' },
+      // --- Alliage ---
+      { titre: 'Baila', artiste: 'Alliage' },
+      // --- Lââm ---
+      { titre: 'Chanter pour ceux qui sont loin de chez eux', artiste: 'Lââm' },
+      // --- Les Rita Mitsouko ---
+      { titre: 'Marcia Baïla', artiste: 'Les Rita Mitsouko' },
+      { titre: 'C’est comme ça', artiste: 'Les Rita Mitsouko' },
+      // --- Elsa ---
+      { titre: 'T’en va pas', artiste: 'Elsa' },
+      // --- Zazie ---
+      { titre: 'Zen', artiste: 'Zazie' },
+      // --- Noir Désir ---
+      { titre: 'Le vent nous portera', artiste: 'Noir Désir' },
+    ],
+  },
+  {
     id: 'classique',
     nom: 'Classique',
     verifierArtiste: false,
