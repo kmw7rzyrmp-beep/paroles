@@ -9,6 +9,11 @@
 <link rel="icon" type="image/png" sizes="256x256" href="/icon.png">
 <link rel="icon" href="/favicon.ico" sizes="16x16 32x32 48x48">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="manifest" href="/manifest.webmanifest">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Star Song">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -268,6 +273,7 @@
       <button id="loginBtn" class="ghost" type="button" hidden>Se connecter</button>
       <button id="signupBtn" type="button" hidden>Créer un compte</button>
       <button id="logoutBtn" class="ghost" type="button" hidden>Se déconnecter</button>
+      <button id="installBtn" class="ghost" type="button" hidden>📲 Installer l’appli</button>
     </div>
   </div>
   <h1 id="titre">Un refrain en tête et le titre qui a disparu ? On le retrouve.</h1>
@@ -326,6 +332,13 @@
   <button id="histToggle" class="hist-toggle" type="button" aria-expanded="false" aria-controls="histPanel">↺ Historique <span id="histCount"></span></button>
 </aside>
 
+<dialog id="iosInstall" aria-labelledby="iosInstallTitle">
+ <div class="auth">
+  <h2 id="iosInstallTitle">Installer Star Song</h2>
+  <p>Sur iPhone : touche le bouton <strong>Partager</strong> (le carré avec une flèche vers le haut) en bas de Safari, puis <strong>« Sur l’écran d’accueil »</strong>.</p>
+  <button id="iosInstallClose" type="button">OK</button>
+ </div>
+</dialog>
 <dialog id="authDialog" aria-labelledby="authTitle">
   <form id="authForm" class="auth">
     <h2 id="authTitle">Créer un compte</h2>
@@ -1638,6 +1651,41 @@
         afterAccountReady();
       }
     });
+
+// --- Appli installable (PWA) ---
+(() => {
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js').catch((e) => console.warn('Service worker :', e)));
+  }
+  const btn = document.getElementById('installBtn');
+  const iosDlg = document.getElementById('iosInstall');
+  const installed = window.matchMedia('(display-mode: standalone)').matches || navigator.standalone;
+  const isIos = /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  let promptEvent = null;
+
+  // Android / ordinateur (Chrome, Edge...) : le navigateur propose l'installation
+  window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    promptEvent = e;
+    if (!installed) btn.hidden = false;
+  });
+  window.addEventListener('appinstalled', () => { btn.hidden = true; promptEvent = null; });
+
+  // iPhone : pas d'installation automatique, on explique comment faire
+  if (isIos && !installed) btn.hidden = false;
+
+  btn.addEventListener('click', async () => {
+    if (promptEvent) {
+      promptEvent.prompt();
+      await promptEvent.userChoice;
+      promptEvent = null;
+      btn.hidden = true;
+    } else if (isIos) {
+      iosDlg.showModal();
+    }
+  });
+  document.getElementById('iosInstallClose').addEventListener('click', () => iosDlg.close());
+})();
 </script>
 </body>
 </html>
