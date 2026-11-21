@@ -1218,6 +1218,8 @@
     authLogin.required = login;
     authPassword.required = !setname;
     authPassword.autocomplete = signup ? 'new-password' : 'current-password';
+    authPassword.minLength = signup ? 8 : 0; // 8 caractères minimum à l'inscription (les anciens comptes peuvent toujours se connecter)
+    authPassword.placeholder = signup ? '8 caractères minimum' : '';
     authHint.textContent = setname
       ? 'Ton identifiant permet à tes amis de te retrouver. Une fois choisi, il ne peut plus être changé.'
       : 'Ton identifiant sert à te connecter et à être retrouvé par tes amis. L’e-mail est facultatif : tu pourras te connecter avec l’un ou l’autre.';
