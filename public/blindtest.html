@@ -142,6 +142,21 @@
   .reveal .vinyl { border-radius: 50%; background: radial-gradient(circle, var(--orange) 0 .8rem, #111 .85rem 1rem, transparent 1.05rem), repeating-radial-gradient(circle, #1a1a1d 0 2px, #26252b 2px 3px); }
   .reveal .t { font: 900 1.7rem/1.05 var(--texte); font-stretch: 65%; }
   .reveal .a { color: var(--gris); }
+  /* ---------- Battle royale ---------- */
+  .mode-hint { margin: .5rem 0 1.4rem; color: var(--gris); font-size: .9rem; max-width: 30rem; }
+  .mode-hint:empty { display: none; }
+  .modes button:last-child::before { content: "☠"; font-size: 1rem; line-height: 1; }
+  .out-banner { margin: 0 0 1rem; padding: .7rem .9rem; border: 1px dashed var(--danger); border-radius: 6px; color: var(--danger); font-weight: 700; text-align: center; }
+  .out-banner[hidden] { display: none; }
+  .elim-line { margin: .7rem 0 0; color: var(--danger); font-weight: 700; }
+  .elim-line:empty { display: none; }
+  .elim-line.safe { color: var(--jaune); }
+  .scores li.out .name { color: var(--gris); text-decoration: line-through; text-decoration-color: var(--danger); }
+  .scores li.out .pts { color: var(--gris); }
+  .scores li.out::after { content: "éliminé"; grid-column: 2; font-size: .78rem; color: var(--danger); }
+  html[lang="en"] .scores li.out::after { content: "eliminated"; }
+  #options.watching { opacity: .55; }
+
   .gains { list-style: none; margin: .6rem 0 0; padding: 0; }
   .gains li { display: flex; justify-content: space-between; padding: .3rem 0; border-top: 1px solid var(--ligne); }
   .gains .plus { color: var(--jaune); font-weight: 800; }
@@ -384,8 +399,11 @@
           </div>
         </div>
       </div>
-      <p class="lbl">Nombre de sons</p>
-      <div id="roundChips" class="chips block" role="radiogroup" aria-label="Nombre de sons" style="width: fit-content"></div>
+      <p class="lbl">Mode de jeu</p>
+      <div id="homeModes" class="chips block modes" role="radiogroup" aria-label="Mode de jeu" style="width: fit-content"></div>
+      <p id="homeModeHint" class="mode-hint"></p>
+      <div id="homeRoundsBox"><p class="lbl">Nombre de sons</p>
+      <div id="roundChips" class="chips block" role="radiogroup" aria-label="Nombre de sons" style="width: fit-content"></div></div>
       <p class="lbl">Difficulté</p>
       <div id="levelChips" class="chips block levels" role="radiogroup" aria-label="Difficulté" style="width: fit-content"></div>
       <button id="createBtn" class="big rec" type="button">Créer la partie</button>
@@ -433,8 +451,11 @@
           </div>
         </div>
       </div>
-      <p class="lbl">Nombre de sons</p>
-      <div id="lobbyRounds" class="chips block" role="radiogroup" aria-label="Nombre de sons" style="width: fit-content"></div>
+      <p class="lbl">Mode de jeu</p>
+      <div id="lobbyModes" class="chips block modes" role="radiogroup" aria-label="Mode de jeu" style="width: fit-content"></div>
+      <p id="lobbyModeHint" class="mode-hint"></p>
+      <div id="lobbyRoundsBox"><p class="lbl">Nombre de sons</p>
+      <div id="lobbyRounds" class="chips block" role="radiogroup" aria-label="Nombre de sons" style="width: fit-content"></div></div>
       <p class="lbl">Difficulté</p>
       <div id="lobbyLevels" class="chips block levels" role="radiogroup" aria-label="Difficulté" style="width: fit-content"></div>
       <button id="startBtn" class="big rec" type="button">Lancer la partie</button>
@@ -461,10 +482,12 @@
 
     <div id="play" hidden>
       <div class="timer"><i id="timerBar"></i></div>
+      <p id="outBanner" class="out-banner" hidden>Tu es éliminé. Tu peux regarder les autres finir la partie.</p>
       <div id="options" class="options"></div>
       <p id="playState" class="state" role="status" aria-live="polite"></p>
       <div id="reveal" hidden>
         <div class="reveal"><span id="revealCover"></span><div><div id="revealTitle" class="t"></div><div id="revealArtist" class="a"></div></div></div>
+        <p id="elimLine" class="elim-line" role="status"></p>
         <ul id="gains" class="gains"></ul>
       </div>
     </div>
@@ -485,7 +508,7 @@
   <!-- Fin -->
   <section id="end" hidden>
     <div class="podium">
-      <p class="lbl">Vainqueur</p>
+      <p id="winnerLbl" class="lbl">Vainqueur</p>
       <p id="winner" class="winner"></p>
     </div>
     <ul id="endScores" class="scores"></ul>
@@ -512,8 +535,19 @@
   const $ = (id) => document.getElementById(id);
   const API = '/api/bt';
   let cats = [], roundsChoices = [5, 10, 15, 30, 50], maxRounds = 300;
+  let modes = [{ id: 'classique', nom: 'Normal' }, { id: 'br', nom: 'Battle royale' }];
+  const MODE_HINTS = {
+    classique: '',
+    br: 'Une erreur et tu es éliminé. Le dernier encore en vie gagne. Il faut être au moins 2.',
+  };
+  // affiche les boutons de mode + l'explication, et cache le nombre de sons en battle royale
+  function modePicker(pre, current, onPick) {
+    chips($(pre + 'Modes'), modes.map((m) => [m.id, m.nom]), current, onPick);
+    $(pre + 'ModeHint').textContent = MODE_HINTS[current] || '';
+    $(pre + 'RoundsBox').hidden = current === 'br';
+  }
   let levels = [{ id: 'facile', nom: 'Facile' }, { id: 'intermediaire', nom: 'Intermédiaire' }, { id: 'hard', nom: 'HARRR MODE' }];
-  let pick = { category: 'rap-fr', rounds: 10, level: 'intermediaire', artists: null }; // artists : null = tous
+  let pick = { category: 'rap-fr', rounds: 10, level: 'intermediaire', mode: 'classique', artists: null }; // artists : null = tous
   let session = null; // { code, token }
   let state = null, clockOffset = 0, pollTimer = null;
   let playingKey = '', answering = false;
@@ -654,6 +688,7 @@
     });
     artistPicker($('homeArtists'), pick.category, pick.artists, (list) => { pick.artists = list; drawHomeChips(); }, false);
     roundPicker($('roundChips'), pick.rounds, (v) => { pick.rounds = v; drawHomeChips(); });
+    modePicker('home', pick.mode, (v) => { pick.mode = v; drawHomeChips(); });
     chips($('levelChips'), levels.map((l) => [l.id, l.nom]), pick.level, (v) => { pick.level = v; drawHomeChips(); });
     markLevels($('levelChips'));
   }
@@ -799,7 +834,7 @@
     }
     try {
       const d = await api('/categories');
-      cats = d.categories; roundsChoices = d.rounds; if (d.maxRounds) maxRounds = d.maxRounds; if (d.levels) levels = d.levels;
+      cats = d.categories; roundsChoices = d.rounds; if (d.maxRounds) maxRounds = d.maxRounds; if (d.levels) levels = d.levels; if (d.modes) modes = d.modes;
     } catch (err) { $('homeMsg').textContent = err.message; }
     drawHomeChips();
 
@@ -827,7 +862,7 @@
     if (Array.isArray(pick.artists) && !pick.artists.length) { $('homeMsg').textContent = 'Coche au moins un artiste.'; return; }
     rememberName();
     try {
-      const d = await api('/rooms', { name: myName(), category: pick.category, rounds: pick.rounds, level: pick.level, artists: pick.artists });
+      const d = await api('/rooms', { name: myName(), category: pick.category, rounds: pick.rounds, level: pick.level, mode: pick.mode, artists: pick.artists });
       session = { code: d.code, token: d.token };
       saveSession();
       history.replaceState(null, '', '/blindtest?room=' + d.code);
@@ -882,6 +917,7 @@
     el.replaceChildren(...players.map((p) => {
       const li = document.createElement('li');
       li.classList.toggle('me', p.id === state.me);
+      li.classList.toggle('out', Boolean(withScore && p.out));
       li.classList.toggle('host', !withScore && p.id === state.hostId);
       if (withScore) {
         const n = document.createElement('span'); n.className = 'name'; n.textContent = p.name;
@@ -907,17 +943,19 @@
     $('hostSettings').hidden = !isHost();
     const loading = state.phase === 'loading';
     $('guestWait').textContent = loading ? 'Chargement des extraits…'
-      : isHost() ? '' : `En attente que l’hôte lance la partie (${state.categoryName}, ${state.levelName}, ${roundsLabel(state.rounds)}`
+      : isHost() ? '' : `En attente que l’hôte lance la partie (${state.categoryName}, ${state.levelName}, ${state.mode === 'br' ? 'battle royale' : roundsLabel(state.rounds)}`
         + (Array.isArray(state.artists) ? `, artistes : ${state.artists.slice(0, 4).join(', ')}${state.artists.length > 4 ? ` et ${state.artists.length - 4} autres` : ''}` : '') + ').';
     if (isHost()) {
       const set = (body) => api(`/rooms/${state.code}/settings`, { token: session.token, ...body }).then((d) => { state = d; render(); }).catch((e) => { $('lobbyMsg').textContent = e.message; });
       chips($('lobbyCats'), cats.map((c) => [c.id, c.nom]), state.category, (v) => set({ category: v }));
       roundPicker($('lobbyRounds'), state.rounds, (v) => set({ rounds: v }));
       chips($('lobbyLevels'), levels.map((l) => [l.id, l.nom]), state.level, (v) => set({ level: v }));
+      modePicker('lobby', state.mode, (v) => set({ mode: v }));
       artistPicker($('lobbyArtists'), state.category, state.artists, (list) => set({ artists: list }), false);
       markLevels($('lobbyLevels'));
-      $('startBtn').disabled = loading;
-      $('startBtn').textContent = loading ? 'Chargement…' : 'Lancer la partie';
+      const tooFew = state.mode === 'br' && state.players.length < 2;
+      $('startBtn').disabled = loading || tooFew;
+      $('startBtn').textContent = loading ? 'Chargement…' : tooFew ? 'En attente d’un 2e joueur' : 'Lancer la partie';
     }
     $('lobbyMsg').textContent = state.error || '';
     refreshInviteBox();
@@ -1054,8 +1092,9 @@
   function renderGame() {
     const s = state;
     show('game');
-    $('gameCat').textContent = `${s.categoryName}, ${s.levelName}`;
-    $('gameRound').textContent = s.phase === 'countdown' ? '' : `Son ${s.index + 1} / ${s.total == null ? '∞' : s.total}`;
+    $('gameRound').textContent = s.phase === 'countdown' ? '' : s.mode === 'br' ? `Son ${s.index + 1} · ${s.alive} en vie`
+      : `Son ${s.index + 1} / ${s.total == null ? '∞' : s.total}`;
+    $('gameCat').textContent = s.mode === 'br' ? `Battle royale, ${s.categoryName}` : `${s.categoryName}, ${s.levelName}`;
     $('stopBtn').hidden = !isHost();
     playersList($('gameScores'), s.players, true);
 
@@ -1069,7 +1108,9 @@
     syncAudio();
 
     // propositions (redessinées seulement quand elles changent)
-    const key = s.index + ':' + s.phase + ':' + s.myChoice + ':' + s.options.map((o) => o.titre).join('|');
+    $('outBanner').hidden = !s.meOut;
+    $('options').classList.toggle('watching', Boolean(s.meOut));
+    const key = s.index + ':' + s.phase + ':' + s.myChoice + ':' + s.meOut + ':' + s.options.map((o) => o.titre).join('|');
     if (key !== drawnOptions) {
       drawnOptions = key;
       $('options').replaceChildren(...s.options.map((o, i) => {
@@ -1078,7 +1119,7 @@
         const t = document.createElement('span'); t.className = 't'; t.textContent = o.titre;
         const a = document.createElement('span'); a.className = 'a'; a.textContent = o.artiste || ''; a.hidden = !o.artiste;
         b.append(t, a);
-        const done = s.myChoice !== null || s.phase !== 'playing';
+        const done = s.myChoice !== null || s.phase !== 'playing' || s.meOut;
         b.disabled = done;
         if (s.myChoice === i) b.classList.add('on');
         if (s.phase === 'reveal') {
@@ -1093,10 +1134,17 @@
     const others = s.players.length;
     if (s.phase === 'playing') {
       $('reveal').hidden = true;
-      $('playState').textContent = s.myChoice === null ? 'C’est quel son ?' : `Réponse envoyée. ${s.answered}/${others} ont répondu.`;
+      const playing = s.mode === 'br' ? s.alive : others;
+      $('playState').textContent = s.meOut ? 'Tu regardes la partie.' : s.myChoice === null ? 'C’est quel son ?' : `Réponse envoyée. ${s.answered}/${playing} ont répondu.`;
     } else {
       $('reveal').hidden = false;
-      const mine = s.myChoice === null ? 'Pas de réponse cette fois.' : s.myChoice === s.correct ? 'Bien joué !' : 'Raté !';
+      const mine = s.meOut && !(s.eliminated || []).length ? 'Tu regardes la partie.'
+        : s.myChoice === null ? 'Pas de réponse cette fois.' : s.myChoice === s.correct ? 'Bien joué !' : 'Raté !';
+      const elim = $('elimLine');
+      elim.classList.toggle('safe', Boolean(s.survivedAll));
+      elim.textContent = s.mode !== 'br' ? ''
+        : s.survivedAll ? 'Tout le monde s’est trompé : personne n’est éliminé, on continue !'
+        : (s.eliminated || []).length ? `Éliminé${s.eliminated.length > 1 ? 's' : ''} : ${s.eliminated.join(', ')}` : '';
       $('playState').textContent = mine;
       const cover = $('revealCover');
       if (cover.dataset.src !== (s.song.cover || '-')) {
@@ -1152,9 +1200,9 @@
     }
     stopAudio();
     const s = state;
-    const top = s.players[0];
-    const tie = s.players.filter((p) => p.score === top?.score).map((p) => p.name);
-    $('winner').textContent = tie.length > 1 ? `Égalité : ${tie.join(' et ')}` : (top ? top.name : '');
+    const tie = s.winners && s.winners.length ? s.winners : s.players.slice(0, 1).map((p) => p.name);
+    $('winnerLbl').textContent = s.mode === 'br' ? 'Dernier survivant' : 'Vainqueur';
+    $('winner').textContent = tie.length > 1 ? `Égalité : ${tie.join(' et ')}` : (tie[0] || '');
     playersList($('endScores'), s.players, true);
     $('tracklist').replaceChildren(...(s.history || []).map((x) => {
       const li = document.createElement('li'); li.textContent = `${x.titre}, ${x.artiste}`; return li;
