@@ -154,6 +154,7 @@
     'Nombre de sons': 'Number of tracks',
     '∞ Infini': '∞ Endless',
     'Mode de jeu': 'Game mode',
+    'En blind test': 'In a blind test',
     'Battle royale': 'Battle royale',
     'Une erreur et tu es éliminé. Le dernier encore en vie gagne. Il faut être au moins 2.': 'One mistake and you’re out. Last one standing wins. You need at least 2 players.',
     'Tu es éliminé. Tu peux regarder les autres finir la partie.': 'You’re out. You can watch the others finish the game.',

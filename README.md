@@ -64,6 +64,7 @@ et avec lui tous les comptes. Pour l'éviter, le site peut garder les comptes da
      updated_at timestamptz default now()
    );
    alter table app_state enable row level security;
+   grant select, insert, update on table public.app_state to service_role;
    ```
    (La sécurité au niveau des lignes est activée sans règle : seule la clé secrète du serveur peut lire la table.)
 3. Dans **Project Settings → API Keys**, copie la **clé secrète** (`sb_secret_...`, ou l'ancienne clé `service_role`).
