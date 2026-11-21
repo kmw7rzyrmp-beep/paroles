@@ -500,7 +500,7 @@ const who = (name) => {
   return u;
 };
 const intArg = (v, label) => { const n = Number(v); if (!Number.isInteger(n)) throw new HttpError(400, `${label} : écris un nombre entier.`); return n; };
-const fmtMin = (ms) => { const m = Math.round((ms || 0) / 60_000); return m < 60 ? `${m} min` : `${Math.floor(m / 60)} h ${String(m % 60).padStart(2, '0')}`; };
+const fmtMin = (ms) => { const t = Math.round((ms || 0) / 1000), h = Math.floor(t / 3600), m = Math.floor((t % 3600) / 60), sec = t % 60; return `${h} h ${String(m).padStart(2, '0')} min ${String(sec).padStart(2, '0')} s`; };
 function notifyAll(admin, title, body, url = '/') {
   let people = 0, devices = 0;
   for (const u of usersById.values()) {
@@ -987,7 +987,7 @@ export function rankings(viewerId) {
     username: u.username, avatarUrl: avatarOf(u), friend: friendIds.has(u.id) && u.id !== viewerId, me: u.id === viewerId,
     points: u.bt?.points || 0, games: u.bt?.games || 0, wins: u.bt?.wins || 0, best: u.bt?.best || 0,
     streak: streakOf(u).count, bestStreak: streakOf(u).best, badges: badgeCount(u), tier: topTier(u),
-    time: Math.round((u.timeMs || 0) / 60_000), // minutes passées sur le site
+    time: Math.round((u.timeMs || 0) / 1000), // secondes passées sur le site
   });
   const all = users.map(base);
   const board = (key, filter) => {
@@ -1014,7 +1014,7 @@ export function rankings(viewerId) {
       games: Math.round(all.reduce((n, x) => n + x.games, 0)),
       points: all.reduce((n, x) => n + x.points, 0),
       flames: all.reduce((n, x) => n + x.streak, 0),
-      minutes: all.reduce((n, x) => n + x.time, 0),
+      seconds: all.reduce((n, x) => n + x.time, 0),
     },
     loggedIn: Boolean(viewer && viewer.username),
   };
@@ -1376,6 +1376,7 @@ function publicProfile(u, viewer) {
     since: u.createdAt || '',
     blindtest: bt ? { rank: bt.rank, points: bt.points, games: bt.games, wins: bt.wins, best: bt.best } : null,
     friends: (u.friends || []).length,
+    timeOnSite: Math.round((u.timeMs || 0) / 1000), // en secondes
     streak: streakOf(u),
     badges: badgesOf(u),
     isMe,

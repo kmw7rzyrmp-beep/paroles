@@ -4,7 +4,14 @@
 // tag : 'new' (nouveauté), 'better' (amélioration), 'fix' (correction), 'removed' (retiré)
 export const PATCH_NOTES = [
   {
-    version: '2.10', date: '2026-11-21', time: '21:20', title: 'Écouter la pochette, Admin réparé',
+    version: '2.11', date: '2026-11-21', time: '21:15', title: 'Temps sur le site à la seconde',
+    items: [
+      ['better', 'Le temps passé sur le site est compté et affiché à la seconde près (heures, minutes, secondes).'],
+      ['new', 'Le temps passé sur le site est visible sur chaque profil.'],
+    ],
+  },
+  {
+    version: '2.10', date: '2026-11-21', time: '21:10', title: 'Écouter la pochette, Admin réparé',
     items: [
       ['new', 'Accueil : un bouton sur la pochette pour écouter 30 s d’un son de l’album (sous la recherche sur téléphone).'],
       ['fix', 'La page Admin restait vide avec certains bloqueurs de pubs : c’est réglé.'],

@@ -111,16 +111,17 @@
     { id: 'streak', e: '🔥', label: 'Flammes', unit: 'jours', hint: 'La série en cours : un blind test ou une recherche par jour.' },
     { id: 'best', e: '⚡', label: 'Record', unit: 'pts en 1 partie', hint: 'Le meilleur score fait en une seule partie.' },
     { id: 'badges', e: '🏅', label: 'Badges', unit: 'badges', hint: 'Le nombre d’artistes avec au moins le badge Bronze.' },
-    { id: 'time', e: '⏱️', label: 'Temps sur le site', unit: '', hint: 'Le temps passé sur Star Song, pages ouvertes (paroles, blind test, messages…).', fmt: (m) => dur(m) },
+    { id: 'time', e: '⏱️', label: 'Temps sur le site', unit: '', hint: 'Le temps passé sur Star Song, à la seconde près (pages ouvertes : paroles, blind test, messages…).', fmt: (m) => dur(m) },
   ];
-  // 125 minutes -> « 2 h 05 »
-  function dur(m) {
-    m = Math.max(0, Math.round(m));
-    if (m < 60) return `${m} min`;
-    const h = Math.floor(m / 60), r = m % 60;
-    if (h < 24) return `${h} h ${String(r).padStart(2, '0')}`;
-    const d = Math.floor(h / 24);
-    return `${d} j ${h % 24} h`;
+  // secondes -> « 2 h 05 min 12 s » (et les jours au-delà de 24 h)
+  function dur(t) {
+    t = Math.max(0, Math.round(t));
+    const d = Math.floor(t / 86400), h = Math.floor((t % 86400) / 3600), m = Math.floor((t % 3600) / 60), s = t % 60;
+    const p2 = (n) => String(n).padStart(2, '0');
+    if (d) return `${d} j ${h} h ${p2(m)} min ${p2(s)} s`;
+    if (h) return `${h} h ${p2(m)} min ${p2(s)} s`;
+    if (m) return `${m} min ${p2(s)} s`;
+    return `${s} s`;
   }
   const show = (def, v) => (def.fmt ? def.fmt(v) : `${nf.format(v)} ${def.unit}`);
   let data = null, board = 'points', scope = 'monde', query = '';
