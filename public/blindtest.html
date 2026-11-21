@@ -1,0 +1,617 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="theme-color" content="#141317">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Blind test · Star Song</title>
+<meta name="description" content="Blind test entre potes : rap FR, rap US, classique, pop… Le plus rapide gagne.">
+<link rel="icon" type="image/png" sizes="256x256" href="/icon.png">
+<link rel="icon" href="/favicon.ico" sizes="16x16 32x32 48x48">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="manifest" href="/manifest.webmanifest">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..900&family=Permanent+Marker&display=swap" rel="stylesheet">
+<style>
+  /* Même DA que l'accueil : cassette, touches de ghetto-blaster, trame photocopiée */
+  :root {
+    --mur: #141317; --coque: #26252c; --coque-hi: #34333b; --etiquette: #efe8d8;
+    --rouge: #e2412b; --orange: #f28c1c; --jaune: #f5c43a; --bande: #4a3226;
+    --blanc: #f4f2ee; --gris: #a6a3ad; --ligne: #3a3940; --encre: #1b1b22;
+    --vert: #3fbf6a; --danger: #ff8a7a;
+    --chrome: linear-gradient(180deg, #f3f3f5 0%, #c9c9cf 48%, #a9a9b1 52%, #d6d6dc 100%);
+    --enfonce: linear-gradient(180deg, #ffd27a, var(--orange));
+    --texte: Archivo, "Arial Narrow", system-ui, sans-serif;
+    --feutre: "Permanent Marker", "Comic Sans MS", cursive;
+    color-scheme: dark;
+    padding-top: env(safe-area-inset-top, 0px);
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body { margin: 0; padding: 0 0 3rem; background: var(--mur); color: var(--blanc); font: 400 1.0625rem/1.5 var(--texte); font-stretch: 92%; }
+  body::after {
+    content: ""; position: fixed; inset: 0; z-index: -1;
+    background: radial-gradient(circle at 15% 5%, rgba(226, 65, 43, .16), transparent 45%),
+      radial-gradient(rgba(255,255,255,.07) 1px, transparent 1.6px) 0 0 / 7px 7px, var(--mur);
+  }
+  main { max-width: 42rem; margin: 0 auto; padding: 1.6rem 1.25rem 2rem; }
+  [hidden] { display: none !important; }
+  ::selection { background: var(--orange); color: var(--encre); }
+  :focus-visible { outline: 3px solid var(--jaune); outline-offset: 3px; }
+
+  .topbar { display: flex; justify-content: space-between; align-items: center; gap: 1rem; margin-bottom: 2rem; }
+  .brand { font: 900 1.7rem/1 var(--texte); font-stretch: 62%; color: var(--blanc); text-decoration: none; }
+  .brand span { color: var(--orange); }
+  .back { color: var(--gris); font-size: .95rem; }
+  .back:hover { color: var(--blanc); }
+
+  h1 { margin: 0 0 .6rem; font: 900 clamp(2.6rem, 10vw, 4.6rem)/.92 var(--texte); font-stretch: 62%; text-transform: uppercase; }
+  h2 { margin: 0 0 .8rem; font: 900 1.7rem/1 var(--texte); font-stretch: 62%; text-transform: uppercase; }
+  .lead { color: var(--gris); margin: 0 0 2rem; max-width: 30rem; }
+  label, .lbl { display: block; font-weight: 700; font-stretch: 85%; margin: 0 0 .45rem; }
+
+  button, .btn {
+    font: 800 1rem var(--texte); font-stretch: 78%; letter-spacing: .02em; color: var(--encre); background: var(--chrome);
+    border: 1px solid #6f6f78; border-bottom: 4px solid #5b5b63; border-radius: 4px;
+    min-height: 2.9rem; padding: .55rem 1.3rem; margin: 0; cursor: pointer; text-decoration: none;
+    display: inline-flex; align-items: center; justify-content: center; gap: .5rem;
+    box-shadow: 0 2px 0 rgba(0,0,0,.5), inset 0 1px 0 rgba(255,255,255,.8); transition: transform .08s;
+  }
+  button:active:not(:disabled), button.on { transform: translateY(3px); border-bottom-width: 1px; background: var(--enfonce); border-color: #a65a0a; box-shadow: inset 0 2px 4px rgba(0,0,0,.3); }
+  button:disabled { opacity: .5; cursor: not-allowed; }
+  .rec::before { content: ""; width: .7rem; height: .7rem; border-radius: 50%; background: var(--rouge); }
+  .ghost { background: transparent; color: var(--blanc); border: 1px solid var(--ligne); box-shadow: none; }
+  .big { font-size: 1.2rem; min-height: 3.4rem; padding-inline: 1.8rem; }
+
+  input[type="text"] {
+    width: 100%; min-height: 3rem; border: 0; border-bottom: 2px dashed rgba(27,27,34,.45); border-radius: 0; background: transparent;
+    font: 400 1.5rem/1.2 var(--feutre); color: var(--encre); padding: .3rem .1rem; caret-color: var(--rouge);
+  }
+  input[type="text"]:focus { outline: none; border-bottom: 2px solid var(--rouge); }
+  input[type="text"]::placeholder { color: rgba(27,27,34,.35); }
+  #codeInput { text-transform: uppercase; letter-spacing: .3em; }
+
+  /* étiquette de cassette (champs de texte) */
+  .label-card { background: var(--etiquette); color: var(--encre); border-radius: 6px; padding: 1rem 1.1rem 1.1rem; box-shadow: 0 12px 30px rgba(0,0,0,.45); border-bottom: 10px solid; border-image: linear-gradient(180deg, var(--rouge) 0 33%, var(--orange) 33% 66%, var(--jaune) 66%) 1; }
+  .label-card label { color: var(--encre); }
+
+  .block { margin: 0 0 2rem; }
+  .chips { display: flex; flex-wrap: wrap; gap: .5rem; padding: .45rem; background: #0d0c0f; border-radius: 6px; box-shadow: inset 0 2px 5px rgba(0,0,0,.6); }
+  .chips button { min-height: 2.6rem; padding: .4rem .95rem; font-size: .98rem; }
+  .row { display: flex; flex-wrap: wrap; gap: .8rem; align-items: flex-end; }
+  .row > .grow { flex: 1; min-width: 10rem; }
+  .or { display: flex; align-items: center; gap: 1rem; color: var(--gris); margin: 2rem 0; }
+  .or::before, .or::after { content: ""; flex: 1; height: 1px; background: var(--ligne); }
+  .msg { min-height: 1.5rem; color: var(--danger); font-weight: 700; margin: .8rem 0 0; }
+
+  /* salon */
+  .code { font: 900 clamp(3.5rem, 16vw, 6rem)/1 var(--texte); font-stretch: 62%; letter-spacing: .08em; color: var(--jaune); margin: .2rem 0 .6rem; }
+  .players { list-style: none; margin: 0 0 1.5rem; padding: 0; display: flex; flex-wrap: wrap; gap: .5rem; }
+  .players li { background: var(--coque); border-radius: 999px; padding: .35rem .9rem; font-weight: 700; }
+  .players li.host::after { content: " (hôte)"; color: var(--gris); font-weight: 400; }
+  .players li.me { outline: 2px solid var(--orange); }
+  .wait { color: var(--gris); font-style: italic; }
+
+  /* cassette du jeu */
+  .tape { position: relative; padding: .9rem .9rem 0; background: linear-gradient(180deg, var(--coque-hi), var(--coque)); border-radius: 12px; box-shadow: 0 20px 45px rgba(0,0,0,.55); margin: 0 0 1.4rem; }
+  .tape-label { background: var(--etiquette); color: var(--encre); border-radius: 5px; padding: .6rem .9rem 0; }
+  .tape-top { display: flex; justify-content: space-between; align-items: baseline; font: 800 .95rem var(--texte); font-stretch: 75%; }
+  .tape-top b { font: 400 1.25rem var(--feutre); }
+  .tape-stripes { height: 4.6rem; margin: .5rem -.9rem 0; background: linear-gradient(180deg, var(--rouge) 0 33.3%, var(--orange) 33.3% 66.6%, var(--jaune) 66.6%); display: flex; align-items: center; justify-content: center; }
+  .tape-window { position: relative; width: 66%; height: 3.3rem; display: flex; align-items: center; justify-content: space-between; padding: 0 1rem; background: rgba(18,17,21,.92); border-radius: 2rem; box-shadow: inset 0 2px 6px rgba(0,0,0,.7); overflow: hidden; }
+  .tape-window::before { content: ""; position: absolute; left: 22%; right: 22%; bottom: .45rem; height: 3px; background: var(--bande); }
+  .reel { position: relative; z-index: 1; width: 2.3rem; height: 2.3rem; border-radius: 50%; border: 3px solid rgba(239,232,216,.85); background: repeating-conic-gradient(var(--etiquette) 0 12deg, transparent 12deg 60deg); }
+  .reel::after { content: ""; position: absolute; inset: 35%; border-radius: 50%; background: #121115; }
+  .reel:first-child { box-shadow: 0 0 0 .45rem var(--bande); }
+  .reel:last-child { box-shadow: 0 0 0 .15rem var(--bande); }
+  .spinning .reel { animation: spin 1.6s linear infinite; }
+  .spinning .reel:last-child { animation-duration: .9s; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .tape-foot { height: 1.4rem; margin: .7rem auto 0; width: 70%; background: #222127; clip-path: polygon(6% 0, 94% 0, 100% 100%, 0 100%); }
+
+  .timer { height: 8px; background: #0d0c0f; border-radius: 4px; overflow: hidden; margin: 0 0 1.2rem; }
+  .timer i { display: block; height: 100%; width: 100%; background: linear-gradient(90deg, var(--rouge), var(--orange), var(--jaune)); transform-origin: left; }
+
+  .countdown { text-align: center; padding: 2.5rem 0; }
+  .countdown .n { font: 900 9rem/1 var(--texte); font-stretch: 62%; color: var(--orange); }
+
+  .options { display: grid; grid-template-columns: 1fr 1fr; gap: .8rem; }
+  .options button { min-height: 5rem; flex-direction: column; align-items: flex-start; justify-content: center; text-align: left; padding: .7rem 1rem; gap: .1rem; }
+  .options .t { font: 800 1.12rem/1.15 var(--texte); font-stretch: 72%; }
+  .options .a { font: 500 .9rem/1.2 var(--texte); color: #4a4852; }
+  .options button.good { background: linear-gradient(180deg, #8ff0ad, var(--vert)); border-color: #1d6e38; transform: none; border-bottom-width: 4px; }
+  .options button.bad { background: linear-gradient(180deg, #ffb2a6, var(--rouge)); border-color: #7a1d10; }
+  .options button.bad .a, .options button.good .a { color: var(--encre); }
+  .options button:disabled { opacity: 1; cursor: default; }
+  .options button:disabled:not(.on):not(.good):not(.bad) { opacity: .55; }
+  .state { min-height: 1.6rem; margin: 1rem 0 0; color: var(--gris); }
+
+  .reveal { display: grid; grid-template-columns: 6rem 1fr; gap: 1rem; align-items: center; margin: 1.4rem 0 .4rem; }
+  .reveal img, .reveal .vinyl { width: 6rem; height: 6rem; border-radius: 4px; object-fit: cover; box-shadow: 0 6px 16px rgba(0,0,0,.5); }
+  .reveal .vinyl { border-radius: 50%; background: radial-gradient(circle, var(--orange) 0 .8rem, #111 .85rem 1rem, transparent 1.05rem), repeating-radial-gradient(circle, #1a1a1d 0 2px, #26252b 2px 3px); }
+  .reveal .t { font: 900 1.7rem/1.05 var(--texte); font-stretch: 65%; }
+  .reveal .a { color: var(--gris); }
+  .gains { list-style: none; margin: .6rem 0 0; padding: 0; }
+  .gains li { display: flex; justify-content: space-between; padding: .3rem 0; border-top: 1px solid var(--ligne); }
+  .gains .plus { color: var(--jaune); font-weight: 800; }
+  .gains .zero { color: var(--gris); }
+
+  .scores { list-style: none; margin: 1.6rem 0 0; padding: 0; counter-reset: rang; }
+  .scores li { counter-increment: rang; display: grid; grid-template-columns: 2.2rem 1fr auto; align-items: baseline; padding: .45rem 0; border-top: 1px solid var(--ligne); }
+  .scores li::before { content: counter(rang, decimal-leading-zero); font: 900 1.3rem var(--texte); font-stretch: 62%; color: var(--orange); }
+  .scores .pts { font: 900 1.3rem var(--texte); font-stretch: 65%; }
+  .scores li.me .name { color: var(--orange); }
+
+  .podium { text-align: center; margin: 1rem 0 1rem; }
+  .podium .winner { font: 900 clamp(2.4rem, 9vw, 4rem)/1 var(--texte); font-stretch: 62%; color: var(--jaune); }
+  .tracklist { list-style: none; padding: 0; margin: 1.6rem 0 0; color: var(--gris); counter-reset: piste; }
+  .tracklist li { counter-increment: piste; padding: .2rem 0; }
+  .tracklist li::before { content: counter(piste, decimal-leading-zero) "  "; color: var(--orange); font-weight: 800; }
+  .actions { display: flex; flex-wrap: wrap; gap: .7rem; margin-top: 1.6rem; }
+
+  @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
+  @media (max-width: 520px) {
+    .options { grid-template-columns: 1fr; }
+    .options button { min-height: 4rem; }
+    .reveal { grid-template-columns: 4.5rem 1fr; }
+    .reveal img, .reveal .vinyl { width: 4.5rem; height: 4.5rem; }
+  }
+</style>
+</head>
+<body>
+<main>
+  <div class="topbar">
+    <a class="brand" href="/"><span aria-hidden="true">★</span> Star Song</a>
+    <a class="back" href="/">Retour à la recherche</a>
+  </div>
+
+  <!-- Accueil : créer ou rejoindre -->
+  <section id="home">
+    <h1>Blind test entre potes</h1>
+    <p class="lead">Un extrait se lance, quatre propositions s’affichent. Bonne réponse : 500 points, plus un bonus si t’es rapide.</p>
+
+    <div class="label-card block">
+      <label for="nameInput">Ton pseudo</label>
+      <input id="nameInput" type="text" maxlength="20" autocomplete="nickname" placeholder="Ex : Kyky">
+    </div>
+
+    <div id="joinBox" class="block">
+      <h2>Rejoindre une partie</h2>
+      <div class="row">
+        <div class="label-card grow">
+          <label for="codeInput">Code de la partie</label>
+          <input id="codeInput" type="text" maxlength="4" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="ABCD">
+        </div>
+        <button id="joinBtn" class="big" type="button">Rejoindre</button>
+      </div>
+    </div>
+
+    <div class="or">ou</div>
+
+    <div id="createBox">
+      <h2>Créer une partie</h2>
+      <p class="lbl">Catégorie</p>
+      <div id="catChips" class="chips block" role="radiogroup" aria-label="Catégorie"></div>
+      <p class="lbl">Nombre de sons</p>
+      <div id="roundChips" class="chips block" role="radiogroup" aria-label="Nombre de sons" style="width: fit-content"></div>
+      <button id="createBtn" class="big rec" type="button">Créer la partie</button>
+    </div>
+    <p id="homeMsg" class="msg" role="alert"></p>
+  </section>
+
+  <!-- Salon d'attente -->
+  <section id="lobby" hidden>
+    <p class="lbl">Code de la partie</p>
+    <p id="lobbyCode" class="code"></p>
+    <div class="actions" style="margin: 0 0 2rem">
+      <button id="shareBtn" type="button">Inviter mes potes</button>
+      <span id="shareMsg" class="wait"></span>
+    </div>
+    <h2>Joueurs</h2>
+    <ul id="lobbyPlayers" class="players"></ul>
+    <div id="hostSettings">
+      <p class="lbl">Catégorie</p>
+      <div id="lobbyCats" class="chips block" role="radiogroup" aria-label="Catégorie"></div>
+      <p class="lbl">Nombre de sons</p>
+      <div id="lobbyRounds" class="chips block" role="radiogroup" aria-label="Nombre de sons" style="width: fit-content"></div>
+      <button id="startBtn" class="big rec" type="button">Lancer la partie</button>
+    </div>
+    <p id="guestWait" class="wait"></p>
+    <p id="lobbyMsg" class="msg" role="alert"></p>
+  </section>
+
+  <!-- Partie -->
+  <section id="game" hidden>
+    <div id="tape" class="tape" aria-hidden="true">
+      <div class="tape-label">
+        <div class="tape-top"><span id="gameCat"></span><b id="gameRound"></b></div>
+        <div class="tape-stripes"><div class="tape-window"><span class="reel"></span><span class="reel"></span></div></div>
+      </div>
+      <div class="tape-foot"></div>
+    </div>
+
+    <div id="countdown" class="countdown" hidden>
+      <p class="lbl">Prépare-toi…</p>
+      <p id="countN" class="n"></p>
+    </div>
+    <p id="loading" class="wait" hidden>Chargement des extraits…</p>
+
+    <div id="play" hidden>
+      <div class="timer"><i id="timerBar"></i></div>
+      <div id="options" class="options"></div>
+      <p id="playState" class="state" role="status" aria-live="polite"></p>
+      <div id="reveal" hidden>
+        <div class="reveal"><span id="revealCover"></span><div><div id="revealTitle" class="t"></div><div id="revealArtist" class="a"></div></div></div>
+        <ul id="gains" class="gains"></ul>
+      </div>
+    </div>
+    <ul id="gameScores" class="scores"></ul>
+    <p class="state"><button id="soundBtn" class="ghost" type="button" hidden>Activer le son</button></p>
+  </section>
+
+  <!-- Fin -->
+  <section id="end" hidden>
+    <div class="podium">
+      <p class="lbl">Vainqueur</p>
+      <p id="winner" class="winner"></p>
+    </div>
+    <ul id="endScores" class="scores"></ul>
+    <h2 style="margin-top: 2rem">Les sons de la partie</h2>
+    <ol id="tracklist" class="tracklist"></ol>
+    <div class="actions">
+      <button id="againBtn" class="big rec" type="button">Rejouer</button>
+      <button id="settingsBtn" type="button">Changer de catégorie</button>
+      <button id="quitBtn" class="ghost" type="button">Quitter la partie</button>
+    </div>
+    <p id="endWait" class="wait"></p>
+  </section>
+</main>
+
+<script>
+(() => {
+  const $ = (id) => document.getElementById(id);
+  const API = '/api/bt';
+  let cats = [], roundsChoices = [5, 10, 15];
+  let pick = { category: 'rap-fr', rounds: 10 };
+  let session = null; // { code, token }
+  let state = null, clockOffset = 0, pollTimer = null;
+  let playingKey = '', answering = false;
+
+  // --- Un seul lecteur audio, « débloqué » au premier clic (obligatoire sur téléphone) ---
+  const audio = new Audio();
+  audio.preload = 'auto';
+  let unlocked = false;
+  function unlockAudio() {
+    if (unlocked) return;
+    unlocked = true;
+    // 0,1 s de silence pour autoriser la lecture automatique ensuite
+    const rate = 8000, n = 800, buf = new ArrayBuffer(44 + n), v = new DataView(buf);
+    const w = (o, s) => [...s].forEach((c, i) => v.setUint8(o + i, c.charCodeAt(0)));
+    w(0, 'RIFF'); v.setUint32(4, 36 + n, true); w(8, 'WAVE'); w(12, 'fmt '); v.setUint32(16, 16, true);
+    v.setUint16(20, 1, true); v.setUint16(22, 1, true); v.setUint32(24, rate, true); v.setUint32(28, rate, true);
+    v.setUint16(32, 1, true); v.setUint16(34, 8, true); w(36, 'data'); v.setUint32(40, n, true);
+    for (let i = 0; i < n; i++) v.setUint8(44 + i, 128);
+    audio.src = URL.createObjectURL(new Blob([buf], { type: 'audio/wav' }));
+    audio.play().catch(() => {});
+  }
+
+  async function api(path, body) {
+    const opts = body ? { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) } : {};
+    const res = await fetch(API + path, opts);
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw Object.assign(new Error(data.error || 'Erreur réseau, réessaie.'), { status: res.status });
+    return data;
+  }
+
+  const show = (id) => ['home', 'lobby', 'game', 'end'].forEach((s) => { $(s).hidden = s !== id; });
+  const myName = () => $('nameInput').value.trim();
+  const saveSession = () => { try { localStorage.setItem('bt-session', JSON.stringify(session)); } catch {} };
+
+  function chips(el, items, current, onPick) {
+    el.replaceChildren(...items.map(([value, label]) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.textContent = label;
+      b.setAttribute('role', 'radio');
+      b.setAttribute('aria-checked', String(value === current));
+      b.classList.toggle('on', value === current);
+      b.addEventListener('click', () => onPick(value));
+      return b;
+    }));
+  }
+
+  function drawHomeChips() {
+    chips($('catChips'), cats.map((c) => [c.id, c.nom]), pick.category, (v) => { pick.category = v; drawHomeChips(); });
+    chips($('roundChips'), roundsChoices.map((n) => [n, String(n)]), pick.rounds, (v) => { pick.rounds = v; drawHomeChips(); });
+  }
+
+  // --- Accueil ---
+  async function init() {
+    try { const s = JSON.parse(localStorage.getItem('bt-name') || 'null'); if (s) $('nameInput').value = s; } catch {}
+    if (!myName()) {
+      try { const me = await (await fetch('/api/me')).json(); if (me.user?.username) $('nameInput').value = me.user.username; } catch {}
+    }
+    try {
+      const d = await api('/categories');
+      cats = d.categories; roundsChoices = d.rounds;
+    } catch (err) { $('homeMsg').textContent = err.message; }
+    drawHomeChips();
+
+    const room = new URLSearchParams(location.search).get('room');
+    let saved = null;
+    try { saved = JSON.parse(localStorage.getItem('bt-session') || 'null'); } catch {}
+    if (room) $('codeInput').value = room.toUpperCase();
+    // on reprend la partie en cours si on était déjà dedans (page rechargée)
+    if (saved && (!room || saved.code === room.toUpperCase())) {
+      session = saved;
+      try { await poll(); startPolling(); return; } catch { session = null; }
+    }
+    if (room) $('createBox').hidden = true, document.querySelector('.or').hidden = true;
+    show('home');
+  }
+
+  function rememberName() { try { localStorage.setItem('bt-name', JSON.stringify(myName())); } catch {} }
+
+  $('createBtn').addEventListener('click', async () => {
+    unlockAudio();
+    $('homeMsg').textContent = '';
+    if (!myName()) { $('homeMsg').textContent = 'Choisis d’abord un pseudo.'; $('nameInput').focus(); return; }
+    rememberName();
+    try {
+      const d = await api('/rooms', { name: myName(), category: pick.category, rounds: pick.rounds });
+      session = { code: d.code, token: d.token };
+      saveSession();
+      history.replaceState(null, '', '/blindtest?room=' + d.code);
+      await poll(); startPolling();
+    } catch (err) { $('homeMsg').textContent = err.message; }
+  });
+
+  async function join() {
+    unlockAudio();
+    $('homeMsg').textContent = '';
+    const code = $('codeInput').value.trim().toUpperCase();
+    if (!myName()) { $('homeMsg').textContent = 'Choisis d’abord un pseudo.'; $('nameInput').focus(); return; }
+    if (code.length !== 4) { $('homeMsg').textContent = 'Le code fait 4 caractères.'; $('codeInput').focus(); return; }
+    rememberName();
+    try {
+      const d = await api(`/rooms/${code}/join`, { name: myName() });
+      session = { code: d.code, token: d.token };
+      saveSession();
+      history.replaceState(null, '', '/blindtest?room=' + d.code);
+      await poll(); startPolling();
+    } catch (err) { $('homeMsg').textContent = err.message; }
+  }
+  $('joinBtn').addEventListener('click', join);
+  $('codeInput').addEventListener('keydown', (e) => { if (e.key === 'Enter') join(); });
+
+  // --- Suivi de la partie : on demande l'état au serveur toutes les 0,7 s ---
+  function startPolling() {
+    clearInterval(pollTimer);
+    pollTimer = setInterval(() => poll().catch(onPollError), 700);
+  }
+  function onPollError(err) {
+    if (err.status === 404 || err.status === 403) {
+      clearInterval(pollTimer);
+      session = null;
+      try { localStorage.removeItem('bt-session'); } catch {}
+      audio.pause();
+      show('home');
+      $('homeMsg').textContent = err.message;
+    }
+  }
+  async function poll() {
+    if (!session) return;
+    const s = await api(`/rooms/${session.code}?token=${encodeURIComponent(session.token)}`);
+    clockOffset = s.serverNow - Date.now();
+    state = s;
+    render();
+  }
+  const serverNow = () => Date.now() + clockOffset;
+  const isHost = () => state && state.hostId === state.me;
+
+  function playersList(el, players, withScore) {
+    el.replaceChildren(...players.map((p) => {
+      const li = document.createElement('li');
+      li.classList.toggle('me', p.id === state.me);
+      li.classList.toggle('host', !withScore && p.id === state.hostId);
+      if (withScore) {
+        const n = document.createElement('span'); n.className = 'name'; n.textContent = p.name;
+        const s = document.createElement('span'); s.className = 'pts'; s.textContent = p.score;
+        li.append(n, s);
+      } else li.textContent = p.name;
+      return li;
+    }));
+  }
+
+  function render() {
+    const s = state;
+    if (s.phase === 'lobby' || s.phase === 'loading') return renderLobby();
+    if (s.phase === 'end') return renderEnd();
+    renderGame();
+  }
+
+  function renderLobby() {
+    show('lobby');
+    stopAudio();
+    $('lobbyCode').textContent = state.code;
+    playersList($('lobbyPlayers'), state.players, false);
+    $('hostSettings').hidden = !isHost();
+    const loading = state.phase === 'loading';
+    $('guestWait').textContent = loading ? 'Chargement des extraits…'
+      : isHost() ? '' : `En attente que l’hôte lance la partie (${state.categoryName}, ${state.rounds} sons).`;
+    if (isHost()) {
+      const set = (body) => api(`/rooms/${state.code}/settings`, { token: session.token, ...body }).then((d) => { state = d; render(); }).catch((e) => { $('lobbyMsg').textContent = e.message; });
+      chips($('lobbyCats'), cats.map((c) => [c.id, c.nom]), state.category, (v) => set({ category: v }));
+      chips($('lobbyRounds'), roundsChoices.map((n) => [n, String(n)]), state.rounds, (v) => set({ rounds: v }));
+      $('startBtn').disabled = loading;
+      $('startBtn').textContent = loading ? 'Chargement…' : 'Lancer la partie';
+    }
+    $('lobbyMsg').textContent = state.error || '';
+  }
+
+  $('startBtn').addEventListener('click', async () => {
+    unlockAudio();
+    $('lobbyMsg').textContent = '';
+    try { state = await api(`/rooms/${state.code}/start`, { token: session.token }); render(); } catch (err) { $('lobbyMsg').textContent = err.message; }
+  });
+
+  $('shareBtn').addEventListener('click', async () => {
+    const link = `${location.origin}/blindtest?room=${state.code}`;
+    const text = `Viens jouer au blind test Star Song ! Code : ${state.code}`;
+    try {
+      if (navigator.share) await navigator.share({ title: 'Blind test Star Song', text, url: link });
+      else { await navigator.clipboard.writeText(link); $('shareMsg').textContent = 'Lien copié, colle-le à tes potes.'; }
+    } catch { /* partage annulé */ }
+  });
+
+  // --- Jeu ---
+  function stopAudio() { audio.pause(); playingKey = ''; $('tape').classList.remove('spinning'); }
+
+  function syncAudio() {
+    const s = state;
+    if (!s.preview) { $('tape').classList.toggle('spinning', s.phase === 'playing'); return; }
+    const key = s.code + ':' + s.index;
+    if (key !== playingKey) {
+      playingKey = key;
+      audio.src = s.preview;
+      const offset = Math.max(0, (serverNow() - s.roundStart) / 1000);
+      audio.addEventListener('loadedmetadata', () => { if (offset > 1) audio.currentTime = Math.min(offset, 25); }, { once: true });
+      audio.play().then(() => { $('soundBtn').hidden = true; }).catch(() => { $('soundBtn').hidden = false; });
+    }
+    $('tape').classList.toggle('spinning', !audio.paused);
+  }
+  $('soundBtn').addEventListener('click', () => { unlockAudio(); audio.play().then(() => { $('soundBtn').hidden = true; }).catch(() => {}); });
+  audio.addEventListener('play', () => $('tape').classList.add('spinning'));
+  audio.addEventListener('pause', () => $('tape').classList.remove('spinning'));
+
+  let drawnOptions = '';
+  function renderGame() {
+    const s = state;
+    show('game');
+    $('gameCat').textContent = s.categoryName;
+    $('gameRound').textContent = s.phase === 'countdown' ? '' : `Son ${s.index + 1} / ${s.total}`;
+    playersList($('gameScores'), s.players, true);
+
+    if (s.phase === 'countdown') {
+      $('countdown').hidden = false; $('play').hidden = true;
+      $('countN').textContent = Math.max(1, Math.ceil((s.phaseEnd - serverNow()) / 1000));
+      return;
+    }
+    $('countdown').hidden = true; $('play').hidden = false;
+    syncAudio();
+
+    // propositions (redessinées seulement quand elles changent)
+    const key = s.index + ':' + s.phase + ':' + s.myChoice + ':' + s.options.map((o) => o.titre).join('|');
+    if (key !== drawnOptions) {
+      drawnOptions = key;
+      $('options').replaceChildren(...s.options.map((o, i) => {
+        const b = document.createElement('button');
+        b.type = 'button';
+        const t = document.createElement('span'); t.className = 't'; t.textContent = o.titre;
+        const a = document.createElement('span'); a.className = 'a'; a.textContent = o.artiste;
+        b.append(t, a);
+        const done = s.myChoice !== null || s.phase !== 'playing';
+        b.disabled = done;
+        if (s.myChoice === i) b.classList.add('on');
+        if (s.phase === 'reveal') {
+          if (i === s.correct) b.classList.add('good');
+          else if (i === s.myChoice) b.classList.add('bad');
+        }
+        b.addEventListener('click', () => answer(i));
+        return b;
+      }));
+    }
+
+    const others = s.players.length;
+    if (s.phase === 'playing') {
+      $('reveal').hidden = true;
+      $('playState').textContent = s.myChoice === null ? 'C’est quel son ?' : `Réponse envoyée. ${s.answered}/${others} ont répondu.`;
+    } else {
+      $('reveal').hidden = false;
+      const mine = s.myChoice === null ? 'Pas de réponse cette fois.' : s.myChoice === s.correct ? 'Bien joué !' : 'Raté !';
+      $('playState').textContent = mine;
+      const cover = $('revealCover');
+      if (cover.dataset.src !== (s.song.cover || '-')) {
+        cover.dataset.src = s.song.cover || '-';
+        if (s.song.cover) {
+          const img = document.createElement('img'); img.src = s.song.cover; img.alt = ''; img.referrerPolicy = 'no-referrer';
+          cover.replaceChildren(img);
+        } else { const v = document.createElement('div'); v.className = 'vinyl'; cover.replaceChildren(v); }
+      }
+      $('revealTitle').textContent = s.song.titre;
+      $('revealArtist').textContent = s.song.artiste;
+      $('gains').replaceChildren(...s.results.map((r) => {
+        const li = document.createElement('li');
+        const n = document.createElement('span'); n.textContent = r.name;
+        const p = document.createElement('span'); p.className = r.points ? 'plus' : 'zero'; p.textContent = r.points ? '+' + r.points : (r.ok ? '0' : 'raté');
+        li.append(n, p);
+        return li;
+      }));
+    }
+  }
+
+  // barre de temps fluide entre deux mises à jour
+  function frame() {
+    if (state && state.phase === 'playing') {
+      const left = Math.max(0, (state.phaseEnd - serverNow()) / state.roundMs);
+      $('timerBar').style.transform = `scaleX(${left})`;
+    } else if (state && state.phase === 'reveal') $('timerBar').style.transform = 'scaleX(0)';
+    if (state && state.phase === 'countdown') $('countN').textContent = Math.max(1, Math.ceil((state.phaseEnd - serverNow()) / 1000));
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+
+  async function answer(i) {
+    if (answering || state.myChoice !== null) return;
+    answering = true;
+    try { state = await api(`/rooms/${state.code}/answer`, { token: session.token, index: state.index, choice: i }); render(); }
+    catch (err) { $('playState').textContent = err.message; }
+    finally { answering = false; }
+  }
+
+  // touches 1 à 4 du clavier pour répondre vite
+  document.addEventListener('keydown', (e) => {
+    if (state?.phase === 'playing' && /^[1-4]$/.test(e.key) && document.activeElement?.tagName !== 'INPUT') answer(Number(e.key) - 1);
+  });
+
+  // --- Fin ---
+  function renderEnd() {
+    show('end');
+    stopAudio();
+    const s = state;
+    const top = s.players[0];
+    const tie = s.players.filter((p) => p.score === top?.score).map((p) => p.name);
+    $('winner').textContent = tie.length > 1 ? `Égalité : ${tie.join(' et ')}` : (top ? top.name : '');
+    playersList($('endScores'), s.players, true);
+    $('tracklist').replaceChildren(...(s.history || []).map((x) => {
+      const li = document.createElement('li'); li.textContent = `${x.titre}, ${x.artiste}`; return li;
+    }));
+    $('againBtn').hidden = !isHost();
+    $('settingsBtn').hidden = !isHost();
+    $('endWait').textContent = isHost() ? '' : 'L’hôte peut relancer une partie.';
+  }
+  $('againBtn').addEventListener('click', async () => {
+    unlockAudio();
+    try { state = await api(`/rooms/${state.code}/start`, { token: session.token }); render(); } catch (err) { $('endWait').textContent = err.message; }
+  });
+  $('settingsBtn').addEventListener('click', async () => {
+    try { state = await api(`/rooms/${state.code}/settings`, { token: session.token }); render(); } catch (err) { $('endWait').textContent = err.message; }
+  });
+  $('quitBtn').addEventListener('click', async () => {
+    try { await api(`/rooms/${state.code}/leave`, { token: session.token }); } catch {}
+    clearInterval(pollTimer);
+    session = null; state = null;
+    try { localStorage.removeItem('bt-session'); } catch {}
+    history.replaceState(null, '', '/blindtest');
+    $('createBox').hidden = false; document.querySelector('.or').hidden = false;
+    show('home');
+  });
+
+  init();
+})();
+</script>
+</body>
+</html>
