@@ -80,7 +80,9 @@ export function createBlindtest({ getJson, sameSong, clientIp, sessionUser, find
   // --- Trouver l'extrait de 30 s (et la pochette) d'une chanson ---
   async function resolveSong(song) {
     const key = song.titre + '|' + song.artiste;
-    if (previewCache.has(key)) return previewCache.get(key);
+    const cached = previewCache.get(key);
+    // les liens d'extraits finissent par expirer : on les redemande au bout de 6 h
+    if (cached && Date.now() - cached.at < 6 * 3600_000) return cached;
     if (demo) return { preview: '', cover: '' };
     const check = (t, a, strict) => sameSong(song.titre, song.verifierArtiste ? song.artiste : '', t, a, strict);
     // d'abord le titre exact, sinon un titre proche (ex. « Otto (feat. X) »)
@@ -100,7 +102,7 @@ export function createBlindtest({ getJson, sameSong, clientIp, sessionUser, find
         if (m) found = { preview: m.preview, cover: m.album?.cover_medium || '' };
       } catch (err) { failed = true; console.error('Blind test, Deezer :', err.message); }
     }
-    const result = found || { preview: '', cover: '' };
+    const result = { ...(found || { preview: '', cover: '' }), at: Date.now() };
     if (found || !failed) previewCache.set(key, result); // une erreur réseau ne doit pas être gardée
     return result;
   }
@@ -151,10 +153,68 @@ export function createBlindtest({ getJson, sameSong, clientIp, sessionUser, find
     return pos < 1 / 3 ? 'facile' : pos < 2 / 3 ? 'intermediaire' : 'hard';
   }
 
-  // Au démarrage du serveur, on récupère tranquillement la popularité de tous les sons
+  // --- Compléter les artistes : au moins 60 sons chacun (s'ils en ont assez) ---
+  // Au démarrage, on demande à Deezer les sons les plus écoutés de chaque artiste qui en a moins de 60.
+  // Ce sont de vrais titres, avec leur extrait et leur popularité : rien d'inventé.
+  const TARGET_PER_ARTIST = 60;
+  const AUTO_FILL = new Set(['rap-fr', 'rap-us', 'pop', 'rnb', 'rock', 'annees-2000']); // pas « Classique » (sur Deezer ce sont les orchestres, pas les compositeurs)
+  const simple = (x) => String(x || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, ' ').trim();
+  // titre « de base » : sans (feat. …), [Remix], - Live, etc.
+  const baseTitle = (t) => simple(String(t || '').replace(/\s*[([].*?[)\]]/g, '').replace(/\s+-\s+.*$/, ''));
+  const NOT_A_REAL_SONG = /\b(remix|live|instrumental|a ?cappella|acapella|version|edit|interlude|intro|outro|skit|medley|mixed|karaoke|sped up|slowed|nightcore)\b/i;
+
+  async function deezer(url) {
+    await deezerTurn();
+    return getJson(url, 'Deezer');
+  }
+
+  async function fillArtist(cat, artiste, have) {
+    // 1) retrouver l'artiste sur Deezer (le nom doit être exactement le même)
+    const found = await deezer(`https://api.deezer.com/search/artist?${new URLSearchParams({ q: artiste, limit: '10' })}`);
+    const match = (found.data || []).filter((a) => simple(a.name) === simple(artiste))
+      .sort((x, y) => (y.nb_fan || 0) - (x.nb_fan || 0))[0];
+    if (!match) return 0;
+    // 2) ses sons les plus écoutés
+    const top = await deezer(`https://api.deezer.com/artist/${match.id}/top?limit=100`);
+    const seen = new Set(cat.chansons.filter((s) => s.artiste === artiste).map((s) => baseTitle(s.titre)));
+    let added = 0;
+    for (const t of top.data || []) {
+      if (have + added >= TARGET_PER_ARTIST) break;
+      if (!t.preview || t.artist?.id !== match.id) continue; // seulement ses propres sons (pas ceux où il est en feat.)
+      const titre = String(t.title_short || t.title || '').trim();
+      if (!titre || titre.length > 60 || NOT_A_REAL_SONG.test(t.title || titre)) continue;
+      const key = baseTitle(titre);
+      if (!key || seen.has(key)) continue;
+      seen.add(key);
+      const song = { titre, artiste, auto: true };
+      cat.chansons.push(song);
+      // on garde directement sa popularité (l'extrait, lui, est recherché au moment de jouer : les liens expirent)
+      popularity.set(songKey(song), Number(t.rank) || 0);
+      added++;
+    }
+    return added;
+  }
+
+  async function fillAllArtists() {
+    let total = 0;
+    for (const cat of CATEGORIES) {
+      if (!AUTO_FILL.has(cat.id)) continue;
+      const counts = new Map();
+      for (const s of cat.chansons) counts.set(s.artiste, (counts.get(s.artiste) || 0) + 1);
+      for (const [artiste, have] of counts) {
+        if (have >= TARGET_PER_ARTIST) continue;
+        try { total += await fillArtist(cat, artiste, have); }
+        catch (err) { console.error(`Blind test, sons de ${artiste} :`, err.message); }
+      }
+    }
+    console.log(`Blind test : ${total} sons ajoutés automatiquement (objectif ${TARGET_PER_ARTIST} par artiste).`);
+  }
+
+  // Au démarrage du serveur : on complète les artistes, puis on récupère la popularité des sons restants
   (async () => {
     if (demo) return;
     await new Promise((r) => setTimeout(r, 5000));
+    await fillAllArtists().catch((err) => console.error('Blind test, compléter les artistes :', err.message));
     let n = 0;
     for (const c of CATEGORIES) for (const s of categorySongs(c.id)) if (!popularity.has(songKey(s))) { await fetchPopularity(s); n++; }
     console.log(`Blind test : popularité de ${n} sons récupérée (niveaux prêts).`);
