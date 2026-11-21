@@ -59,7 +59,7 @@
     who.append(name);
     const meta = el('p', 'pp-meta');
     if (p.online !== undefined) {
-      const st = el('span', 'presence' + (p.online ? ' online' : ''), p.online ? 'En ligne' : 'Hors ligne');
+      const st = el('span', 'presence' + (p.inBlindtest ? ' ingame' : p.online ? ' online' : ''), p.inBlindtest ? 'En blind test' : p.online ? 'En ligne' : 'Hors ligne');
       meta.append(st);
     }
     if (p.since) {
@@ -333,6 +333,8 @@
   .pp-meta .presence::before { content: ""; width: .55rem; height: .55rem; border-radius: 50%; background: #5d5b63; }
   .pp-meta .presence.online { color: #6fdc8c; }
   .pp-meta .presence.online::before { background: #3fbf6a; }
+  .pp-meta .presence.ingame { color: #ffb15c; }
+  .pp-meta .presence.ingame::before { background: #f28c1c; }
   .pp-actions { display: flex; flex-wrap: wrap; align-items: center; gap: .6rem; margin: 1.2rem 0 0; }
   .pp-actions button, .pp-link { min-height: 2.7rem; }
   .pp-main { background: linear-gradient(180deg, #ffd27a, #f28c1c) !important; border-color: #a65a0a !important; }
