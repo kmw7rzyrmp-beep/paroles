@@ -66,6 +66,12 @@
   .ed-count { display: inline-block; min-width: 1.6rem; padding: .05rem .45rem; border-radius: 999px; background: var(--orange); color: #1b1b22; font-size: .8rem; text-align: center; }
   .ed-count.bump { animation: bump .45s cubic-bezier(.2, 1.8, .4, 1); }
   @keyframes bump { 40% { transform: scale(1.45); } }
+  .ed-tabs { display: flex; gap: .4rem; margin: 0 0 .7rem; }
+  .ed-tab { min-height: 2.2rem; padding: .2rem .9rem; font-size: .85rem; background: #26252c; color: var(--blanc); }
+  .ed-tab[aria-selected="true"] { background: var(--blanc); color: #0b0b0c; }
+  .ed-addall { padding: .2rem .2rem .5rem; }
+  .ed-addall button { width: 100%; min-height: 2.3rem; font-size: .85rem; }
+  .ed-search[hidden] { display: none; }
   .ed-search { min-height: 2.6rem; padding: .3rem .9rem; border-radius: 999px; border: 1px solid #3a3940; background: #121115; color: var(--blanc); font: inherit; }
   .ed-search:focus { outline: none; border-color: var(--orange); }
   .ed-results, .ed-songs { list-style: none; margin: .6rem 0 0; padding: 0; overflow-y: auto; flex: 1; min-height: 0; overscroll-behavior: contain; }
@@ -207,7 +213,10 @@
       </div>
       <div class="ed-body">
         <div class="ed-col">
-          <h3>Ajouter des sons</h3>
+          <div class="ed-tabs" role="tablist" aria-label="Ajouter des sons">
+            <button type="button" role="tab" class="ed-tab" data-tab="search" aria-selected="true">Rechercher</button>
+            <button type="button" role="tab" class="ed-tab" data-tab="favs" aria-selected="false">★ Mes favoris</button>
+          </div>
           <input class="ed-search" type="search" placeholder="Cherche un titre ou un artiste" aria-label="Chercher un son">
           <ul class="ed-results" aria-live="polite"></ul>
         </div>
@@ -238,6 +247,7 @@
     q('.ed-delete').onclick = del;
     dlg.addEventListener('cancel', (e) => { e.preventDefault(); close(true); });
     dlg.addEventListener('click', (e) => { if (e.target === dlg) close(true); if (!picker.hidden && !e.target.closest('.ed-emoji, .ed-emojis')) picker.hidden = true; });
+    for (const t of dlg.querySelectorAll('.ed-tab')) t.onclick = () => showTab(t.dataset.tab);
     let timer = null;
     q('.ed-search').addEventListener('input', (e) => {
       clearTimeout(timer);
@@ -256,6 +266,9 @@
     q('.ed-emoji').textContent = ed.emoji;
     q('.ed-name').value = ed.name;
     q('.ed-search').value = '';
+    tab = 'search';
+    for (const t of dlg.querySelectorAll('.ed-tab')) t.setAttribute('aria-selected', String(t.dataset.tab === 'search'));
+    q('.ed-search').hidden = false;
     q('.ed-results').replaceChildren($('li', 'ed-empty', 'Tape le nom d’un son ou d’un artiste pour le trouver.'));
     q('.ed-delete').hidden = !ed.id;
     q('.ed-emojis').hidden = true;
@@ -277,6 +290,37 @@
     setTimeout(() => { dlg.classList.remove('closing'); dlg.close(); }, 200);
   }
 
+  // onglets : recherche dans tout le catalogue, ou mes sons en favoris (★ sur l'accueil)
+  let tab = 'search';
+  async function showTab(name) {
+    tab = name;
+    for (const t of dlg.querySelectorAll('.ed-tab')) t.setAttribute('aria-selected', String(t.dataset.tab === name));
+    q('.ed-search').hidden = name !== 'search';
+    if (name === 'search') { search(q('.ed-search').value.trim()); return; }
+    const box = q('.ed-results');
+    box.replaceChildren($('li', 'ed-empty', 'Chargement de tes favoris…'));
+    let favs = [];
+    try { const d = await api('/api/data'); favs = (d.data && d.data.favorites) || []; } catch { favs = []; }
+    if (tab !== 'favs') return;
+    if (!favs.length) { box.replaceChildren($('li', 'ed-empty', 'Tu n’as pas encore de favoris. Sur l’accueil, appuie sur ☆ à côté d’un son pour l’ajouter.')); return; }
+    const list = favs.map((f) => ({ titre: f.title, artiste: f.artist, cover: f.image || '', preview: f.preview || '' }));
+    // bouton pour tout ajouter d'un coup
+    const all = $('li', 'ed-addall');
+    const btn = $('button', 'ghost', `Tout ajouter (${list.length})`); btn.type = 'button';
+    btn.onclick = () => {
+      const have = new Set(ed.songs.map(key));
+      const fresh = list.filter((x) => !have.has(key(x))).slice(0, Math.max(0, limits.songs - ed.songs.length));
+      if (!fresh.length) { setMsg('Tous tes favoris sont déjà dans la playlist.', 'ok'); return; }
+      ed.songs.unshift(...fresh.map((x) => ({ titre: x.titre, artiste: x.artiste, cover: x.cover })));
+      ed.dirty = true;
+      drawSongs(key(fresh[0]));
+      refreshMarks();
+      setMsg(`${fresh.length} son${fresh.length > 1 ? 's' : ''} ajouté${fresh.length > 1 ? 's' : ''} depuis tes favoris.`, 'ok');
+    };
+    all.append(btn);
+    renderRows(list, [all]);
+  }
+
   async function search(v) {
     const box = q('.ed-results');
     if (v.length < 2) { box.replaceChildren($('li', 'ed-empty', 'Tape le nom d’un son ou d’un artiste pour le trouver.')); return; }
@@ -284,9 +328,16 @@
     let d;
     try { d = await api('/api/bt/search?q=' + encodeURIComponent(v)); } catch (err) { box.replaceChildren($('li', 'ed-empty', err.message)); return; }
     if (q('.ed-search').value.trim() !== v) return; // une autre recherche a été tapée depuis
+    if (tab !== 'search') return;
     if (!d.results.length) { box.replaceChildren($('li', 'ed-empty', 'Aucun son trouvé. Essaie avec d’autres mots.')); return; }
+    renderRows(d.results);
+  }
+
+  // une liste de sons à ajouter (résultats de recherche ou favoris)
+  function renderRows(results, before = []) {
+    const box = q('.ed-results');
     const have = new Set(ed.songs.map(key));
-    const rows = d.results.map((r) => {
+    const rows = results.map((r) => {
       const li = $('li', 'ed-row');
       li.append(cover(r, true));
       const t = $('div', 'ed-txt'); t.setAttribute('data-notranslate', '');
@@ -309,7 +360,7 @@
       if (have.has(key(r))) li.dataset.has = '1';
       return li;
     });
-    box.replaceChildren(...rows);
+    box.replaceChildren(...before, ...rows);
     rows.forEach((li, i) => {
       if (reduce) { li.classList.add('in'); return; }
       li.style.transitionDelay = `${Math.min(i, 12) * 35}ms`;
