@@ -428,6 +428,86 @@ setInterval(() => {
   }
 }, 10 * 60_000).unref();
 
+// ===================== Playlists de blind test =====================
+// Chaque compte peut créer ses playlists (12 max, 150 sons chacune). Ses amis peuvent aussi les jouer.
+const PL_MAX = 12, PL_SONGS = 150, PL_NAME = 40;
+const PL_EMOJIS = ['🎵', '🔥', '🎧', '💿', '🎤', '🌙', '⚡', '💜', '🚗', '🏖️', '🖤', '👑'];
+const clean = (x, n) => String(x || '').replace(/[\u0000-\u001f\u007f]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, n);
+function plSummary(pl, owner, viewerId) {
+  return {
+    id: pl.id, name: pl.name, emoji: pl.emoji, count: pl.songs.length, updatedAt: pl.updatedAt,
+    covers: pl.songs.filter((x) => x.cover).slice(0, 4).map((x) => x.cover),
+    owner: owner.username, mine: owner.id === viewerId,
+  };
+}
+// les playlists qu'une personne peut jouer : les siennes + celles de ses amis
+export function playlistsFor(userId) {
+  const me = usersById.get(userId);
+  if (!me || !me.username) return [];
+  const out = (me.playlists || []).map((pl) => plSummary(pl, me, me.id));
+  for (const fid of me.friends || []) {
+    const f = usersById.get(fid);
+    if (f && f.username) for (const pl of f.playlists || []) if (pl.songs.length >= 4) out.push(plSummary(pl, f, me.id));
+  }
+  return out;
+}
+// une playlist, si cette personne a le droit de la jouer
+export function getPlaylist(id, userId, noCheck = false) {
+  for (const u of usersById.values()) {
+    const pl = (u.playlists || []).find((x) => x.id === id);
+    if (!pl) continue;
+    const me = usersById.get(userId);
+    const ok = noCheck || u.id === userId || (me && (me.friends || []).includes(u.id));
+    return ok ? { ...pl, owner: u.username, ownerId: u.id } : null;
+  }
+  return null;
+}
+async function handlePlaylists(req, res, url, me) {
+  if (!me || !me.username) throw new HttpError(401, 'Connecte-toi pour créer tes playlists.');
+  me.playlists ||= [];
+  const action = url.pathname.slice('/api/playlists'.length).replace(/^\//, '');
+  if (req.method === 'GET' && action === '') {
+    return send(res, 200, { playlists: me.playlists.map((pl) => ({ ...pl })), emojis: PL_EMOJIS, limits: { playlists: PL_MAX, songs: PL_SONGS } });
+  }
+  if (req.method === 'POST' && action === 'save') {
+    const body = await readJson(req, 120_000);
+    const name = clean(body.name, PL_NAME);
+    if (!name) throw new HttpError(400, 'Donne un nom à ta playlist.');
+    const seen = new Set();
+    const songs = [];
+    for (const x of Array.isArray(body.songs) ? body.songs : []) {
+      const titre = clean(x && x.titre, 120), artiste = clean(x && x.artiste, 80);
+      if (!titre || !artiste) continue;
+      const key = (titre + '|' + artiste).toLowerCase();
+      if (seen.has(key)) continue;
+      seen.add(key);
+      const cover = /^https:\/\/[a-z0-9.-]+\.(mzstatic\.com|dzcdn\.net|deezer\.com)\//i.test(String(x.cover || '')) ? String(x.cover).slice(0, 300) : '';
+      songs.push({ titre, artiste, cover });
+      if (songs.length >= PL_SONGS) break;
+    }
+    const emoji = PL_EMOJIS.includes(body.emoji) ? body.emoji : '🎵';
+    let pl = body.id ? me.playlists.find((x) => x.id === body.id) : null;
+    if (body.id && !pl) throw new HttpError(404, 'Cette playlist n’existe plus.');
+    if (!pl) {
+      if (me.playlists.length >= PL_MAX) throw new HttpError(400, `Tu as déjà ${PL_MAX} playlists : supprimes-en une d’abord.`);
+      pl = { id: randomBytes(6).toString('base64url'), createdAt: Date.now() };
+      me.playlists.push(pl);
+    }
+    Object.assign(pl, { name, emoji, songs, updatedAt: Date.now() });
+    await persist();
+    return send(res, 200, { playlist: { ...pl } });
+  }
+  if (req.method === 'POST' && action === 'delete') {
+    const body = await readJson(req, 2_000);
+    const before = me.playlists.length;
+    me.playlists = me.playlists.filter((x) => x.id !== body.id);
+    if (me.playlists.length === before) throw new HttpError(404, 'Cette playlist n’existe plus.');
+    await persist();
+    return send(res, 200, { ok: true });
+  }
+  throw new HttpError(404, 'Introuvable.');
+}
+
 // appelé par le blind test tant que la personne est dans une partie
 export function markInBlindtest(userId) {
   const u = usersById.get(userId);
@@ -1096,7 +1176,8 @@ export async function handleAuth(req, res, url) {
   const isProfile = path === '/api/profile' || path === '/api/profile/image';
   const isMessages = path === '/api/messages' || path.startsWith('/api/messages/');
   const isPush = path.startsWith('/api/push/');
-  if (!ROUTES.has(path) && !isFriends && !isProfile && !isMessages && !isPush) return false;
+  const isPlaylists = path === '/api/playlists' || path.startsWith('/api/playlists/');
+  if (!ROUTES.has(path) && !isFriends && !isProfile && !isMessages && !isPush && !isPlaylists) return false;
 
   try {
     if (isProfile) return await handleProfile(req, res, url);
@@ -1107,6 +1188,7 @@ export async function handleAuth(req, res, url) {
     }
 
     if (isPush) return await handlePush(req, res, url, currentUser(req));
+    if (isPlaylists) return await handlePlaylists(req, res, url, currentUser(req));
 
     if (isMessages) {
       const me = currentUser(req);

@@ -4,7 +4,7 @@ import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { join, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { handleAuth, clientIp, sessionUser, findFriend, recordBlindtest, blindtestLeaderboard, markInBlindtest, countStat, isAdmin, adminStats, recordActivity, recordListen, streakOf, notifyUser, usersStreak } from './auth.js';
+import { handleAuth, clientIp, sessionUser, findFriend, recordBlindtest, blindtestLeaderboard, markInBlindtest, countStat, isAdmin, adminStats, recordActivity, recordListen, streakOf, notifyUser, usersStreak, getPlaylist, playlistsFor } from './auth.js';
 import { createBlindtest } from './blindtest.js';
 import { CATEGORIES } from './categories.js';
 
@@ -369,7 +369,7 @@ function sendJson(res, code, body) {
   res.end(JSON.stringify(body));
 }
 
-const handleBlindtest = createBlindtest({ getJson, sameSong, clientIp, sessionUser, findFriend, recordBlindtest, blindtestLeaderboard, markInBlindtest, countStat, recordListen, streakOf: usersStreak, notifyUser, demo: DEMO });
+const handleBlindtest = createBlindtest({ getJson, sameSong, clientIp, sessionUser, findFriend, recordBlindtest, blindtestLeaderboard, markInBlindtest, countStat, recordListen, streakOf: usersStreak, notifyUser, getPlaylist, playlistsFor, demo: DEMO });
 const STARTED = Date.now();
 // visiteurs uniques du jour (empreinte de l'adresse IP, jamais l'adresse elle-même ; remis à zéro chaque jour)
 let visitorDay = '';

@@ -47,7 +47,14 @@ const newCode = () => Array.from({ length: 4 }, () => ALPHABET[randomInt(ALPHABE
 const newToken = () => randomBytes(18).toString('base64url');
 const cleanName = (v) => String(v || '').replace(/\s+/g, ' ').trim().slice(0, 20);
 
+// Les playlists des joueurs : « pl:<id> » (le contenu vient des comptes, voir auth.js)
+let playlistLookup = () => null; // (id) -> { name, emoji, songs } ou null
+const isPlaylist = (id) => typeof id === 'string' && id.startsWith('pl:');
 function categorySongs(id) {
+  if (isPlaylist(id)) {
+    const pl = playlistLookup(id.slice(3));
+    return pl ? pl.songs.map((s) => ({ titre: s.titre, artiste: s.artiste, cover: s.cover || '', cat: id, verifierArtiste: true })) : null;
+  }
   if (id === ALL) return CATEGORIES.flatMap((c) => c.chansons.map((s) => ({ ...s, cat: c.id, verifierArtiste: c.verifierArtiste !== false })));
   const c = CATEGORIES.find((x) => x.id === id);
   return c ? c.chansons.map((s) => ({ ...s, cat: c.id, verifierArtiste: c.verifierArtiste !== false })) : null;
@@ -77,12 +84,18 @@ const LEVELS = [
 const LEVEL_IDS = LEVELS.map((l) => l.id);
 const levelName = (id) => LEVELS.find((l) => l.id === id)?.nom || id;
 
-const categoryName = (id) => (id === ALL ? 'Tout mélangé' : CATEGORIES.find((c) => c.id === id)?.nom || id);
+const categoryName = (id) => {
+  if (isPlaylist(id)) { const pl = playlistLookup(id.slice(3)); return pl ? `${pl.emoji} ${pl.name}` : 'Playlist'; }
+  return id === ALL ? 'Tout mélangé' : CATEGORIES.find((c) => c.id === id)?.nom || id;
+};
 
 const INVITE_TTL = 15 * 60_000; // une invitation reste valable 15 min
 const invites = new Map(); // identifiant invité (minuscules) -> Map(code -> { from, code, category, at })
 
-export function createBlindtest({ getJson, sameSong, clientIp, sessionUser, findFriend, recordBlindtest, blindtestLeaderboard, markInBlindtest = () => {}, countStat = () => {}, recordListen = () => null, streakOf = null, notifyUser = () => {}, demo }) {
+export function createBlindtest({ getJson, sameSong, clientIp, sessionUser, findFriend, recordBlindtest, blindtestLeaderboard, markInBlindtest = () => {}, countStat = () => {}, recordListen = () => null, streakOf = null, notifyUser = () => {},
+  getPlaylist = () => null, playlistsFor = () => [], demo }) {
+  // le contenu des playlists est lu sans vérifier les droits ici : on vérifie à la création du salon et aux réglages
+  playlistLookup = (id) => getPlaylist(id, null, true);
   // --- Trouver l'extrait de 30 s (et la pochette) d'une chanson ---
   async function resolveSong(song) {
     const key = song.titre + '|' + song.artiste;
@@ -257,11 +270,20 @@ export function createBlindtest({ getJson, sameSong, clientIp, sessionUser, find
   // --- Préparer les manches : N chansons avec un extrait, + 3 mauvaises réponses chacune ---
   // Prépare la « pioche » d'une partie : tous les sons possibles, dans l'ordre où ils passeront
   async function makeDeck(categoryId, level = 'intermediaire', artists = null) {
-    const all = categorySongs(categoryId);
+    const own = categorySongs(categoryId);
+    if (!own) throw new BtError(404, 'Cette playlist n’existe plus.');
+    let all = own;
+    if (isPlaylist(categoryId)) {
+      // pour les mauvaises réponses : les autres sons des mêmes artistes dans tout le site
+      const names = new Set(all.map((s) => s.artiste.toLowerCase()));
+      const have = new Set(all.map((s) => (s.titre + '|' + s.artiste).toLowerCase()));
+      const extra = categorySongs(ALL).filter((s) => names.has(s.artiste.toLowerCase()) && !have.has((s.titre + '|' + s.artiste).toLowerCase()));
+      all = [...all, ...extra];
+    }
     // seulement les artistes choisis (null = tous)
     if (artists && !artists.length) throw new BtError(400, 'Coche au moins un artiste.');
     const wanted = artists ? new Set(artists) : null;
-    const songs = wanted ? all.filter((s) => wanted.has(s.artiste)) : all;
+    const songs = wanted ? own.filter((s) => wanted.has(s.artiste)) : own;
     if (songs.length < 3) throw new BtError(400, 'Pas assez de sons avec ces artistes : coche-en quelques-uns de plus.');
     // popularité manquante (serveur qui vient de démarrer) : on la cherche, mais sans faire attendre les joueurs.
     // Si la plupart des sons sont déjà classés, on démarre tout de suite ; sinon on patiente 1,5 s au maximum.
@@ -588,6 +610,17 @@ export function createBlindtest({ getJson, sameSong, clientIp, sessionUser, find
   };
 
   // Routes : /api/bt/categories, /api/bt/rooms, /api/bt/rooms/CODE(/join|/start|/answer|/leave)
+  // une catégorie qu'on a le droit de choisir (une playlist : seulement la sienne ou celle d'un ami)
+  function usable(req, id) {
+    if (!categorySongs(id)) return false;
+    if (!isPlaylist(id)) return true;
+    const user = sessionUser(req);
+    const pl = user && getPlaylist(id.slice(3), user.id);
+    if (!pl) throw new BtError(403, 'Tu ne peux jouer que tes playlists ou celles de tes amis.');
+    if (pl.songs.length < 4) throw new BtError(400, 'Il faut au moins 4 sons dans la playlist pour jouer.');
+    return true;
+  }
+
   // Pour la page de stats de l'admin : ce qui se passe en ce moment
   handleBlindtest.stats = () => {
     const list = [...rooms.values()];
@@ -606,15 +639,43 @@ export function createBlindtest({ getJson, sameSong, clientIp, sessionUser, find
       const parts = url.pathname.split('/').filter(Boolean).slice(2); // après "api/bt"
 
       if (parts[0] === 'categories' && req.method === 'GET') {
+        const user = sessionUser(req);
+        // les playlists jouables (les miennes + celles de mes amis), avec au moins 4 sons
+        const pls = user ? playlistsFor(user.id).filter((p) => p.count >= 4).map((p) => ({
+          id: 'pl:' + p.id, nom: `${p.emoji} ${p.name}`, count: p.count, playlist: true, mine: p.mine, owner: p.owner, artists: categoryArtists('pl:' + p.id),
+        })) : [];
         return send(res, 200, {
           categories: [...CATEGORIES.map((c) => ({ id: c.id, nom: c.nom, count: c.chansons.length, artists: categoryArtists(c.id) })),
-            { id: ALL, nom: 'Tout mélangé', count: CATEGORIES.reduce((n, c) => n + c.chansons.length, 0) }],
+            { id: ALL, nom: 'Tout mélangé', count: CATEGORIES.reduce((n, c) => n + c.chansons.length, 0) }, ...pls],
           rounds: ROUND_CHOICES,
           maxRounds: MAX_ROUNDS,
           levels: LEVELS,
           reactions: REACTIONS,
           modes: MODES,
         });
+      }
+
+      // Recherche de sons pour créer une playlist (catalogue iTunes)
+      if (parts[0] === 'search' && req.method === 'GET') {
+        const q = String(url.searchParams.get('q') || '').trim().slice(0, 80);
+        if (q.length < 2) return send(res, 200, { results: [] });
+        if (limited('search:' + clientIp(req), 60)) throw new BtError(429, 'Trop de recherches, attends une minute.');
+        if (demo) {
+          return send(res, 200, { results: Array.from({ length: 8 }, (_, i) => ({ titre: `${q} ${i + 1}`, artiste: ['SCH', 'Drake', 'Makala', 'Josman'][i % 4], cover: '', preview: '' })) });
+        }
+        const p = new URLSearchParams({ term: q, country: 'FR', media: 'music', entity: 'song', limit: '20' });
+        const json = await getJson(`https://itunes.apple.com/search?${p}`, 'iTunes');
+        const seen = new Set();
+        const results = [];
+        for (const r of json.results || []) {
+          if (!r.trackName || !r.artistName) continue;
+          const titre = String(r.trackName).replace(/\s*\((?:feat|ft)\.?[^)]*\)/i, '').trim();
+          const key = (titre + '|' + r.artistName).toLowerCase();
+          if (seen.has(key)) continue;
+          seen.add(key);
+          results.push({ titre, artiste: r.artistName, cover: String(r.artworkUrl100 || '').replace('100x100bb', '200x200bb'), preview: r.previewUrl || '' });
+        }
+        return send(res, 200, { results: results.slice(0, 15) });
       }
 
       // Classement mondial
@@ -650,7 +711,7 @@ export function createBlindtest({ getJson, sameSong, clientIp, sessionUser, find
         if (limited('creer:' + ip, 10)) throw new BtError(429, 'Trop de parties créées, attends une minute.');
         if (rooms.size >= MAX_ROOMS) throw new BtError(503, 'Trop de parties en cours, réessaie plus tard.');
         const body = await readBody(req);
-        const category = categorySongs(body.category) ? body.category : 'rap-fr';
+        const category = usable(req, body.category) ? body.category : 'rap-fr';
         const roundCount = parseRounds(body.rounds) ?? 10;
         const level = LEVEL_IDS.includes(body.level) ? body.level : 'intermediaire';
         const mode = MODE_IDS.includes(body.mode) ? body.mode : 'classique';
@@ -701,7 +762,7 @@ export function createBlindtest({ getJson, sameSong, clientIp, sessionUser, find
       if (action === 'settings') { // l'hôte change la catégorie ou le nombre de manches
         if (me.id !== room.hostId) throw new BtError(403, 'Seul l’hôte peut changer les réglages.');
         if (room.phase !== 'lobby' && room.phase !== 'end') throw new BtError(409, 'La partie est en cours.');
-        if (categorySongs(body.category) && body.category !== room.category) { room.category = body.category; room.artists = null; }
+        if (usable(req, body.category) && body.category !== room.category) { room.category = body.category; room.artists = null; }
         if ('artists' in body) room.artists = cleanArtists(room.category, body.artists);
         if ('rounds' in body && parseRounds(body.rounds) !== null) room.roundCount = parseRounds(body.rounds);
         if (LEVEL_IDS.includes(body.level)) room.level = body.level;

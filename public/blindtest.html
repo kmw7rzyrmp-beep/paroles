@@ -15,6 +15,7 @@
 <script src="/i18n.js"></script>
 <script src="/profile.js" defer></script>
 <script src="/chat.js" defer></script>
+<script src="/playlists.js" defer></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..900&family=Permanent+Marker&display=swap" rel="stylesheet">
@@ -143,6 +144,9 @@
   .reveal .vinyl { border-radius: 50%; background: radial-gradient(circle, var(--orange) 0 .8rem, #111 .85rem 1rem, transparent 1.05rem), repeating-radial-gradient(circle, #1a1a1d 0 2px, #26252b 2px 3px); }
   .reveal .t { font: 900 1.7rem/1.05 var(--texte); font-stretch: 65%; }
   .reveal .a { color: var(--gris); }
+  #createBox.flash { animation: boxFlash 1.4s ease; border-radius: 10px; }
+  @keyframes boxFlash { 0%, 100% { box-shadow: 0 0 0 0 rgba(242, 140, 28, 0); } 25% { box-shadow: 0 0 0 6px rgba(242, 140, 28, .45); } }
+
   /* ---------- Chat du salon et réactions ---------- */
   .social[hidden] { display: none; }
   .react-layer { position: fixed; inset: 0; pointer-events: none; z-index: 40; overflow: hidden; }
@@ -443,6 +447,11 @@
         <button id="joinBtn" class="big" type="button">Rejoindre</button>
       </div>
     </div>
+
+    <section id="playlistsBox" class="block pl-box" aria-labelledby="plTitle">
+      <div class="pl-head"><h2 id="plTitle">Mes playlists</h2><span class="pl-sub">Tes sons à toi, pour un blind test sur mesure</span></div>
+      <div id="plGrid" class="pl-grid"></div>
+    </section>
 
     <div class="or">ou</div>
 
@@ -769,8 +778,10 @@
   // chaque bouton de niveau garde sa couleur (vert, orange, rouge)
   function markLevels(el) { [...el.children].forEach((b, i) => b.classList.add('lv-' + ['facile', 'intermediaire', 'hard'][i])); }
 
+  // le nom d'une catégorie dans les boutons (les playlists d'amis montrent à qui elles sont)
+  const catLabel = (c) => (c.playlist && !c.mine ? `${c.nom} · ${c.owner}` : c.nom);
   function drawHomeChips() {
-    chips($('catChips'), cats.map((c) => [c.id, c.nom]), pick.category, (v) => {
+    chips($('catChips'), cats.map((c) => [c.id, catLabel(c)]), pick.category, (v) => {
       if (v !== pick.category) { pick.artists = null; $('homeArtists').querySelector('.artists-search').value = ''; }
       pick.category = v; drawHomeChips();
     });
@@ -925,6 +936,23 @@
       cats = d.categories; roundsChoices = d.rounds; if (d.reactions) reactions = d.reactions; if (d.maxRounds) maxRounds = d.maxRounds; if (d.levels) levels = d.levels; if (d.modes) modes = d.modes;
     } catch (err) { $('homeMsg').textContent = err.message; }
     drawHomeChips();
+    // passerelle pour les playlists (playlists.js) : recharger les catégories, choisir une playlist
+    window.btBridge = {
+      async reloadCats() {
+        try { const d = await api('/categories'); cats = d.categories; } catch {}
+        if (!cats.some((c) => c.id === pick.category)) { pick.category = 'rap-fr'; pick.artists = null; }
+        drawHomeChips();
+      },
+      pick(id) {
+        if (!cats.some((c) => c.id === id)) return false;
+        pick.category = id; pick.artists = null; drawHomeChips();
+        const box = $('createBox');
+        box.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'start' });
+        box.classList.remove('flash'); void box.offsetWidth; box.classList.add('flash');
+        return true;
+      },
+    };
+    window.dispatchEvent(new Event('bt-ready'));
 
     const room = new URLSearchParams(location.search).get('room');
     let saved = null;
@@ -1131,7 +1159,7 @@
         + (Array.isArray(state.artists) ? `, artistes : ${state.artists.slice(0, 4).join(', ')}${state.artists.length > 4 ? ` et ${state.artists.length - 4} autres` : ''}` : '') + ').';
     if (isHost()) {
       const set = (body) => api(`/rooms/${state.code}/settings`, { token: session.token, ...body }).then((d) => { state = d; render(); }).catch((e) => { $('lobbyMsg').textContent = e.message; });
-      chips($('lobbyCats'), cats.map((c) => [c.id, c.nom]), state.category, (v) => set({ category: v }));
+      chips($('lobbyCats'), cats.map((c) => [c.id, catLabel(c)]), state.category, (v) => set({ category: v }));
       roundPicker($('lobbyRounds'), state.rounds, (v) => set({ rounds: v }));
       chips($('lobbyLevels'), levels.map((l) => [l.id, l.nom]), state.level, (v) => set({ level: v }));
       modePicker('lobby', state.mode, (v) => set({ mode: v }));
