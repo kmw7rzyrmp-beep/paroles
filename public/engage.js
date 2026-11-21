@@ -217,5 +217,5 @@
 
   // anciens liens des notifications : /?amis=1 et /?notifs=1 deviennent /#amis et /#notifications
   const q = new URLSearchParams(location.search);
-  if (location.pathname === '/' && (q.get('amis') || q.get('notifs'))) history.replaceState(null, '', '/#' + (q.get('amis') ? 'amis' : 'notifications'));
+  if (location.pathname === '/' && (q.get('amis') || q.get('notifs'))) window.history.replaceState(null, '', '/#' + (q.get('amis') ? 'amis' : 'notifications'));
 })();
