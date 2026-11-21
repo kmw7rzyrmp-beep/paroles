@@ -153,23 +153,35 @@
   .tracklist li::before { content: counter(piste, decimal-leading-zero) "  "; color: var(--orange); font-weight: 800; }
   .actions { display: flex; flex-wrap: wrap; gap: .7rem; margin-top: 1.6rem; }
 
-  /* ---------- Invitation à un blind test (notification) ---------- */
+  /* ---------- Notifications (invitations, demandes d'amis) ---------- */
+  .toast-stack {
+    position: fixed; inset: calc(.8rem + env(safe-area-inset-top, 0px)) 0 auto 0; margin: 0 auto; z-index: 60;
+    width: min(26rem, calc(100vw - 1.5rem)); max-height: none; padding: 0; border: 0; background: transparent; overflow: visible;
+    display: flex; flex-direction: column; gap: .6rem; pointer-events: none;
+  }
+  .toast-stack:empty { display: none; }
   .invite-toast {
-    position: fixed; left: 50%; top: calc(.8rem + env(safe-area-inset-top, 0px)); z-index: 60;
-    width: min(26rem, calc(100vw - 1.5rem)); transform: translateX(-50%);
+    pointer-events: auto;
     display: grid; grid-template-columns: auto 1fr; gap: .2rem .8rem; align-items: center;
     padding: .9rem 1rem; background: #1d1c21; color: var(--blanc);
     border-left: 5px solid var(--rouge); border-radius: 8px; box-shadow: 0 14px 40px rgba(0,0,0,.6);
-    animation: toastIn .3s cubic-bezier(.2, .9, .3, 1.2);
+    animation: toastIn .35s cubic-bezier(.2, .9, .3, 1.2);
+    transition: opacity .25s ease, transform .25s ease;
   }
-  @keyframes toastIn { from { transform: translate(-50%, -120%); } to { transform: translateX(-50%); } }
+  .invite-toast[data-key^="req:"] { border-left-color: var(--vert, #3fbf6a); }
+  .invite-toast[data-key^="req:"] .it-dot { background: var(--vert, #3fbf6a); box-shadow: 0 0 0 4px rgba(63, 191, 106, .25); }
+  .invite-toast[data-key^="on:"] { border-left-color: var(--jaune); }
+  .invite-toast[data-key^="on:"] .it-dot { background: var(--jaune); box-shadow: 0 0 0 4px rgba(245, 196, 58, .25); }
+  .invite-toast.out { opacity: 0; transform: translateY(-12px); }
+  @keyframes toastIn { from { opacity: 0; transform: translateY(-110%); } to { opacity: 1; transform: none; } }
   .invite-toast .it-dot { grid-row: span 2; width: .9rem; height: .9rem; border-radius: 50%; background: var(--rouge); box-shadow: 0 0 0 4px rgba(226, 65, 43, .25); }
   .invite-toast p { margin: 0; line-height: 1.3; }
   .invite-toast small { color: var(--gris); }
-  .invite-toast .it-actions { grid-column: 2; display: flex; gap: .5rem; margin-top: .5rem; }
-  .invite-toast .it-actions a, .invite-toast .it-actions button { min-height: 2.4rem; padding: .35rem 1rem; font: 800 .95rem var(--texte); font-stretch: 78%; border-radius: 4px; text-decoration: none; display: inline-flex; align-items: center; }
-  .invite-toast .it-actions a { background: var(--chrome); color: #1b1b22; border: 1px solid #6f6f78; border-bottom: 4px solid #5b5b63; }
-  .invite-toast .it-actions button { background: transparent; color: var(--blanc); border: 1px solid var(--ligne); box-shadow: none; }
+  .invite-toast .it-actions { grid-column: 2; display: flex; flex-wrap: wrap; gap: .5rem; margin-top: .55rem; }
+  .invite-toast .it-actions a, .invite-toast .it-actions button { min-height: 2.4rem; padding: .35rem .95rem; font: 800 .95rem var(--texte); font-stretch: 78%; border-radius: 4px; text-decoration: none; display: inline-flex; align-items: center; box-shadow: none; transform: none; }
+  .invite-toast .it-actions button { background: transparent; color: var(--blanc); border: 1px solid var(--ligne); }
+  .invite-toast .it-actions .it-main { background: var(--chrome); color: #1b1b22; border: 1px solid #6f6f78; border-bottom: 4px solid #5b5b63; }
+  .invite-toast .it-actions button:disabled { opacity: .5; }
 
   /* inviter ses amis du site */
   .invite-list { list-style: none; margin: 0 0 .6rem; padding: 0; }
@@ -971,46 +983,146 @@
     show('home');
   });
 
-// --- Invitations à un blind test : on regarde toutes les 10 s si un ami nous invite ---
+// --- Notifications en haut de l'écran : invitations au blind test et demandes d'amis ---
 (() => {
-  const shown = new Set();
+  const shownInv = new Set();
+  let seenReq = new Set();
+  try { seenReq = new Set(JSON.parse(sessionStorage.getItem('notif-req') || '[]')); } catch {}
+  const saveSeen = () => { try { sessionStorage.setItem('notif-req', JSON.stringify([...seenReq])); } catch {} };
   const here = () => new URLSearchParams(location.search).get('room')?.toUpperCase() || '';
-  async function check() {
-    if (document.visibilityState !== 'visible') return;
-    let d;
-    try { d = await (await fetch('/api/bt/invites')).json(); } catch { return; }
-    for (const inv of d.invites || []) {
-      if (shown.has(inv.code) || (location.pathname === '/blindtest' && inv.code === here())) continue;
-      shown.add(inv.code);
-      showInvite(inv);
-      break; // une notification à la fois
-    }
+  const post = (url, body) => fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  // réglages (fenêtre Amis) : tout est activé de base, « 0 » = désactivé
+  const wants = (k) => { try { return localStorage.getItem('notif-' + k) !== '0'; } catch { return true; } };
+  let wasOnline = null; // amis en ligne au dernier passage (null = premier passage : on ne prévient pas)
+
+  // la pile de notifications : si une fenêtre est ouverte (Amis, connexion…), elle se place dedans pour rester cliquable
+  const stack = document.createElement('div');
+  stack.className = 'toast-stack';
+  stack.setAttribute('aria-live', 'polite');
+  document.body.append(stack);
+  function bringToFront() {
+    const open = [...document.querySelectorAll('dialog[open]')].pop();
+    const parent = open || document.body;
+    if (stack.parentNode !== parent) parent.append(stack);
   }
-  function showInvite(inv) {
-    document.querySelector('.invite-toast')?.remove();
+  // une fenêtre s'ouvre ou se ferme : on déplace la pile
+  new MutationObserver(bringToFront).observe(document.body, { subtree: true, attributes: true, attributeFilter: ['open'] });
+
+  function toast({ key, who, text, sub, actions }) {
+    if (stack.querySelector(`[data-key="${CSS.escape(key)}"]`)) return null;
     const box = document.createElement('div');
     box.className = 'invite-toast';
+    box.dataset.key = key;
     box.setAttribute('role', 'alert');
     const dot = document.createElement('span'); dot.className = 'it-dot'; dot.setAttribute('aria-hidden', 'true');
     const p = document.createElement('p');
-    const b = document.createElement('b'); b.textContent = inv.from;
-    p.append(b, ' t’invite à un blind test');
-    const small = document.createElement('small'); small.textContent = `${inv.category}, partie ${inv.code}`;
-    const actions = document.createElement('div'); actions.className = 'it-actions';
-    const go = document.createElement('a'); go.href = `/blindtest?room=${inv.code}&invite=1`; go.textContent = 'Rejoindre';
-    const no = document.createElement('button'); no.type = 'button'; no.textContent = 'Non merci';
-    no.addEventListener('click', () => {
-      box.remove();
-      fetch('/api/bt/invites/decline', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ code: inv.code }) }).catch(() => {});
-    });
-    actions.append(go, no);
+    const b = document.createElement('b'); b.textContent = who;
+    p.append(b, ' ' + text);
+    const small = document.createElement('small'); small.textContent = sub || '';
     const txt = document.createElement('div'); txt.append(p, small);
-    box.append(dot, txt, actions);
-    document.body.append(box);
-    setTimeout(() => box.remove(), 60_000);
+    const row = document.createElement('div'); row.className = 'it-actions';
+    for (const a of actions) {
+      const el = document.createElement(a.href ? 'a' : 'button');
+      if (a.href) el.href = a.href; else el.type = 'button';
+      el.textContent = a.label;
+      if (a.primary) el.className = 'it-main';
+      if (a.run) el.addEventListener('click', () => a.run(box));
+      row.append(el);
+    }
+    box.append(dot, txt, row);
+    stack.append(box);
+    bringToFront();
+    return box;
   }
+  function close(box) {
+    box.classList.add('out');
+    setTimeout(() => { box.remove(); bringToFront(); }, 250);
+  }
+  function done(box, message) {
+    box.querySelector('.it-actions').remove();
+    box.querySelector('small').textContent = message;
+    setTimeout(() => close(box), 2200);
+  }
+
+  // invitations à une partie de blind test
+  async function checkInvites() {
+    if (!wants('inv')) return;
+    let d;
+    try { d = await (await fetch('/api/bt/invites')).json(); } catch { return; }
+    for (const inv of d.invites || []) {
+      if (shownInv.has(inv.code) || (location.pathname === '/blindtest' && inv.code === here())) continue;
+      shownInv.add(inv.code);
+      const box = toast({
+        key: 'inv:' + inv.code, who: inv.from, text: 't’invite à un blind test', sub: `${inv.category}, partie ${inv.code}`,
+        actions: [
+          { label: 'Rejoindre', primary: true, href: `/blindtest?room=${inv.code}&invite=1` },
+          { label: 'Non merci', run: (bx) => { close(bx); post('/api/bt/invites/decline', { code: inv.code }).catch(() => {}); } },
+        ],
+      });
+      if (box) setTimeout(() => box.isConnected && close(box), 60_000);
+    }
+  }
+
+  // demandes d'amis reçues : on peut accepter directement
+  async function checkFriends() {
+    let d;
+    try {
+      const res = await fetch('/api/friends');
+      if (!res.ok) return; // pas connecté
+      d = await res.json();
+    } catch { return; }
+    // un ami vient de se connecter
+    const online = new Set((d.friends || []).filter((f) => f.online).map((f) => f.username));
+    if (wasOnline && wants('online')) {
+      for (const name of online) {
+        if (wasOnline.has(name)) continue;
+        const box = toast({
+          key: 'on:' + name.toLowerCase(), who: name, text: 'vient de se connecter', sub: 'Ton ami est en ligne',
+          actions: [
+            { label: 'Lancer un blind test', primary: true, href: '/blindtest' },
+            { label: 'OK', run: (bx) => close(bx) },
+          ],
+        });
+        if (box) setTimeout(() => box.isConnected && close(box), 8000);
+      }
+    }
+    wasOnline = online;
+
+    if (!wants('req')) return;
+    const incoming = new Set((d.incoming || []).map((f) => f.username.toLowerCase()));
+    // demande acceptée ailleurs (autre onglet, fenêtre Amis…) : on retire la notification
+    for (const box of stack.querySelectorAll('[data-key^="req:"]')) {
+      if (!incoming.has(box.dataset.key.slice(4)) && box.querySelector('.it-actions')) close(box);
+    }
+    for (const f of d.incoming || []) {
+      const key = f.username.toLowerCase();
+      if (seenReq.has(key)) continue;
+      const answer = async (bx, action, ok) => {
+        seenReq.add(key); saveSeen();
+        bx.querySelectorAll('button').forEach((x) => { x.disabled = true; });
+        try {
+          const res = await post('/api/friends/' + action, { username: f.username });
+          const data = await res.json().catch(() => ({}));
+          if (!res.ok) throw new Error(data.error || 'Erreur, réessaie.');
+          done(bx, ok);
+          window.dispatchEvent(new CustomEvent('friends-changed'));
+        } catch (err) { done(bx, err.message); }
+      };
+      toast({
+        key: 'req:' + key, who: f.username, text: 'veut t’ajouter en ami', sub: 'Demande d’ami',
+        actions: [
+          { label: 'Accepter', primary: true, run: (bx) => answer(bx, 'accept', `${f.username} est maintenant ton ami.`) },
+          { label: 'Refuser', run: (bx) => answer(bx, 'decline', 'Demande refusée.') },
+          { label: 'Plus tard', run: (bx) => { seenReq.add(key); saveSeen(); close(bx); } },
+        ],
+      });
+    }
+  }
+
+  const check = () => { if (document.visibilityState === 'visible') { checkInvites(); checkFriends(); } };
   setInterval(check, 10_000);
   setTimeout(check, 1500);
+  document.addEventListener('visibilitychange', check);
 })();
 
   // présence : tes amis te voient « en ligne » pendant que tu joues
