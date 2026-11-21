@@ -146,7 +146,7 @@
     hero.append(left, sc);
     const back = el('div', 'page-head');
     const bb = el('button', 'ghost page-back'); bb.type = 'button'; bb.setAttribute('data-page-close', ''); bb.setAttribute('aria-label', 'Retour');
-    bb.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+    bb.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="pb-lbl">Retour</span>';
     back.append(bb);
     back.style.margin = '0 0 .8rem';
     const stats = el('div', 'rk-stats');

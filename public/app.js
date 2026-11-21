@@ -100,6 +100,12 @@
     if (window.history.length > 1 && document.referrer.startsWith(location.origin) || window.history.state === 'page') window.history.back();
     else { window.history.replaceState(null, '', '/'); route(); }
   }
+  // téléphone : un bouton « Retour » qui flotte en bas à gauche (voir .m-back dans app.css)
+  if (frame) {
+    const mb = el('button', 'm-back'); mb.type = 'button'; mb.setAttribute('data-page-close', '');
+    mb.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Retour</span>';
+    document.body.append(mb);
+  }
   window.addEventListener('hashchange', route);
   document.addEventListener('click', (e) => { if (e.target.closest('[data-page-close]')) { e.preventDefault(); location.hash = ''; window.history.replaceState(null, '', '/'); route(); } });
   document.addEventListener('keydown', (e) => {
@@ -391,7 +397,7 @@
     }
     const head = el('div', 'page-head');
     const back = el('button', 'ghost page-back'); back.type = 'button'; back.setAttribute('data-page-close', ''); back.setAttribute('aria-label', 'Retour');
-    back.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+    back.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="pb-lbl">Retour</span>';
     const tw = el('div'); const h = el('h1', '', 'Patch note'); h.id = 'pnTitle';
     tw.append(el('p', 'page-eyebrow', 'Quoi de neuf'), h);
     head.append(back, tw);
