@@ -38,6 +38,22 @@ function categorySongs(id) {
   const c = CATEGORIES.find((x) => x.id === id);
   return c ? c.chansons.map((s) => ({ ...s, cat: c.id, verifierArtiste: c.verifierArtiste !== false })) : null;
 }
+// Artistes d'une catégorie, avec leur nombre de sons
+function categoryArtists(id) {
+  const songs = categorySongs(id) || [];
+  const map = new Map();
+  for (const s of songs) map.set(s.artiste, (map.get(s.artiste) || 0) + 1);
+  return [...map].map(([nom, count]) => ({ nom, count }));
+}
+// Garde seulement les artistes qui existent dans la catégorie.
+// null = tous les artistes ; [] = aucun (la partie ne pourra pas démarrer)
+function cleanArtists(id, list) {
+  if (!Array.isArray(list)) return null;
+  const valid = new Set(categoryArtists(id).map((a) => a.nom));
+  const picked = [...new Set(list.filter((a) => typeof a === 'string' && valid.has(a)))];
+  return picked.length === valid.size ? null : picked;
+}
+
 // Niveaux de difficulté : les sons les plus écoutés en Facile, les moins connus en HARRR MODE
 const LEVELS = [
   { id: 'facile', nom: 'Facile' },
@@ -135,16 +151,35 @@ export function createBlindtest({ getJson, sameSong, clientIp, sessionUser, find
   })().catch((err) => console.error('Blind test, popularité :', err.message));
 
   // --- Préparer les manches : N chansons avec un extrait, + 3 mauvaises réponses chacune ---
-  async function buildRounds(categoryId, count, level = 'intermediaire') {
-    const songs = categorySongs(categoryId);
+  async function buildRounds(categoryId, count, level = 'intermediaire', artists = null) {
+    const all = categorySongs(categoryId);
+    // seulement les artistes choisis (null = tous)
+    if (artists && !artists.length) throw new BtError(400, 'Coche au moins un artiste.');
+    const wanted = artists ? new Set(artists) : null;
+    const songs = wanted ? all.filter((s) => wanted.has(s.artiste)) : all;
+    if (songs.length < 3) throw new BtError(400, 'Pas assez de sons avec ces artistes : coche-en quelques-uns de plus.');
     // popularité manquante (serveur qui vient de démarrer) : on la cherche maintenant
-    await Promise.all(songs.filter((s) => !popularity.has(songKey(s))).map(fetchPopularity));
+    // (on attend 6 s au maximum : les sons pas encore classés comptent comme « Intermédiaire » pour cette partie)
+    await Promise.race([
+      Promise.all(songs.filter((s) => !popularity.has(songKey(s))).map(fetchPopularity)),
+      new Promise((r) => setTimeout(r, 6000)),
+    ]);
+    // les niveaux se calculent parmi les sons choisis (par catégorie pour « Tout mélangé »)
     const byCat = new Map();
     for (const s of songs) { if (!byCat.has(s.cat)) byCat.set(s.cat, []); byCat.get(s.cat).push(s); }
     for (const list of byCat.values()) for (const s of list) s.level = levelOf(s, list);
     // les sons du niveau choisi d'abord ; s'il n'y en a pas assez, on complète avec le niveau le plus proche
     const order = { facile: ['facile', 'intermediaire', 'hard'], intermediaire: ['intermediaire', 'facile', 'hard'], hard: ['hard', 'intermediaire', 'facile'] }[level];
-    const pool = order.flatMap((lv) => shuffle(songs.filter((s) => s.level === lv)));
+    // les artistes passent chacun leur tour, pour qu'un artiste avec 100 sons n'écrase pas les autres
+    const fair = (list) => {
+      const groups = new Map();
+      for (const x of shuffle(list)) { if (!groups.has(x.artiste)) groups.set(x.artiste, []); groups.get(x.artiste).push(x); }
+      const queues = shuffle([...groups.values()]);
+      const out = [];
+      while (queues.some((q) => q.length)) for (const q of queues) if (q.length) out.push(q.shift());
+      return out;
+    };
+    const pool = order.flatMap((lv) => fair(songs.filter((s) => s.level === lv)));
     const picked = [];
     // on cherche les extraits par petits paquets, jusqu'à en avoir assez
     for (let i = 0; i < pool.length && picked.length < count; i += 6) {
@@ -152,9 +187,12 @@ export function createBlindtest({ getJson, sameSong, clientIp, sessionUser, find
       const res = await Promise.all(batch.map(async (s) => ({ s, r: await resolveSong(s) })));
       for (const { s, r } of res) if ((r.preview || demo) && picked.length < count) picked.push({ ...s, ...r });
     }
-    if (picked.length < Math.min(count, 3)) throw new BtError(502, 'Impossible de charger assez d’extraits pour cette catégorie. Réessaie dans un instant.');
+    if (picked.length < Math.min(count, 3)) throw new BtError(502, 'Impossible de charger assez d’extraits avec ces artistes. Ajoute des artistes ou réessaie dans un instant.');
     return picked.map((song) => {
-      const others = shuffle(songs.filter((x) => x.titre !== song.titre || x.artiste !== song.artiste)).slice(0, 3);
+      // mauvaises réponses : parmi les artistes choisis s'il y a assez de sons, sinon dans toute la catégorie
+      const source = songs.length >= 4 ? songs : all;
+      // les artistes alternent aussi dans les mauvaises réponses (sinon la bonne saute aux yeux)
+      const others = fair(source.filter((x) => x.titre !== song.titre || x.artiste !== song.artiste)).slice(0, 3);
       const options = shuffle([song, ...others]).map((x) => ({ titre: x.titre, artiste: x.artiste }));
       return {
         song: { titre: song.titre, artiste: song.artiste, cover: song.cover || '', level: song.level },
@@ -253,6 +291,7 @@ export function createBlindtest({ getJson, sameSong, clientIp, sessionUser, find
       categoryName: categoryName(room.category),
       rounds: room.roundCount,
       level: room.level,
+      artists: room.artists,
       levelName: levelName(room.level),
       hostId: room.hostId,
       me: me.id,
@@ -288,7 +327,7 @@ export function createBlindtest({ getJson, sameSong, clientIp, sessionUser, find
     room.error = '';
     for (const p of room.players.values()) p.score = 0;
     try {
-      const rounds = await buildRounds(room.category, room.roundCount, room.level);
+      const rounds = await buildRounds(room.category, room.roundCount, room.level, room.artists);
       room.game = { rounds, index: 0, phaseEnd: Date.now() + COUNTDOWN_MS, roundStart: 0 };
       room.phase = 'countdown';
     } catch (err) {
@@ -341,7 +380,7 @@ export function createBlindtest({ getJson, sameSong, clientIp, sessionUser, find
 
       if (parts[0] === 'categories' && req.method === 'GET') {
         return send(res, 200, {
-          categories: [...CATEGORIES.map((c) => ({ id: c.id, nom: c.nom, count: c.chansons.length })),
+          categories: [...CATEGORIES.map((c) => ({ id: c.id, nom: c.nom, count: c.chansons.length, artists: categoryArtists(c.id) })),
             { id: ALL, nom: 'Tout mélangé', count: CATEGORIES.reduce((n, c) => n + c.chansons.length, 0) }],
           rounds: ROUND_CHOICES,
           levels: LEVELS,
@@ -384,9 +423,10 @@ export function createBlindtest({ getJson, sameSong, clientIp, sessionUser, find
         const category = categorySongs(body.category) ? body.category : 'rap-fr';
         const roundCount = ROUND_CHOICES.includes(Number(body.rounds)) ? Number(body.rounds) : 10;
         const level = LEVEL_IDS.includes(body.level) ? body.level : 'intermediaire';
+        const artists = cleanArtists(category, body.artists);
         let code;
         do code = newCode(); while (rooms.has(code));
-        const room = { code, phase: 'lobby', category, roundCount, level, players: new Map(), hostId: '', game: null, seen: Date.now(), error: '' };
+        const room = { code, phase: 'lobby', category, roundCount, level, artists, players: new Map(), hostId: '', game: null, seen: Date.now(), error: '' };
         const host = addPlayer(room, body.name, sessionUser(req));
         room.hostId = host.id;
         rooms.set(code, room);
@@ -428,7 +468,8 @@ export function createBlindtest({ getJson, sameSong, clientIp, sessionUser, find
       if (action === 'settings') { // l'hôte change la catégorie ou le nombre de manches
         if (me.id !== room.hostId) throw new BtError(403, 'Seul l’hôte peut changer les réglages.');
         if (room.phase !== 'lobby' && room.phase !== 'end') throw new BtError(409, 'La partie est en cours.');
-        if (categorySongs(body.category)) room.category = body.category;
+        if (categorySongs(body.category) && body.category !== room.category) { room.category = body.category; room.artists = null; }
+        if ('artists' in body) room.artists = cleanArtists(room.category, body.artists);
         if (ROUND_CHOICES.includes(Number(body.rounds))) room.roundCount = Number(body.rounds);
         if (LEVEL_IDS.includes(body.level)) room.level = body.level;
         if (room.phase === 'end') room.phase = 'lobby';
