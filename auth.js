@@ -29,20 +29,92 @@ function unindexUser(u) {
 }
 const sessions = new Map(); // empreinte du jeton -> { userId, exp }
 
-async function load() {
-  await mkdir(DATA_DIR, { recursive: true });
-  let db = {};
+// --- Stockage ---
+// Si SUPABASE_URL et SUPABASE_KEY sont définis (recommandé en ligne, par exemple sur Render),
+// tout est gardé dans une base Supabase qui ne s'efface jamais. Sinon, dans le fichier data/db.json.
+const SUPABASE_URL = (process.env.SUPABASE_URL || '').trim().replace(/\/+$/, '');
+const SUPABASE_KEY = (process.env.SUPABASE_KEY || '').trim();
+const REMOTE = Boolean(SUPABASE_URL && SUPABASE_KEY);
+const TABLE = 'app_state';
+const ROW_ID = 'main';
+
+function supabaseHeaders(extra = {}) {
+  const h = { apikey: SUPABASE_KEY, 'Content-Type': 'application/json', Accept: 'application/json', ...extra };
+  if (SUPABASE_KEY.startsWith('eyJ')) h.Authorization = `Bearer ${SUPABASE_KEY}`; // ancienne clé « service_role »
+  return h;
+}
+
+async function supabase(method, query, body, extra) {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/${TABLE}${query}`, {
+    method,
+    headers: supabaseHeaders(extra),
+    body: body === undefined ? undefined : JSON.stringify(body),
+    signal: AbortSignal.timeout(10_000),
+  });
+  if (!res.ok) throw new Error(`Supabase HTTP ${res.status} : ${(await res.text()).slice(0, 300)}`);
+  return res;
+}
+
+async function readLocalFile() {
   try {
-    db = JSON.parse(await readFile(DB_FILE, 'utf8'));
+    return JSON.parse(await readFile(DB_FILE, 'utf8'));
   } catch (err) {
-    if (err.code !== 'ENOENT') throw new Error(`Lecture de ${DB_FILE} impossible : ${err.message}`);
+    if (err.code === 'ENOENT') return null;
+    throw new Error(`Lecture de ${DB_FILE} impossible : ${err.message}`);
   }
+}
+
+// Lit la base. En cas d'erreur, on arrête le serveur plutôt que de démarrer avec une base vide
+// (sinon la première sauvegarde effacerait tous les comptes).
+async function readStore() {
+  if (!REMOTE) {
+    await mkdir(DATA_DIR, { recursive: true });
+    return (await readLocalFile()) || {};
+  }
+  let rows;
+  for (let attempt = 1; ; attempt++) {
+    try {
+      rows = await (await supabase('GET', `?id=eq.${ROW_ID}&select=data`)).json();
+      break;
+    } catch (err) {
+      if (attempt >= 5) throw new Error(`Impossible de lire les comptes sur Supabase : ${err.message}`);
+      console.error(`Supabase (essai ${attempt}/5) :`, err.message);
+      await new Promise((r) => setTimeout(r, attempt * 2000));
+    }
+  }
+  if (rows.length) return rows[0].data || {};
+  // Base Supabase encore vide : on reprend data/db.json s'il existe (migration), puis on l'envoie
+  const local = await readLocalFile().catch(() => null);
+  if (local) {
+    await writeStore(JSON.stringify(local));
+    console.log(`Comptes de ${DB_FILE} copiés dans Supabase.`);
+  }
+  return local || {};
+}
+
+async function writeStore(snapshot) {
+  if (REMOTE) {
+    await supabase('POST', '?on_conflict=id', { id: ROW_ID, data: JSON.parse(snapshot), updated_at: new Date().toISOString() },
+      { Prefer: 'resolution=merge-duplicates,return=minimal' });
+    return;
+  }
+  const tmp = DB_FILE + '.tmp';
+  await writeFile(tmp, snapshot, { mode: 0o600 });
+  await rename(tmp, DB_FILE); // écriture atomique : jamais de fichier à moitié écrit
+}
+
+async function load() {
+  const db = await readStore();
   for (const u of db.users || []) {
     usersById.set(u.id, u);
     indexUser(u);
   }
   const now = Date.now();
   for (const s of db.sessions || []) if (s.exp > now && usersById.has(s.userId)) sessions.set(s.h, { userId: s.userId, exp: s.exp });
+  console.log(`Comptes : ${usersById.size} chargé(s) depuis ${REMOTE ? 'Supabase' : DB_FILE}.`);
+  if (!REMOTE && process.env.RENDER) {
+    console.warn('⚠ Sur Render, data/db.json est effacé à chaque redémarrage : configure SUPABASE_URL et SUPABASE_KEY (voir README).');
+  }
 }
 
 let writing = Promise.resolve();
@@ -51,11 +123,7 @@ function persist() {
     users: [...usersById.values()],
     sessions: [...sessions].map(([h, s]) => ({ h, ...s })),
   });
-  const job = writing.then(async () => {
-    const tmp = DB_FILE + '.tmp';
-    await writeFile(tmp, snapshot, { mode: 0o600 });
-    await rename(tmp, DB_FILE); // écriture atomique : jamais de fichier à moitié écrit
-  });
+  const job = writing.then(() => writeStore(snapshot));
   writing = job.catch(() => {});
   return job;
 }
@@ -117,7 +185,7 @@ function cookie(req, value, maxAgeSec) {
 const ipHits = new Map();
 const loginFails = new Map();
 
-const clientIp = (req) => {
+export const clientIp = (req) => {
   if (TRUST_PROXY) {
     const last = String(req.headers['x-forwarded-for'] || '').split(',').pop().trim();
     if (last) return last;
@@ -420,6 +488,7 @@ export async function handleAuth(req, res, url) {
       if (email && !validEmail(email)) throw new HttpError(400, 'Adresse e-mail invalide.');
       if (!validUsername(username)) throw new HttpError(400, USERNAME_HELP);
       if (typeof password !== 'string' || password.length < 1) throw new HttpError(400, 'Choisis un mot de passe.');
+      if (password.length < 8) throw new HttpError(400, 'Le mot de passe doit faire au moins 8 caractères.');
       if (password.length > 128) throw new HttpError(400, 'Le mot de passe est trop long (128 caractères maximum).');
 
       const checkFree = () => {
