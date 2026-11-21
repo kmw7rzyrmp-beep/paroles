@@ -4,6 +4,7 @@ import { readFile } from 'node:fs/promises';
 import { join, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { handleAuth, clientIp } from './auth.js';
+import { createBlindtest } from './blindtest.js';
 
 // Charge le fichier .env s'il existe (le jeton Genius y est facultatif, voir README).
 try { process.loadEnvFile(); } catch { /* pas de .env : pas grave */ }
@@ -81,7 +82,8 @@ async function searchByLyrics(q) {
   if (!res.ok) throw new Error(`Genius (paroles) HTTP ${res.status}`);
   const json = await res.json();
   const sections = json?.response?.sections || [];
-  const section = sections.find((s) => s.type === 'lyric') || sections[0];
+  // Seulement la partie « paroles » : les autres parties de la réponse cherchent par titre
+  const section = sections.find((s) => s.type === 'lyric');
   return (section?.hits || []).map((h) => toResult(h.result));
 }
 
@@ -276,6 +278,30 @@ async function findLink(platform, title, artist) {
   return result;
 }
 
+// Vérifie qu'une chanson contient bien ce qu'on a tapé, en lisant ses paroles (LRCLIB)
+const words = (t) => String(t || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
+  .replace(/['’`]/g, ' ').replace(/[^a-z0-9]+/g, ' ').trim();
+
+function lyricsScore(q, lyrics) {
+  const text = ' ' + words(lyrics) + ' ';
+  if (text.trim() === '') return null; // paroles introuvables : on ne peut pas savoir
+  const qw = words(q);
+  if (text.includes(' ' + qw + ' ')) return 1.5; // la phrase exacte est dans les paroles
+  const list = qw.split(' ').filter((w) => w.length >= 2);
+  if (!list.length) return 0;
+  // Tolère les petites fautes et les accords : « cauchemar » trouve « cauchemars », « fini » trouve « finis »
+  const lyricWords = new Set(text.trim().split(' '));
+  const close = (a, b) => {
+    const min = Math.min(a.length, b.length);
+    if (min < 4 || Math.abs(a.length - b.length) > 2) return false;
+    let i = 0;
+    while (i < min && a[i] === b[i]) i++;
+    return i >= min - 1; // même début de mot, seule la fin change
+  };
+  const found = list.filter((w) => lyricWords.has(w) || [...lyricWords].some((lw) => close(w, lw))).length;
+  return found / list.length;
+}
+
 async function searchLyrics(q) {
   if (DEMO) return { demo: true, results: DEMO_RESULTS };
 
@@ -283,22 +309,46 @@ async function searchLyrics(q) {
   if (hit && Date.now() - hit.at < CACHE_TTL) return hit.data;
 
   let results;
+  let byTitle = false; // true si on a dû se rabattre sur la recherche par titre
   try {
     results = await searchByLyrics(q);
+    console.log(`Recherche « ${q} » : par paroles (Genius), ${results.length} résultat(s)`);
   } catch (err) {
-    console.error(err.message);
+    console.error(`Recherche par paroles impossible (${err.message}).`);
     if (!TOKEN) throw err;
     results = await searchOfficial(q);
+    byTitle = true;
+    console.log(`Recherche « ${q} » : secours par titre (API officielle), ${results.length} résultat(s) à vérifier`);
   }
 
   // Supprime les doublons éventuels
   const seen = new Set();
   results = results.filter((r) => r.title && !seen.has(r.url || r.title + r.artist) && seen.add(r.url || r.title + r.artist));
 
-  // Ajoute un extrait audio quand il existe
-  await Promise.all(results.map(async (r) => { r.preview = await findPreview(r.title, r.artist); }));
+  // Pour chaque son : extrait audio + vérification dans les paroles (en parallèle)
+  await Promise.all(results.map(async (r, i) => {
+    const [preview, lyr] = await Promise.all([
+      findPreview(r.title, r.artist),
+      findLyrics(r.title, r.artist).catch(() => ({ lyrics: '' })),
+    ]);
+    r.preview = preview;
+    r._score = lyricsScore(q, lyr.lyrics);
+    r._rank = i;
+  }));
 
-  const data = { demo: false, results };
+  // Les sons dont les paroles contiennent les mots tapés passent devant
+  const MATCH = 0.6;
+  const matched = results.filter((r) => r._score !== null && r._score >= MATCH);
+  const unknown = results.filter((r) => r._score === null);
+  const others = results.filter((r) => r._score !== null && r._score < MATCH);
+  matched.sort((a, b) => b._score - a._score || a._rank - b._rank);
+  // En secours par titre, on ne garde que ce qui est confirmé par les paroles.
+  // Avec la vraie recherche par paroles, les sons non confirmés restent, mais à la fin.
+  results = byTitle ? matched : [...matched, ...unknown, ...others];
+  console.log(`  → ${matched.length} confirmé(s) par les paroles, ${unknown.length} sans paroles connues, ${others.length} ${byTitle ? 'écarté(s)' : 'mis à la fin'}`);
+  for (const r of results) { delete r._score; delete r._rank; }
+
+  const data = { demo: false, byTitle, results };
   if (cache.size >= CACHE_MAX) cache.delete(cache.keys().next().value);
   cache.set(q, { at: Date.now(), data });
   return data;
@@ -309,11 +359,16 @@ function sendJson(res, code, body) {
   res.end(JSON.stringify(body));
 }
 
+const handleBlindtest = createBlindtest({ getJson, sameSong, clientIp, demo: DEMO });
+
 const server = createServer(async (req, res) => {
   const url = new URL(req.url, 'http://localhost');
 
   // Comptes : /api/signup, /api/login, /api/logout, /api/me
   if (await handleAuth(req, res, url)) return;
+
+  // Blind test entre amis : /api/bt/...
+  if (await handleBlindtest(req, res, url)) return;
 
   if (url.pathname === '/api/search') {
     const ip = clientIp(req);
@@ -360,7 +415,7 @@ const server = createServer(async (req, res) => {
   }
 
   // Fichiers statiques (uniquement dans /public)
-  const name = url.pathname === '/' ? '/index.html' : url.pathname;
+  const name = url.pathname === '/' ? '/index.html' : url.pathname === '/blindtest' ? '/blindtest.html' : url.pathname;
   let file;
   try {
     file = resolve(join(PUBLIC_DIR, decodeURIComponent(name)));
