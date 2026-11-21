@@ -369,6 +369,31 @@ export function findFriend(userId, username) {
   return { id: target.id, username: target.username };
 }
 
+// --- Classement mondial du blind test : stats gardées dans chaque compte ---
+export async function recordBlindtest(userId, { points, won }) {
+  const u = usersById.get(userId);
+  if (!u || !u.username) return;
+  const bt = u.bt || (u.bt = { points: 0, games: 0, wins: 0, best: 0 });
+  bt.points += Math.max(0, Math.round(points) || 0);
+  bt.games += 1;
+  if (won) bt.wins += 1;
+  bt.best = Math.max(bt.best, Math.round(points) || 0);
+  try { await persist(); } catch (err) { console.error('Classement : sauvegarde impossible :', err.message); }
+}
+
+export function blindtestLeaderboard(userId, limit = 50) {
+  const all = [...usersById.values()]
+    .filter((u) => u.username && u.bt && u.bt.games > 0)
+    .sort((a, b) => b.bt.points - a.bt.points || b.bt.wins - a.bt.wins || a.bt.games - b.bt.games || a.username.localeCompare(b.username));
+  const row = (u, i) => ({ rank: i + 1, username: u.username, points: u.bt.points, games: u.bt.games, wins: u.bt.wins, best: u.bt.best });
+  const meIndex = userId ? all.findIndex((u) => u.id === userId) : -1;
+  return {
+    total: all.length,
+    top: all.slice(0, limit).map(row),
+    me: meIndex >= 0 ? row(all[meIndex], meIndex) : null,
+  };
+}
+
 const FRIEND_ACTIONS = new Set(['request', 'accept', 'decline', 'cancel', 'remove']);
 
 async function handleFriends(req, res, url, me) {
