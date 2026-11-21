@@ -414,7 +414,6 @@
     recorder.ondataavailable = (e) => { if (e.data && e.data.size) rec && rec.chunks.push(e.data); };
     recorder.onstop = () => finishRecording();
     recorder.start(250);
-    window.dispatchEvent(new CustomEvent('site-music', { detail: { playing: true, id: 'chat-rec' } })); // le jazz se tait
     // l'écran pendant l'enregistrement : point rouge, chrono, niveau du micro, poubelle
     const dot = $('span', 'dot'); dot.setAttribute('aria-hidden', 'true');
     const t = $('span', 't', '0:00');
@@ -458,7 +457,6 @@
     rec.stream.getTracks().forEach((tr) => tr.stop());
     recBox.hidden = true;
     form.classList.remove('recording');
-    window.dispatchEvent(new CustomEvent('site-music', { detail: { playing: false, id: 'chat-rec' } }));
   }
 
   async function finishRecording() {

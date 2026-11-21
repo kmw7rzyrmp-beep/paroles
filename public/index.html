@@ -18,7 +18,6 @@
 <script src="/profile.js" defer></script>
 <script src="/admin.js" defer></script>
 <script src="/chat.js" defer></script>
-<script src="/jazz.js" defer></script>
 <script src="/engage.js" defer></script>
 <script src="/board-home.js" defer></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -1082,11 +1081,9 @@
     if (current && current.btn === btn) { stopCurrent(); return; }
     stopCurrent();
 
-    window.dispatchEvent(new CustomEvent('site-music', { detail: { playing: true, id: 'yt' } })); // le jazz se met en pause
     const me = {
       source: 'yt', btn, lyr, yt: null,
       cleanup() {
-        window.dispatchEvent(new CustomEvent('site-music', { detail: { playing: false, id: 'yt' } }));
         try { if (me.yt && me.yt.destroy) me.yt.destroy(); } catch { /* déjà détruit */ }
         box.classList.remove('open');
         inner.replaceChildren();
