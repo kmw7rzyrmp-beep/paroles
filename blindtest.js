@@ -34,10 +34,19 @@ const newToken = () => randomBytes(18).toString('base64url');
 const cleanName = (v) => String(v || '').replace(/\s+/g, ' ').trim().slice(0, 20);
 
 function categorySongs(id) {
-  if (id === ALL) return CATEGORIES.flatMap((c) => c.chansons.map((s) => ({ ...s, verifierArtiste: c.verifierArtiste !== false })));
+  if (id === ALL) return CATEGORIES.flatMap((c) => c.chansons.map((s) => ({ ...s, cat: c.id, verifierArtiste: c.verifierArtiste !== false })));
   const c = CATEGORIES.find((x) => x.id === id);
-  return c ? c.chansons.map((s) => ({ ...s, verifierArtiste: c.verifierArtiste !== false })) : null;
+  return c ? c.chansons.map((s) => ({ ...s, cat: c.id, verifierArtiste: c.verifierArtiste !== false })) : null;
 }
+// Niveaux de difficulté : les sons les plus écoutés en Facile, les moins connus en HARRR MODE
+const LEVELS = [
+  { id: 'facile', nom: 'Facile' },
+  { id: 'intermediaire', nom: 'Intermédiaire' },
+  { id: 'hard', nom: 'HARRR MODE' },
+];
+const LEVEL_IDS = LEVELS.map((l) => l.id);
+const levelName = (id) => LEVELS.find((l) => l.id === id)?.nom || id;
+
 const categoryName = (id) => (id === ALL ? 'Tout mélangé' : CATEGORIES.find((c) => c.id === id)?.nom || id);
 
 const INVITE_TTL = 15 * 60_000; // une invitation reste valable 15 min
@@ -70,10 +79,72 @@ export function createBlindtest({ getJson, sameSong, clientIp, sessionUser, find
     return result;
   }
 
+  // --- Popularité de chaque son (le « rank » de Deezer : plus il est haut, plus le son est écouté) ---
+  const popularity = new Map(); // "titre|artiste" -> nombre (0 = introuvable sur Deezer)
+  const songKey = (s) => s.titre + '|' + s.artiste;
+  // file d'attente : au maximum ~8 requêtes Deezer par seconde (leur limite est 50 toutes les 5 s)
+  let deezerSlot = 0;
+  const deezerTurn = () => {
+    const now = Date.now();
+    deezerSlot = Math.max(deezerSlot, now) + 125;
+    return new Promise((r) => setTimeout(r, deezerSlot - 125 - now));
+  };
+  async function fetchPopularity(song) {
+    const key = songKey(song);
+    if (popularity.has(key)) return popularity.get(key);
+    if (demo) {
+      // en démo : une popularité « au hasard » mais toujours la même pour un son
+      let h = 0; for (const c of key) h = (h * 31 + c.charCodeAt(0)) >>> 0;
+      popularity.set(key, h % 1_000_000);
+      return popularity.get(key);
+    }
+    await deezerTurn();
+    try {
+      const q = song.verifierArtiste ? `artist:"${song.artiste}" track:"${song.titre}"` : `${song.titre} ${song.artiste}`;
+      const json = await getJson(`https://api.deezer.com/search?${new URLSearchParams({ q, limit: '25' })}`, 'Deezer');
+      const ranks = (json.data || [])
+        .filter((r) => sameSong(song.titre, song.verifierArtiste ? song.artiste : '', r.title, r.artist?.name))
+        .map((r) => Number(r.rank) || 0);
+      popularity.set(key, ranks.length ? Math.max(...ranks) : 0);
+    } catch (err) {
+      console.error('Popularité Deezer :', err.message); // pas gardé en cache : on réessaiera
+      return null;
+    }
+    return popularity.get(key);
+  }
+
+  // Range les sons d'une catégorie en 3 niveaux, par popularité (un niveau écrit à la main dans categories.js passe avant)
+  function levelOf(song, catSongs) {
+    if (LEVEL_IDS.includes(song.niveau)) return song.niveau;
+    const known = catSongs.filter((x) => !LEVEL_IDS.includes(x.niveau) && popularity.has(songKey(x)));
+    const mine = popularity.get(songKey(song));
+    if (mine === undefined || mine === null) return 'intermediaire';
+    if (mine === 0) return 'hard'; // introuvable sur Deezer : forcément peu connu
+    const sorted = known.map((x) => popularity.get(songKey(x))).sort((a, b) => b - a);
+    const pos = sorted.indexOf(mine) / Math.max(1, sorted.length - 1);
+    return pos < 1 / 3 ? 'facile' : pos < 2 / 3 ? 'intermediaire' : 'hard';
+  }
+
+  // Au démarrage du serveur, on récupère tranquillement la popularité de tous les sons
+  (async () => {
+    if (demo) return;
+    await new Promise((r) => setTimeout(r, 5000));
+    let n = 0;
+    for (const c of CATEGORIES) for (const s of categorySongs(c.id)) if (!popularity.has(songKey(s))) { await fetchPopularity(s); n++; }
+    console.log(`Blind test : popularité de ${n} sons récupérée (niveaux prêts).`);
+  })().catch((err) => console.error('Blind test, popularité :', err.message));
+
   // --- Préparer les manches : N chansons avec un extrait, + 3 mauvaises réponses chacune ---
-  async function buildRounds(categoryId, count) {
+  async function buildRounds(categoryId, count, level = 'intermediaire') {
     const songs = categorySongs(categoryId);
-    const pool = shuffle(songs);
+    // popularité manquante (serveur qui vient de démarrer) : on la cherche maintenant
+    await Promise.all(songs.filter((s) => !popularity.has(songKey(s))).map(fetchPopularity));
+    const byCat = new Map();
+    for (const s of songs) { if (!byCat.has(s.cat)) byCat.set(s.cat, []); byCat.get(s.cat).push(s); }
+    for (const list of byCat.values()) for (const s of list) s.level = levelOf(s, list);
+    // les sons du niveau choisi d'abord ; s'il n'y en a pas assez, on complète avec le niveau le plus proche
+    const order = { facile: ['facile', 'intermediaire', 'hard'], intermediaire: ['intermediaire', 'facile', 'hard'], hard: ['hard', 'intermediaire', 'facile'] }[level];
+    const pool = order.flatMap((lv) => shuffle(songs.filter((s) => s.level === lv)));
     const picked = [];
     // on cherche les extraits par petits paquets, jusqu'à en avoir assez
     for (let i = 0; i < pool.length && picked.length < count; i += 6) {
@@ -86,7 +157,7 @@ export function createBlindtest({ getJson, sameSong, clientIp, sessionUser, find
       const others = shuffle(songs.filter((x) => x.titre !== song.titre || x.artiste !== song.artiste)).slice(0, 3);
       const options = shuffle([song, ...others]).map((x) => ({ titre: x.titre, artiste: x.artiste }));
       return {
-        song: { titre: song.titre, artiste: song.artiste, cover: song.cover || '' },
+        song: { titre: song.titre, artiste: song.artiste, cover: song.cover || '', level: song.level },
         preview: song.preview || '',
         options,
         correct: options.findIndex((o) => o.titre === song.titre && o.artiste === song.artiste),
@@ -181,6 +252,8 @@ export function createBlindtest({ getJson, sameSong, clientIp, sessionUser, find
       category: room.category,
       categoryName: categoryName(room.category),
       rounds: room.roundCount,
+      level: room.level,
+      levelName: levelName(room.level),
       hostId: room.hostId,
       me: me.id,
       error: room.error || '',
@@ -215,7 +288,7 @@ export function createBlindtest({ getJson, sameSong, clientIp, sessionUser, find
     room.error = '';
     for (const p of room.players.values()) p.score = 0;
     try {
-      const rounds = await buildRounds(room.category, room.roundCount);
+      const rounds = await buildRounds(room.category, room.roundCount, room.level);
       room.game = { rounds, index: 0, phaseEnd: Date.now() + COUNTDOWN_MS, roundStart: 0 };
       room.phase = 'countdown';
     } catch (err) {
@@ -271,6 +344,7 @@ export function createBlindtest({ getJson, sameSong, clientIp, sessionUser, find
           categories: [...CATEGORIES.map((c) => ({ id: c.id, nom: c.nom, count: c.chansons.length })),
             { id: ALL, nom: 'Tout mélangé', count: CATEGORIES.reduce((n, c) => n + c.chansons.length, 0) }],
           rounds: ROUND_CHOICES,
+          levels: LEVELS,
         });
       }
 
@@ -297,7 +371,7 @@ export function createBlindtest({ getJson, sameSong, clientIp, sessionUser, find
           // invitation périmée, partie disparue ou déjà lancée : on l'oublie
           if (now - inv.at > INVITE_TTL || !r || (r.phase !== 'lobby' && r.phase !== 'end')) mine.delete(code);
         }
-        return send(res, 200, { invites: [...mine.values()].map((i) => ({ from: i.from, code: i.code, category: categoryName(rooms.get(i.code).category) })) });
+        return send(res, 200, { invites: [...mine.values()].map((i) => ({ from: i.from, code: i.code, category: categoryName(rooms.get(i.code).category) + ', ' + levelName(rooms.get(i.code).level) })) });
       }
 
       if (parts[0] !== 'rooms') throw new BtError(404, 'Introuvable.');
@@ -309,9 +383,10 @@ export function createBlindtest({ getJson, sameSong, clientIp, sessionUser, find
         const body = await readBody(req);
         const category = categorySongs(body.category) ? body.category : 'rap-fr';
         const roundCount = ROUND_CHOICES.includes(Number(body.rounds)) ? Number(body.rounds) : 10;
+        const level = LEVEL_IDS.includes(body.level) ? body.level : 'intermediaire';
         let code;
         do code = newCode(); while (rooms.has(code));
-        const room = { code, phase: 'lobby', category, roundCount, players: new Map(), hostId: '', game: null, seen: Date.now(), error: '' };
+        const room = { code, phase: 'lobby', category, roundCount, level, players: new Map(), hostId: '', game: null, seen: Date.now(), error: '' };
         const host = addPlayer(room, body.name, sessionUser(req));
         room.hostId = host.id;
         rooms.set(code, room);
@@ -355,6 +430,7 @@ export function createBlindtest({ getJson, sameSong, clientIp, sessionUser, find
         if (room.phase !== 'lobby' && room.phase !== 'end') throw new BtError(409, 'La partie est en cours.');
         if (categorySongs(body.category)) room.category = body.category;
         if (ROUND_CHOICES.includes(Number(body.rounds))) room.roundCount = Number(body.rounds);
+        if (LEVEL_IDS.includes(body.level)) room.level = body.level;
         if (room.phase === 'end') room.phase = 'lobby';
         return send(res, 200, view(room, me));
       }
