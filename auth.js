@@ -347,12 +347,14 @@ function findByUsername(v) {
 
 function listFriends(me) {
   const users = (ids) => ids.map((id) => usersById.get(id)).filter((u) => u && u.username);
+  // photo de profil (vide si la personne n'en a pas mis)
+  const avatar = (u) => { const v = profileOf(u).avatarV; return v ? `/api/profile/image?u=${encodeURIComponent(u.username)}&k=avatar&v=${v}` : ''; };
   const names = (ids) => users(ids)
-    .map((u) => ({ username: u.username }))
+    .map((u) => ({ username: u.username, avatarUrl: avatar(u) }))
     .sort((a, b) => a.username.localeCompare(b.username));
   // Seuls les amis voient si tu es en ligne (pas les demandes en attente)
   const friends = users(me.friends)
-    .map((u) => ({ username: u.username, ...presence(u) }))
+    .map((u) => ({ username: u.username, avatarUrl: avatar(u), ...presence(u) }))
     .sort((a, b) => b.online - a.online || a.username.localeCompare(b.username));
   return { friends, incoming: names(me.incoming), outgoing: names(me.outgoing) };
 }
