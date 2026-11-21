@@ -38,6 +38,7 @@
       radial-gradient(rgba(255,255,255,.07) 1px, transparent 1.6px) 0 0 / 7px 7px, var(--mur);
   }
   main { max-width: 42rem; margin: 0 auto; padding: 1.6rem 1.25rem 2rem; }
+  #game { padding-bottom: 4.5rem; } /* place pour l'icône son en bas à droite */
   [hidden] { display: none !important; }
   ::selection { background: var(--orange); color: var(--encre); }
   :focus-visible { outline: 3px solid var(--jaune); outline-offset: 3px; }
@@ -182,6 +183,25 @@
   .invite-list button { min-height: 2.3rem; padding: .3rem .9rem; font-size: .92rem; }
   .invite-list button.sent { background: transparent; color: var(--gris); border: 1px solid var(--ligne); box-shadow: none; }
 
+  /* icône son */
+  .sound-btn {
+    position: fixed; right: 1rem; bottom: calc(1rem + env(safe-area-inset-bottom, 0px)); z-index: 30;
+    width: 3.2rem; height: 3.2rem; min-height: 0; padding: 0; border-radius: 50%;
+    border-bottom-width: 1px; box-shadow: 0 6px 16px rgba(0,0,0,.5), inset 0 1px 0 rgba(255,255,255,.8);
+  }
+  .sound-btn:active { transform: scale(.93); border-bottom-width: 1px; }
+  .sound-btn svg { width: 1.6rem; height: 1.6rem; }
+  .sound-btn .spk { fill: var(--encre); }
+  .sound-btn .wave, .sound-btn .cross { stroke: var(--encre); }
+  .sound-btn .cross { display: none; }
+  .sound-btn.muted .wave { display: none; }
+  .sound-btn.muted .cross { display: inline; stroke: var(--rouge); }
+  .sound-btn .sound-tip { display: none; position: absolute; right: calc(100% + .6rem); top: 50%; transform: translateY(-50%); white-space: nowrap; padding: .35rem .7rem; border-radius: 4px; background: var(--jaune); color: var(--encre); font: 800 .9rem var(--texte); font-stretch: 80%; }
+  /* son bloqué par le navigateur : l'icône pulse et une bulle explique quoi faire */
+  .sound-btn.blocked { animation: soundPulse 1.2s ease-in-out infinite; }
+  .sound-btn.blocked .sound-tip { display: block; }
+  @keyframes soundPulse { 50% { box-shadow: 0 0 0 10px rgba(245, 196, 58, .35), 0 6px 16px rgba(0,0,0,.5); } }
+
   @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
   @media (max-width: 520px) {
     .options { grid-template-columns: 1fr; }
@@ -284,8 +304,17 @@
       </div>
     </div>
     <ul id="gameScores" class="scores"></ul>
-    <p class="state"><button id="soundBtn" class="ghost" type="button" hidden>Activer le son</button></p>
   </section>
+
+  <!-- Icône son : couper / remettre (et débloquer le son si le navigateur l'a bloqué) -->
+  <button id="soundBtn" class="sound-btn" type="button" hidden aria-pressed="false" aria-label="Couper le son">
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path class="spk" d="M4 9.2h3.6L12.4 5v14l-4.8-4.2H4z"/>
+      <path class="wave" d="M15.3 9.1a4 4 0 0 1 0 5.8M17.8 6.6a7.6 7.6 0 0 1 0 10.8" fill="none" stroke-width="2" stroke-linecap="round"/>
+      <path class="cross" d="M16 9.5l5 5m0-5l-5 5" fill="none" stroke-width="2.2" stroke-linecap="round"/>
+    </svg>
+    <span class="sound-tip">Touche pour le son</span>
+  </button>
 
   <!-- Fin -->
   <section id="end" hidden>
@@ -322,6 +351,7 @@
   function unlockAudio() {
     if (unlocked) return;
     unlocked = true;
+    if (audio.src && !audio.src.startsWith('blob:')) return; // un extrait est déjà chargé : on ne l'écrase pas
     // 0,1 s de silence pour autoriser la lecture automatique ensuite
     const rate = 8000, n = 800, buf = new ArrayBuffer(44 + n), v = new DataView(buf);
     const w = (o, s) => [...s].forEach((c, i) => v.setUint8(o + i, c.charCodeAt(0)));
@@ -558,22 +588,62 @@
   });
 
   // --- Jeu ---
-  function stopAudio() { audio.pause(); playingKey = ''; $('tape').classList.remove('spinning'); }
+  function stopAudio() { audio.pause(); playingKey = ''; $('tape').classList.remove('spinning'); $('soundBtn').hidden = true; }
+
+  // --- Son : coupé ou non (gardé d'une partie à l'autre), et bloqué ou non par le navigateur ---
+  let muted = false, blocked = false;
+  try { muted = localStorage.getItem('bt-muted') === '1'; } catch {}
+  audio.muted = muted;
+  function drawSound() {
+    const b = $('soundBtn');
+    b.classList.toggle('muted', muted);
+    b.classList.toggle('blocked', blocked && !muted);
+    b.setAttribute('aria-pressed', String(muted));
+    b.setAttribute('aria-label', blocked && !muted ? 'Activer le son' : muted ? 'Remettre le son' : 'Couper le son');
+  }
+  // reprend l'extrait au bon moment de la manche
+  function seekToRound() {
+    if (!state || !state.roundStart) return;
+    const offset = (serverNow() - state.roundStart) / 1000;
+    if (offset > 1 && isFinite(audio.duration)) audio.currentTime = Math.min(offset, Math.max(0, audio.duration - 1));
+  }
+  function tryPlay() {
+    return audio.play().then(() => { blocked = false; drawSound(); }).catch((err) => {
+      if (err && err.name === 'NotAllowedError') { blocked = true; drawSound(); } // il faut un toucher de l'utilisateur
+    });
+  }
 
   function syncAudio() {
     const s = state;
+    $('soundBtn').hidden = false;
+    drawSound();
     if (!s.preview) { $('tape').classList.toggle('spinning', s.phase === 'playing'); return; }
     const key = s.code + ':' + s.index;
     if (key !== playingKey) {
       playingKey = key;
       audio.src = s.preview;
-      const offset = Math.max(0, (serverNow() - s.roundStart) / 1000);
-      audio.addEventListener('loadedmetadata', () => { if (offset > 1) audio.currentTime = Math.min(offset, 25); }, { once: true });
-      audio.play().then(() => { $('soundBtn').hidden = true; }).catch(() => { $('soundBtn').hidden = false; });
+      audio.addEventListener('loadedmetadata', seekToRound, { once: true });
+      tryPlay();
     }
     $('tape').classList.toggle('spinning', !audio.paused);
   }
-  $('soundBtn').addEventListener('click', () => { unlockAudio(); audio.play().then(() => { $('soundBtn').hidden = true; }).catch(() => {}); });
+
+  // clic sur l'icône : si le son était bloqué, on le lance ; sinon on coupe / remet
+  $('soundBtn').addEventListener('click', () => {
+    unlocked = true;
+    if (blocked || (audio.paused && state && (state.phase === 'playing' || state.phase === 'reveal'))) {
+      muted = false;
+      audio.muted = false;
+      seekToRound();
+      tryPlay();
+    } else {
+      muted = !muted;
+      audio.muted = muted;
+    }
+    try { localStorage.setItem('bt-muted', muted ? '1' : '0'); } catch {}
+    drawSound();
+  });
+
   audio.addEventListener('play', () => $('tape').classList.add('spinning'));
   audio.addEventListener('pause', () => $('tape').classList.remove('spinning'));
 
@@ -587,6 +657,7 @@
 
     if (s.phase === 'countdown') {
       $('countdown').hidden = false; $('play').hidden = true;
+      $('soundBtn').hidden = false; drawSound();
       $('countN').textContent = Math.max(1, Math.ceil((s.phaseEnd - serverNow()) / 1000));
       return;
     }
