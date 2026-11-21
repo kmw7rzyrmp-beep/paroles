@@ -511,7 +511,7 @@ const server = createServer(async (req, res) => {
     const ext = file.slice(file.lastIndexOf('.')).toLowerCase();
     const headers = { 'Content-Type': MIME[ext] || 'application/octet-stream' };
     // La page, le service worker et le manifeste doivent toujours être relus, pour que les mises à jour arrivent
-    if (ext === '.html' || ext === '.js' || ext === '.webmanifest') headers['Cache-Control'] = 'no-cache';
+    if (ext === '.html' || ext === '.js' || ext === '.css' || ext === '.webmanifest') headers['Cache-Control'] = 'no-cache';
     else headers['Cache-Control'] = 'public, max-age=3600';
     res.writeHead(200, headers);
     res.end(body);

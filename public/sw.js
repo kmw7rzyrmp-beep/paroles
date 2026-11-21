@@ -1,6 +1,6 @@
 // Service worker de Star Song : rend le site installable et l'ouvre même sans connexion.
 // Change VERSION quand tu modifies les icônes pour forcer la mise à jour du cache.
-const VERSION = 'star-song-v7';
+const VERSION = 'star-song-v8';
 const SHELL = ['/', '/blindtest', '/manifest.webmanifest', '/icon.png', '/icon-192.png', '/icon-512.png', '/apple-touch-icon.png', '/favicon.ico'];
 
 self.addEventListener('install', (event) => {
@@ -31,6 +31,12 @@ self.addEventListener('fetch', (event) => {
         })
         .catch(async () => (await caches.match(url.pathname)) || caches.match('/'))
     );
+    return;
+  }
+
+  // Code et styles (.js, .css) : toujours le réseau d'abord, pour avoir la dernière version du site
+  if (/\.(js|css)$/.test(url.pathname)) {
+    event.respondWith(fetch(req).catch(() => caches.match(req)));
     return;
   }
 
