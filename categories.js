@@ -1,11 +1,14 @@
-// Catégories du blind test et leurs chansons.
-// Pour ajouter un son : ajoute une ligne { titre: '...', artiste: '...' } dans la bonne liste.
+// Catégories du blind test, rangées par artiste.
+// Dans le jeu, quand on choisit une catégorie, on peut cocher les artistes qu'on veut entendre.
+//
+// Pour ajouter un son : ajoute une ligne { titre: '...', artiste: '...' } dans la bonne catégorie
+// (de préférence sous les autres sons du même artiste). Un nouvel artiste apparaît tout seul dans le jeu.
 // Pour créer une catégorie : copie un bloc { id, nom, chansons: [...] } et change l'id (sans espace ni accent).
 // L'extrait de 30 secondes est trouvé automatiquement (iTunes, puis Deezer). Un son sans extrait est simplement sauté.
 // verifierArtiste: false sert pour le classique : sur les plateformes, l'« artiste » est l'orchestre, pas le compositeur.
 //
-// Niveaux (Facile / Intermédiaire / HARRR MODE) : le serveur les calcule tout seul avec la popularité Deezer.
-// Dans chaque catégorie, le tiers le plus écouté va en Facile, le tiers du milieu en Intermédiaire,
+// Niveaux (Facile / Intermédiaire / HARRR MODE) : le serveur les calcule tout seul avec la popularité Deezer,
+// parmi les artistes choisis pour la partie : le tiers le plus écouté en Facile, le tiers du milieu en Intermédiaire,
 // le tiers le moins connu en HARRR MODE. Pour forcer le niveau d'un son, ajoute niveau: 'facile', 'intermediaire' ou 'hard' :
 //   { titre: 'Bande organisée', artiste: 'Jul', niveau: 'facile' },
 
@@ -14,119 +17,215 @@ export const CATEGORIES = [
     id: 'rap-fr',
     nom: 'Rap FR',
     chansons: [
+      // --- PNL ---
       { titre: 'Au DD', artiste: 'PNL' },
-      { titre: 'On verra', artiste: 'Nekfeu' },
-      { titre: 'Jefe', artiste: 'Ninho' },
-      { titre: 'Tchikita', artiste: 'Jul' },
-      { titre: 'DKR', artiste: 'Booba' },
-      { titre: 'Macarena', artiste: 'Damso' },
-      { titre: 'La terre est ronde', artiste: 'Orelsan' },
-      { titre: 'Bella', artiste: 'Gims' },
-      { titre: 'Désolé', artiste: "Sexion d'Assaut" },
-      { titre: 'Petit frère', artiste: 'IAM' },
-      { titre: 'Caroline', artiste: 'MC Solaar' },
-      { titre: 'La boulette', artiste: "Diam's" },
-      { titre: 'Cosmo', artiste: 'Soprano' },
-      { titre: 'Réseaux', artiste: 'Niska' },
-      { titre: 'Zoo', artiste: 'Kaaris' },
-      { titre: 'Trop beau', artiste: 'Lomepal' },
-      { titre: 'Désaccordé', artiste: 'Vald' },
-      { titre: 'Bolide allemand', artiste: 'SDM' },
-      { titre: 'Meuda', artiste: 'Tiakola' },
-      { titre: 'DIE', artiste: 'Gazo' },
-      { titre: 'Oh bah oui', artiste: 'Lacrim' },
-      { titre: 'Freeze Raël', artiste: 'Freeze Corleone' },
-      // --- les classiques ---
-      { titre: "L'école du micro d'argent", artiste: 'IAM' },
-      { titre: 'Je danse le Mia', artiste: 'IAM' },
-      { titre: "Demain c'est loin", artiste: 'IAM' },
-      { titre: 'La fièvre', artiste: 'Suprême NTM' },
-      { titre: 'Laisse pas traîner ton fils', artiste: 'Suprême NTM' },
-      { titre: "That's My People", artiste: 'Suprême NTM' },
-      { titre: 'Nouveau western', artiste: 'MC Solaar' },
-      { titre: 'Bouge de là', artiste: 'MC Solaar' },
-      { titre: 'Tonton du bled', artiste: '113' },
-      { titre: 'Art de rue', artiste: 'Fonky Family' },
-      { titre: 'Gravé dans la roche', artiste: 'Sniper' },
-      { titre: "J'pète les plombs", artiste: 'Disiz' },
-      { titre: 'Lettre à la République', artiste: 'Kery James' },
-      { titre: 'DJ', artiste: "Diam's" },
-      { titre: 'Jeune demoiselle', artiste: "Diam's" },
-      { titre: 'Ma France à moi', artiste: "Diam's" },
-      { titre: 'La puissance', artiste: 'Rohff' },
-      { titre: "Qui est l'exemple ?", artiste: 'Rohff' },
-      { titre: 'Air Max', artiste: "Rim'K" },
-      { titre: 'Ma meilleure', artiste: 'La Fouine' },
-      { titre: 'Du ferme', artiste: 'La Fouine' },
-      { titre: "Dreamin'", artiste: 'Youssoupha' },
-      // --- Booba, PNL, Nekfeu, Damso, Orelsan ---
-      { titre: 'Validée', artiste: 'Booba' },
-      { titre: 'Pitbull', artiste: 'Booba' },
-      { titre: 'Mona Lisa', artiste: 'Booba' },
-      { titre: '92i Veyron', artiste: 'Booba' },
       { titre: 'Onizuka', artiste: 'PNL' },
       { titre: 'Naha', artiste: 'PNL' },
       { titre: 'Deux frères', artiste: 'PNL' },
       { titre: 'Le monde ou rien', artiste: 'PNL' },
-      { titre: "À l'ammoniaque", artiste: 'PNL' },
+      { titre: 'À l\'ammoniaque', artiste: 'PNL' },
+      { titre: 'Bené', artiste: 'PNL' },
+      { titre: 'Uranus', artiste: 'PNL' },
+      { titre: 'Tahitienne', artiste: 'PNL' },
+      { titre: 'La vie est belle', artiste: 'PNL' },
+      // --- Nekfeu ---
+      { titre: 'On verra', artiste: 'Nekfeu' },
       { titre: 'Égérie', artiste: 'Nekfeu' },
       { titre: 'Princesse', artiste: 'Nekfeu' },
       { titre: 'Ma dope', artiste: 'Nekfeu' },
-      { titre: 'Feu de bois', artiste: 'Damso' },
-      { titre: 'BruxellesVie', artiste: 'Damso' },
-      { titre: 'Basique', artiste: 'Orelsan' },
-      { titre: 'San', artiste: 'Orelsan' },
-      { titre: 'Défaite de famille', artiste: 'Orelsan' },
-      { titre: 'Tout va bien', artiste: 'Orelsan' },
-      { titre: 'La pluie', artiste: 'Orelsan' },
-      // --- Marseille et le Sud ---
-      { titre: "On m'appelle l'ovni", artiste: 'Jul' },
-      { titre: 'Bande organisée', artiste: 'Jul' },
-      { titre: 'Mon bijou', artiste: 'Jul' },
-      { titre: 'Wesh alors', artiste: 'Jul' },
-      { titre: "J'oublie tout", artiste: 'Jul' },
-      { titre: 'A7', artiste: 'SCH' },
-      { titre: 'Otto', artiste: 'SCH' },
-      { titre: 'La kiffance', artiste: 'Naps' },
-      { titre: 'Tout va bien', artiste: 'Alonzo' },
-      { titre: 'Moulaga', artiste: "Heuss l'Enfoiré" },
-      { titre: 'Dalida', artiste: 'Soolking' },
-      { titre: 'Liberté', artiste: 'Soolking' },
-      { titre: 'En feu', artiste: 'Soprano' },
-      { titre: 'Le diable ne s’habille plus en Prada', artiste: 'Soprano' },
-      // --- les hits des années 2010 et 2020 ---
+      { titre: 'Nique les clones', artiste: 'Nekfeu' },
+      { titre: 'Risibles amours', artiste: 'Nekfeu' },
+      { titre: 'Humanoïde', artiste: 'Nekfeu' },
+      // --- Ninho ---
+      { titre: 'Jefe', artiste: 'Ninho' },
       { titre: 'Lettre à une femme', artiste: 'Ninho' },
       { titre: 'Goutte d’eau', artiste: 'Ninho' },
       { titre: 'Mamacita', artiste: 'Ninho' },
       { titre: 'La vie qu’on mène', artiste: 'Ninho' },
       { titre: 'Maman ne le sait pas', artiste: 'Ninho' },
+      { titre: 'Destin', artiste: 'Ninho' },
+      { titre: 'Eurostar', artiste: 'Ninho' },
+      // --- Jul ---
+      { titre: 'Tchikita', artiste: 'Jul' },
+      { titre: 'On m\'appelle l\'ovni', artiste: 'Jul' },
+      { titre: 'Bande organisée', artiste: 'Jul' },
+      { titre: 'Mon bijou', artiste: 'Jul' },
+      { titre: 'Wesh alors', artiste: 'Jul' },
+      { titre: 'J\'oublie tout', artiste: 'Jul' },
+      { titre: 'Ma jolie', artiste: 'Jul' },
+      { titre: 'Je ne me vois pas briller', artiste: 'Jul' },
+      // --- Booba ---
+      { titre: 'DKR', artiste: 'Booba' },
+      { titre: 'Validée', artiste: 'Booba' },
+      { titre: 'Pitbull', artiste: 'Booba' },
+      { titre: 'Mona Lisa', artiste: 'Booba' },
+      { titre: '92i Veyron', artiste: 'Booba' },
+      { titre: 'Ratpi World', artiste: 'Booba' },
+      { titre: 'Tony Sosa', artiste: 'Booba' },
+      { titre: 'Tout gâcher', artiste: 'Booba' },
+      // --- Damso ---
+      { titre: 'Macarena', artiste: 'Damso' },
+      { titre: 'Feu de bois', artiste: 'Damso' },
+      { titre: 'BruxellesVie', artiste: 'Damso' },
+      { titre: 'Dieu ne ment jamais', artiste: 'Damso' },
+      { titre: 'Mosaïque solitaire', artiste: 'Damso' },
+      { titre: 'Smog', artiste: 'Damso' },
+      { titre: 'Aux paradis', artiste: 'Damso' },
+      { titre: 'Morose', artiste: 'Damso' },
+      // --- Orelsan ---
+      { titre: 'La terre est ronde', artiste: 'Orelsan' },
+      { titre: 'Basique', artiste: 'Orelsan' },
+      { titre: 'San', artiste: 'Orelsan' },
+      { titre: 'Défaite de famille', artiste: 'Orelsan' },
+      { titre: 'Tout va bien', artiste: 'Orelsan' },
+      { titre: 'La pluie', artiste: 'Orelsan' },
+      { titre: 'L\'odeur de l\'essence', artiste: 'Orelsan' },
+      { titre: 'Paradis', artiste: 'Orelsan' },
+      { titre: 'Jour meilleur', artiste: 'Orelsan' },
+      { titre: 'Rêves bizarres', artiste: 'Orelsan' },
+      // --- Gims ---
+      { titre: 'Bella', artiste: 'Gims' },
+      { titre: 'Sapés comme jamais', artiste: 'Gims' },
+      { titre: 'Est-ce que tu m\'aimes ?', artiste: 'Gims' },
+      { titre: 'J\'me tire', artiste: 'Gims' },
+      { titre: 'Zombie', artiste: 'Gims' },
+      { titre: 'Ciel', artiste: 'Gims' },
+      { titre: 'Hola Señorita', artiste: 'Gims' },
+      // --- Sexion d'Assaut ---
+      { titre: 'Désolé', artiste: 'Sexion d\'Assaut' },
+      { titre: 'Ma direction', artiste: 'Sexion d\'Assaut' },
+      { titre: 'Avant qu\'elle parte', artiste: 'Sexion d\'Assaut' },
+      { titre: 'Wati by Night', artiste: 'Sexion d\'Assaut' },
+      { titre: 'Problèmes d\'adultes', artiste: 'Sexion d\'Assaut' },
+      { titre: 'Paris va bien', artiste: 'Sexion d\'Assaut' },
+      // --- IAM ---
+      { titre: 'Petit frère', artiste: 'IAM' },
+      { titre: 'L\'école du micro d\'argent', artiste: 'IAM' },
+      { titre: 'Je danse le Mia', artiste: 'IAM' },
+      { titre: 'Demain c\'est loin', artiste: 'IAM' },
+      { titre: 'Nés sous la même étoile', artiste: 'IAM' },
+      // --- MC Solaar ---
+      { titre: 'Caroline', artiste: 'MC Solaar' },
+      { titre: 'Nouveau western', artiste: 'MC Solaar' },
+      { titre: 'Bouge de là', artiste: 'MC Solaar' },
+      { titre: 'Victime de la mode', artiste: 'MC Solaar' },
+      { titre: 'Qui sème le vent récolte le tempo', artiste: 'MC Solaar' },
+      // --- Diam's ---
+      { titre: 'La boulette', artiste: 'Diam\'s' },
+      { titre: 'DJ', artiste: 'Diam\'s' },
+      { titre: 'Jeune demoiselle', artiste: 'Diam\'s' },
+      { titre: 'Ma France à moi', artiste: 'Diam\'s' },
+      { titre: 'Confessions nocturnes', artiste: 'Diam\'s' },
+      // --- Soprano ---
+      { titre: 'Cosmo', artiste: 'Soprano' },
+      { titre: 'En feu', artiste: 'Soprano' },
+      { titre: 'Le diable ne s’habille plus en Prada', artiste: 'Soprano' },
+      { titre: 'Fresh Prince', artiste: 'Soprano' },
+      { titre: 'Clown', artiste: 'Soprano' },
+      { titre: 'Victory', artiste: 'Soprano' },
+      // --- Niska ---
+      { titre: 'Réseaux', artiste: 'Niska' },
       { titre: 'Commando', artiste: 'Niska' },
       { titre: 'Médicament', artiste: 'Niska' },
-      { titre: 'Joli bébé', artiste: 'Naza' },
+      { titre: 'Salé', artiste: 'Niska' },
+      { titre: 'Matuidi Charo', artiste: 'Niska' },
+      // --- Kaaris ---
+      { titre: 'Zoo', artiste: 'Kaaris' },
       { titre: 'Tchoin', artiste: 'Kaaris' },
-      { titre: 'Sapés comme jamais', artiste: 'Gims' },
-      { titre: "Est-ce que tu m'aimes ?", artiste: 'Gims' },
-      { titre: "J'me tire", artiste: 'Gims' },
-      { titre: 'Ma direction', artiste: "Sexion d'Assaut" },
-      { titre: "Avant qu'elle parte", artiste: "Sexion d'Assaut" },
-      { titre: 'Wati by Night', artiste: "Sexion d'Assaut" },
+      { titre: 'Se-vrak', artiste: 'Kaaris' },
+      { titre: 'Dès le départ', artiste: 'Kaaris' },
+      // --- Lomepal ---
+      { titre: 'Trop beau', artiste: 'Lomepal' },
+      { titre: 'Yeux disent', artiste: 'Lomepal' },
+      { titre: 'Mômes', artiste: 'Lomepal' },
+      { titre: 'Tee', artiste: 'Lomepal' },
+      // --- Vald ---
+      { titre: 'Désaccordé', artiste: 'Vald' },
+      { titre: 'Eurotrap', artiste: 'Vald' },
+      { titre: 'Gris', artiste: 'Vald' },
+      // --- SDM ---
+      { titre: 'Bolide allemand', artiste: 'SDM' },
+      // --- Tiakola ---
+      { titre: 'Meuda', artiste: 'Tiakola' },
+      { titre: 'Atasanté', artiste: 'Tiakola' },
+      // --- Gazo ---
+      { titre: 'DIE', artiste: 'Gazo' },
+      { titre: 'Notre Dame', artiste: 'Gazo' },
+      { titre: 'Celine 3x', artiste: 'Gazo' },
+      { titre: 'Drill FR 4', artiste: 'Gazo' },
+      // --- Lacrim ---
+      { titre: 'Oh bah oui', artiste: 'Lacrim' },
+      { titre: 'Corleone', artiste: 'Lacrim' },
+      // --- Freeze Corleone ---
+      { titre: 'Freeze Raël', artiste: 'Freeze Corleone' },
+      // --- Suprême NTM ---
+      { titre: 'La fièvre', artiste: 'Suprême NTM' },
+      { titre: 'Laisse pas traîner ton fils', artiste: 'Suprême NTM' },
+      { titre: 'That\'s My People', artiste: 'Suprême NTM' },
+      { titre: 'Ma Benz', artiste: 'Suprême NTM' },
+      // --- 113 ---
+      { titre: 'Tonton du bled', artiste: '113' },
+      { titre: 'Les Princes de la ville', artiste: '113' },
+      // --- Fonky Family ---
+      { titre: 'Art de rue', artiste: 'Fonky Family' },
+      // --- Sniper ---
+      { titre: 'Gravé dans la roche', artiste: 'Sniper' },
+      // --- Disiz ---
+      { titre: 'J\'pète les plombs', artiste: 'Disiz' },
+      // --- Kery James ---
+      { titre: 'Lettre à la République', artiste: 'Kery James' },
+      { titre: 'Banlieusards', artiste: 'Kery James' },
+      // --- Rohff ---
+      { titre: 'La puissance', artiste: 'Rohff' },
+      { titre: 'Qui est l\'exemple ?', artiste: 'Rohff' },
+      { titre: 'En mode', artiste: 'Rohff' },
+      // --- Rim'K ---
+      { titre: 'Air Max', artiste: 'Rim\'K' },
+      // --- La Fouine ---
+      { titre: 'Ma meilleure', artiste: 'La Fouine' },
+      { titre: 'Du ferme', artiste: 'La Fouine' },
+      { titre: 'Quand je partirai', artiste: 'La Fouine' },
+      // --- Youssoupha ---
+      { titre: 'Dreamin\'', artiste: 'Youssoupha' },
+      { titre: 'Menace de mort', artiste: 'Youssoupha' },
+      { titre: 'Les disques de mon père', artiste: 'Youssoupha' },
+      // --- SCH ---
+      { titre: 'A7', artiste: 'SCH' },
+      { titre: 'Otto', artiste: 'SCH' },
+      // --- Naps ---
+      { titre: 'La kiffance', artiste: 'Naps' },
+      { titre: '6.3', artiste: 'Naps' },
+      // --- Alonzo ---
+      { titre: 'Tout va bien', artiste: 'Alonzo' },
+      // --- Heuss l'Enfoiré ---
+      { titre: 'Moulaga', artiste: 'Heuss l\'Enfoiré' },
+      { titre: 'Khapta', artiste: 'Heuss l\'Enfoiré' },
+      // --- Soolking ---
+      { titre: 'Dalida', artiste: 'Soolking' },
+      { titre: 'Liberté', artiste: 'Soolking' },
+      { titre: 'Suavemente', artiste: 'Soolking' },
+      // --- Naza ---
+      { titre: 'Joli bébé', artiste: 'Naza' },
+      // --- Black M ---
       { titre: 'Sur ma route', artiste: 'Black M' },
+      { titre: 'Tout ce qu\'il faut', artiste: 'Black M' },
+      // --- Keblack ---
       { titre: 'Bazardée', artiste: 'Keblack' },
+      // --- Bigflo & Oli ---
       { titre: 'Dommage', artiste: 'Bigflo & Oli' },
       { titre: 'Plus tard', artiste: 'Bigflo & Oli' },
-      { titre: 'Eurotrap', artiste: 'Vald' },
-      { titre: 'Yeux disent', artiste: 'Lomepal' },
+      { titre: 'Je suis', artiste: 'Bigflo & Oli' },
+      // --- Koba LaD ---
       { titre: 'RR 9.1', artiste: 'Koba LaD' },
+      // --- Maes ---
       { titre: 'Madrina', artiste: 'Maes' },
+      // --- Laylow ---
       { titre: 'Megatron', artiste: 'Laylow' },
-      { titre: 'Notre Dame', artiste: 'Gazo' },
+      { titre: 'Trinityville', artiste: 'Laylow' },
+      // --- Werenoi ---
       { titre: 'Chemin d’or', artiste: 'Werenoi' },
-    ],
-  },
-  {
-    id: 'la-feve',
-    nom: 'La Fève',
-    chansons: [
+      { titre: 'Solitaire', artiste: 'Werenoi' },
+      // --- La Fève ---
       { titre: 'Mauvais payeur', artiste: 'La Fève' },
       { titre: 'Loyal', artiste: 'La Fève' },
       { titre: 'No Hook', artiste: 'La Fève' },
@@ -134,7 +233,7 @@ export const CATEGORIES = [
       { titre: 'Voiture sportive', artiste: 'La Fève' },
       { titre: 'Zaza', artiste: 'La Fève' },
       { titre: 'Qui ?', artiste: 'La Fève' },
-      { titre: "L'appel", artiste: 'La Fève' },
+      { titre: 'L\'appel', artiste: 'La Fève' },
       { titre: 'Crenshaw', artiste: 'La Fève' },
       { titre: 'Belle somme', artiste: 'La Fève' },
       { titre: 'Belek', artiste: 'La Fève' },
@@ -146,7 +245,7 @@ export const CATEGORIES = [
       { titre: 'Navré', artiste: 'La Fève' },
       { titre: 'Snitch', artiste: 'La Fève' },
       { titre: 'Alchimie', artiste: 'La Fève' },
-      { titre: "L'affamé", artiste: 'La Fève' },
+      { titre: 'L\'affamé', artiste: 'La Fève' },
       { titre: 'Ouvre la porte!', artiste: 'La Fève' },
       { titre: 'Lonerrr', artiste: 'La Fève' },
       { titre: 'Type Shit', artiste: 'La Fève' },
@@ -163,40 +262,236 @@ export const CATEGORIES = [
       { titre: 'Lady D', artiste: 'La Fève' },
       { titre: 'Finis-les', artiste: 'La Fève' },
       { titre: 'Citystar', artiste: 'La Fève' },
+      // --- Hamza ---
+      { titre: 'Fade Up', artiste: 'Hamza' },
+      { titre: 'Life', artiste: 'Hamza' },
+      { titre: 'Paradise', artiste: 'Hamza' },
+      // --- Zola ---
+      { titre: 'Ammenav', artiste: 'Zola' },
+      // --- MHD ---
+      { titre: 'Afro Trap Part. 3 (Champions League)', artiste: 'MHD' },
+      { titre: 'Afro Trap Part. 1 (La Moula)', artiste: 'MHD' },
+      { titre: 'A kele nta', artiste: 'MHD' },
+      { titre: 'Bébé', artiste: 'MHD' },
+      // --- PLK ---
+      { titre: 'Pas les mêmes', artiste: 'PLK' },
+      { titre: 'Chambre 140', artiste: 'PLK' },
+      // --- Gradur ---
+      { titre: 'Ne reviens pas', artiste: 'Gradur' },
+      // --- Dinos ---
+      { titre: 'Hiver 2004', artiste: 'Dinos' },
+      { titre: 'Namek', artiste: 'Dinos' },
+      // --- Alpha Wann ---
+      { titre: 'Ça va ensemble', artiste: 'Alpha Wann' },
+      // --- Oxmo Puccino ---
+      { titre: 'Mama Lova', artiste: 'Oxmo Puccino' },
+      { titre: 'L\'Enfant seul', artiste: 'Oxmo Puccino' },
+      { titre: 'Toucher l\'horizon', artiste: 'Oxmo Puccino' },
+      // --- Doc Gynéco ---
+      { titre: 'Né ici', artiste: 'Doc Gynéco' },
+      { titre: 'Nirvana', artiste: 'Doc Gynéco' },
+      { titre: 'Dans ma rue', artiste: 'Doc Gynéco' },
+      // --- Akhenaton ---
+      { titre: 'Mes soleils et mes lunes', artiste: 'Akhenaton' },
+      { titre: 'Bad Boys de Marseille', artiste: 'Akhenaton' },
+      // --- Médine ---
+      { titre: 'Don\'t Panik', artiste: 'Médine' },
+      { titre: 'Grand Paris', artiste: 'Médine' },
+      // --- Lartiste ---
+      { titre: 'Chocolat', artiste: 'Lartiste' },
+      { titre: 'Mafiosa', artiste: 'Lartiste' },
+      // --- Moha La Squale ---
+      { titre: 'Ma belle', artiste: 'Moha La Squale' },
+      { titre: 'Bendero', artiste: 'Moha La Squale' },
+      // --- Rilès ---
+      { titre: 'Thank God', artiste: 'Rilès' },
+      { titre: 'Brother', artiste: 'Rilès' },
+      // --- L'Algérino ---
+      { titre: 'Les menottes', artiste: 'L\'Algérino' },
+      { titre: 'Va bene', artiste: 'L\'Algérino' },
+      // --- Sinik ---
+      { titre: 'Je réalise', artiste: 'Sinik' },
+      { titre: 'Une époque formidable', artiste: 'Sinik' },
+      // --- Ärsenik ---
+      { titre: 'Boxe avec les mots', artiste: 'Ärsenik' },
+      { titre: 'Quelques gouttes suffisent', artiste: 'Ärsenik' },
+      // --- Ziak ---
+      { titre: 'Fixette', artiste: 'Ziak' },
+      // --- 1995 ---
+      { titre: 'La suite', artiste: '1995' },
+      // --- Dosseh ---
+      { titre: 'Habitué', artiste: 'Dosseh' },
+      // --- Soso Maness ---
+      { titre: 'Petrouchka', artiste: 'Soso Maness' },
+      // --- Kalash ---
+      { titre: 'Mwaka Moon', artiste: 'Kalash' },
+      // --- Vegedream ---
+      { titre: 'Ramenez la coupe à la maison', artiste: 'Vegedream' },
+      { titre: 'Elle est bonne sa mère', artiste: 'Vegedream' },
+      // --- Dadju ---
+      { titre: 'Reine', artiste: 'Dadju' },
+      { titre: 'Jaloux', artiste: 'Dadju' },
+      { titre: 'Bob Marley', artiste: 'Dadju' },
     ],
   },
   {
     id: 'rap-us',
     nom: 'Rap US',
     chansons: [
+      // --- Eminem ---
       { titre: 'Lose Yourself', artiste: 'Eminem' },
+      { titre: 'Without Me', artiste: 'Eminem' },
+      { titre: 'The Real Slim Shady', artiste: 'Eminem' },
+      { titre: 'Mockingbird', artiste: 'Eminem' },
+      { titre: 'Stan', artiste: 'Eminem' },
+      { titre: '\'Till I Collapse', artiste: 'Eminem' },
+      { titre: 'Rap God', artiste: 'Eminem' },
+      { titre: 'Love The Way You Lie', artiste: 'Eminem' },
+      { titre: 'Not Afraid', artiste: 'Eminem' },
+      { titre: 'Godzilla', artiste: 'Eminem' },
+      { titre: 'Superman', artiste: 'Eminem' },
+      // --- Dr. Dre ---
       { titre: 'Still D.R.E.', artiste: 'Dr. Dre' },
+      { titre: 'The Next Episode', artiste: 'Dr. Dre' },
+      { titre: 'Forgot About Dre', artiste: 'Dr. Dre' },
+      { titre: 'What’s the Difference', artiste: 'Dr. Dre' },
+      { titre: 'Nuthin\' but a \'G\' Thang', artiste: 'Dr. Dre' },
+      { titre: 'I Need a Doctor', artiste: 'Dr. Dre' },
+      // --- 50 Cent ---
       { titre: 'In Da Club', artiste: '50 Cent' },
+      { titre: 'Candy Shop', artiste: '50 Cent' },
+      { titre: 'P.I.M.P.', artiste: '50 Cent' },
+      { titre: '21 Questions', artiste: '50 Cent' },
+      { titre: 'Many Men (Wish Death)', artiste: '50 Cent' },
+      { titre: 'Just A Lil Bit', artiste: '50 Cent' },
+      // --- Kendrick Lamar ---
       { titre: 'HUMBLE.', artiste: 'Kendrick Lamar' },
       { titre: 'Not Like Us', artiste: 'Kendrick Lamar' },
-      { titre: "God's Plan", artiste: 'Drake' },
+      { titre: 'DNA.', artiste: 'Kendrick Lamar' },
+      { titre: 'Alright', artiste: 'Kendrick Lamar' },
+      { titre: 'Swimming Pools (Drank)', artiste: 'Kendrick Lamar' },
+      { titre: 'Money Trees', artiste: 'Kendrick Lamar' },
+      { titre: 'King Kunta', artiste: 'Kendrick Lamar' },
+      { titre: 'Bitch, Don\'t Kill My Vibe', artiste: 'Kendrick Lamar' },
+      { titre: 'LOVE.', artiste: 'Kendrick Lamar' },
+      { titre: 'm.A.A.d city', artiste: 'Kendrick Lamar' },
+      { titre: 'luther', artiste: 'Kendrick Lamar' },
+      { titre: 'squabble up', artiste: 'Kendrick Lamar' },
+      // --- Drake ---
+      { titre: 'God\'s Plan', artiste: 'Drake' },
+      { titre: 'Hotline Bling', artiste: 'Drake' },
+      { titre: 'One Dance', artiste: 'Drake' },
+      { titre: 'Started From the Bottom', artiste: 'Drake' },
+      { titre: 'In My Feelings', artiste: 'Drake' },
+      { titre: 'Nice For What', artiste: 'Drake' },
+      { titre: 'Passionfruit', artiste: 'Drake' },
+      { titre: 'Hold On, We\'re Going Home', artiste: 'Drake' },
+      { titre: 'Jimmy Cooks', artiste: 'Drake' },
+      { titre: 'Rich Flex', artiste: 'Drake' },
+      { titre: 'Headlines', artiste: 'Drake' },
+      // --- Travis Scott ---
       { titre: 'SICKO MODE', artiste: 'Travis Scott' },
+      { titre: 'goosebumps', artiste: 'Travis Scott' },
+      { titre: 'Antidote', artiste: 'Travis Scott' },
+      { titre: 'HIGHEST IN THE ROOM', artiste: 'Travis Scott' },
+      { titre: 'FE!N', artiste: 'Travis Scott' },
+      { titre: 'BUTTERFLY EFFECT', artiste: 'Travis Scott' },
+      { titre: 'STARGAZING', artiste: 'Travis Scott' },
+      { titre: 'MY EYES', artiste: 'Travis Scott' },
+      // --- Kanye West ---
       { titre: 'Stronger', artiste: 'Kanye West' },
+      { titre: 'Gold Digger', artiste: 'Kanye West' },
+      { titre: 'POWER', artiste: 'Kanye West' },
+      { titre: 'Heartless', artiste: 'Kanye West' },
+      { titre: 'Runaway', artiste: 'Kanye West' },
+      { titre: 'Flashing Lights', artiste: 'Kanye West' },
+      { titre: 'All Of The Lights', artiste: 'Kanye West' },
+      { titre: 'Black Skinhead', artiste: 'Kanye West' },
+      { titre: 'Can’t Tell Me Nothing', artiste: 'Kanye West' },
+      // --- Jay-Z ---
       { titre: 'Empire State of Mind', artiste: 'Jay-Z' },
+      { titre: '99 Problems', artiste: 'Jay-Z' },
+      { titre: 'Run This Town', artiste: 'Jay-Z' },
+      { titre: 'Izzo (H.O.V.A.)', artiste: 'Jay-Z' },
+      { titre: 'Dirt Off Your Shoulder', artiste: 'Jay-Z' },
+      // --- The Notorious B.I.G. ---
       { titre: 'Juicy', artiste: 'The Notorious B.I.G.' },
+      { titre: 'Big Poppa', artiste: 'The Notorious B.I.G.' },
+      { titre: 'Hypnotize', artiste: 'The Notorious B.I.G.' },
+      { titre: 'Mo Money Mo Problems', artiste: 'The Notorious B.I.G.' },
+      { titre: 'One More Chance', artiste: 'The Notorious B.I.G.' },
+      // --- 2Pac ---
       { titre: 'California Love', artiste: '2Pac' },
-      { titre: "Drop It Like It's Hot", artiste: 'Snoop Dogg' },
+      { titre: 'Changes', artiste: '2Pac' },
+      { titre: 'Hit \'Em Up', artiste: '2Pac' },
+      { titre: 'Dear Mama', artiste: '2Pac' },
+      { titre: 'Ambitionz Az A Ridah', artiste: '2Pac' },
+      { titre: 'All Eyez On Me', artiste: '2Pac' },
+      // --- Snoop Dogg ---
+      { titre: 'Drop It Like It\'s Hot', artiste: 'Snoop Dogg' },
+      { titre: 'Gin and Juice', artiste: 'Snoop Dogg' },
+      { titre: 'Young, Wild & Free', artiste: 'Snoop Dogg' },
+      { titre: 'Who Am I (What’s My Name)?', artiste: 'Snoop Dogg' },
+      { titre: 'Beautiful', artiste: 'Snoop Dogg' },
+      // --- Post Malone ---
       { titre: 'Rockstar', artiste: 'Post Malone' },
+      { titre: 'Circles', artiste: 'Post Malone' },
+      { titre: 'Congratulations', artiste: 'Post Malone' },
+      { titre: 'Sunflower', artiste: 'Post Malone' },
+      { titre: 'Better Now', artiste: 'Post Malone' },
+      { titre: 'White Iverson', artiste: 'Post Malone' },
+      { titre: 'Wow.', artiste: 'Post Malone' },
+      { titre: 'Psycho', artiste: 'Post Malone' },
+      // --- Lil Nas X ---
       { titre: 'Old Town Road', artiste: 'Lil Nas X' },
-      { titre: "Gangsta's Paradise", artiste: 'Coolio' },
+      { titre: 'MONTERO (Call Me By Your Name)', artiste: 'Lil Nas X' },
+      { titre: 'INDUSTRY BABY', artiste: 'Lil Nas X' },
+      { titre: 'Panini', artiste: 'Lil Nas X' },
+      // --- Coolio ---
+      { titre: 'Gangsta\'s Paradise', artiste: 'Coolio' },
+      { titre: 'Fantastic Voyage', artiste: 'Coolio' },
+      // --- Nelly ---
       { titre: 'Hot In Herre', artiste: 'Nelly' },
+      { titre: 'Dilemma', artiste: 'Nelly' },
+      { titre: 'Ride Wit Me', artiste: 'Nelly' },
+      { titre: 'Just A Dream', artiste: 'Nelly' },
+      // --- Outkast ---
       { titre: 'Hey Ya!', artiste: 'Outkast' },
+      { titre: 'Ms. Jackson', artiste: 'Outkast' },
+      { titre: 'Roses', artiste: 'Outkast' },
+      { titre: 'So Fresh, So Clean', artiste: 'Outkast' },
+      // --- Future ---
       { titre: 'Mask Off', artiste: 'Future' },
+      { titre: 'Life Is Good', artiste: 'Future' },
+      { titre: 'March Madness', artiste: 'Future' },
+      { titre: 'Low Life', artiste: 'Future' },
+      { titre: 'WAIT FOR U', artiste: 'Future' },
+      { titre: 'Like That', artiste: 'Future' },
+      // --- Cardi B ---
       { titre: 'Bodak Yellow', artiste: 'Cardi B' },
+      { titre: 'I Like It', artiste: 'Cardi B' },
+      { titre: 'WAP', artiste: 'Cardi B' },
+      { titre: 'Up', artiste: 'Cardi B' },
+      // --- Nicki Minaj ---
       { titre: 'Super Bass', artiste: 'Nicki Minaj' },
+      { titre: 'Starships', artiste: 'Nicki Minaj' },
+      { titre: 'Anaconda', artiste: 'Nicki Minaj' },
+      { titre: 'Super Freaky Girl', artiste: 'Nicki Minaj' },
+      { titre: 'FTCU', artiste: 'Nicki Minaj' },
+      // --- J. Cole ---
       { titre: 'No Role Modelz', artiste: 'J. Cole' },
+      { titre: 'MIDDLE CHILD', artiste: 'J. Cole' },
+      { titre: 'Wet Dreamz', artiste: 'J. Cole' },
+      { titre: 'Love Yourz', artiste: 'J. Cole' },
+      { titre: 'Power Trip', artiste: 'J. Cole' },
+      { titre: 'Crooked Smile', artiste: 'J. Cole' },
+      { titre: 'ATM', artiste: 'J. Cole' },
+      // --- Wu-Tang Clan ---
       { titre: 'C.R.E.A.M.', artiste: 'Wu-Tang Clan' },
-    ],
-  },
-  {
-    id: 'yeat',
-    nom: 'Yeat',
-    chansons: [
+      { titre: 'Protect Ya Neck', artiste: 'Wu-Tang Clan' },
+      { titre: 'Gravel Pit', artiste: 'Wu-Tang Clan' },
+      { titre: 'Triumph', artiste: 'Wu-Tang Clan' },
+      // --- Yeat ---
       { titre: 'Gët Busy', artiste: 'Yeat' },
       { titre: 'Talk', artiste: 'Yeat' },
       { titre: 'Monëy so big', artiste: 'Yeat' },
@@ -247,7 +542,6 @@ export const CATEGORIES = [
       { titre: 'Shmunk', artiste: 'Yeat' },
       { titre: 'Bettr Off', artiste: 'Yeat' },
       { titre: 'No More Talk', artiste: 'Yeat' },
-      // --- Up 2 Më (2021) ---
       { titre: 'Cmon', artiste: 'Yeat' },
       { titre: 'Morning mudd', artiste: 'Yeat' },
       { titre: 'Got rich', artiste: 'Yeat' },
@@ -266,7 +560,6 @@ export const CATEGORIES = [
       { titre: 'Dëserve it', artiste: 'Yeat' },
       { titre: 'Kant changë', artiste: 'Yeat' },
       { titre: 'Callin më', artiste: 'Yeat' },
-      // --- 2 Alivë (2022) ---
       { titre: 'Outsidë', artiste: 'Yeat' },
       { titre: 'Rëal six', artiste: 'Yeat' },
       { titre: 'Nvr again', artiste: 'Yeat' },
@@ -283,7 +576,6 @@ export const CATEGORIES = [
       { titre: 'Geek High', artiste: 'Yeat' },
       { titre: 'Luh m', artiste: 'Yeat' },
       { titre: 'Smooktober', artiste: 'Yeat' },
-      // --- AftërLyfe (2023) ---
       { titre: 'Rav3 p4rty', artiste: 'Yeat' },
       { titre: 'Woa…!', artiste: 'Yeat' },
       { titre: 'Now', artiste: 'Yeat' },
@@ -291,7 +583,6 @@ export const CATEGORIES = [
       { titre: '7 Nightz', artiste: 'Yeat' },
       { titre: 'How It Go', artiste: 'Yeat' },
       { titre: 'Split', artiste: 'Yeat' },
-      // --- 2093 (2024) ---
       { titre: 'Breathe', artiste: 'Yeat' },
       { titre: 'More', artiste: 'Yeat' },
       { titre: 'Bought the Earth', artiste: 'Yeat' },
@@ -315,9 +606,639 @@ export const CATEGORIES = [
       { titre: 'Oh My Pockets', artiste: 'Yeat' },
       { titre: 'Sklub', artiste: 'Yeat' },
       { titre: 'H.A.B', artiste: 'Yeat' },
-      // --- Lyfestyle (2024) ---
       { titre: 'They tell më', artiste: 'Yeat' },
       { titre: 'Heard of Më', artiste: 'Yeat' },
+      // --- 21 Savage ---
+      { titre: 'a lot', artiste: '21 Savage' },
+      { titre: 'Bank Account', artiste: '21 Savage' },
+      { titre: 'redrum', artiste: '21 Savage' },
+      { titre: 'ball w/o you', artiste: '21 Savage' },
+      // --- Lil Uzi Vert ---
+      { titre: 'XO Tour Llif3', artiste: 'Lil Uzi Vert' },
+      { titre: 'Just Wanna Rock', artiste: 'Lil Uzi Vert' },
+      { titre: 'Money Longer', artiste: 'Lil Uzi Vert' },
+      { titre: 'The Way Life Goes', artiste: 'Lil Uzi Vert' },
+      { titre: '20 Min', artiste: 'Lil Uzi Vert' },
+      // --- Playboi Carti ---
+      { titre: 'Magnolia', artiste: 'Playboi Carti' },
+      { titre: 'Sky', artiste: 'Playboi Carti' },
+      { titre: 'Shoota', artiste: 'Playboi Carti' },
+      { titre: 'EVIL J0RDAN', artiste: 'Playboi Carti' },
+      { titre: 'Stop Breathing', artiste: 'Playboi Carti' },
+      // --- Tyler, The Creator ---
+      { titre: 'EARFQUAKE', artiste: 'Tyler, The Creator' },
+      { titre: 'See You Again', artiste: 'Tyler, The Creator' },
+      { titre: 'NEW MAGIC WAND', artiste: 'Tyler, The Creator' },
+      { titre: 'Who Dat Boy', artiste: 'Tyler, The Creator' },
+      { titre: 'St. Chroma', artiste: 'Tyler, The Creator' },
+      // --- A$AP Rocky ---
+      { titre: 'Praise The Lord (Da Shine)', artiste: 'A$AP Rocky' },
+      { titre: 'F**kin’ Problems', artiste: 'A$AP Rocky' },
+      { titre: 'L$D', artiste: 'A$AP Rocky' },
+      { titre: 'Everyday', artiste: 'A$AP Rocky' },
+      { titre: 'Sundress', artiste: 'A$AP Rocky' },
+      // --- Lil Wayne ---
+      { titre: 'Lollipop', artiste: 'Lil Wayne' },
+      { titre: 'A Milli', artiste: 'Lil Wayne' },
+      { titre: '6 Foot 7 Foot', artiste: 'Lil Wayne' },
+      { titre: 'Mrs. Officer', artiste: 'Lil Wayne' },
+      { titre: 'How to Love', artiste: 'Lil Wayne' },
+      // --- Juice WRLD ---
+      { titre: 'Lucid Dreams', artiste: 'Juice WRLD' },
+      { titre: 'All Girls Are The Same', artiste: 'Juice WRLD' },
+      { titre: 'Robbery', artiste: 'Juice WRLD' },
+      { titre: 'Legends', artiste: 'Juice WRLD' },
+      { titre: 'Wishing Well', artiste: 'Juice WRLD' },
+      // --- XXXTENTACION ---
+      { titre: 'SAD!', artiste: 'XXXTENTACION' },
+      { titre: 'Look At Me!', artiste: 'XXXTENTACION' },
+      { titre: 'Moonlight', artiste: 'XXXTENTACION' },
+      { titre: 'Jocelyn Flores', artiste: 'XXXTENTACION' },
+      { titre: 'changes', artiste: 'XXXTENTACION' },
+      // --- Ken Carson ---
+      { titre: 'ss', artiste: 'Ken Carson' },
+      { titre: 'Jennifer\'s Body', artiste: 'Ken Carson' },
+      { titre: 'Fighting My Demons', artiste: 'Ken Carson' },
+      { titre: 'Overseas', artiste: 'Ken Carson' },
+      // --- Lil Baby ---
+      { titre: 'Drip Too Hard', artiste: 'Lil Baby' },
+      { titre: 'The Bigger Picture', artiste: 'Lil Baby' },
+      { titre: 'Woah', artiste: 'Lil Baby' },
+      { titre: 'Emotionally Scarred', artiste: 'Lil Baby' },
+      // --- Gunna ---
+      { titre: 'fukumean', artiste: 'Gunna' },
+      { titre: 'pushin P', artiste: 'Gunna' },
+      { titre: 'WUNNA', artiste: 'Gunna' },
+      // --- Don Toliver ---
+      { titre: 'No Idea', artiste: 'Don Toliver' },
+      { titre: 'Lose My Mind', artiste: 'Don Toliver' },
+      { titre: 'Bandit', artiste: 'Don Toliver' },
+      { titre: 'After Party', artiste: 'Don Toliver' },
+      // --- Metro Boomin ---
+      { titre: 'Creepin’', artiste: 'Metro Boomin' },
+      { titre: 'Superhero (Heroes & Villains)', artiste: 'Metro Boomin' },
+      { titre: 'Too Many Nights', artiste: 'Metro Boomin' },
+      // --- Lil Tecca ---
+      { titre: 'Ransom', artiste: 'Lil Tecca' },
+      { titre: '500lbs', artiste: 'Lil Tecca' },
+      { titre: 'Never Left', artiste: 'Lil Tecca' },
+      // --- Pop Smoke ---
+      { titre: 'Dior', artiste: 'Pop Smoke' },
+      { titre: 'Welcome To The Party', artiste: 'Pop Smoke' },
+      { titre: 'For The Night', artiste: 'Pop Smoke' },
+      { titre: 'Mood Swings', artiste: 'Pop Smoke' },
+      // --- Roddy Ricch ---
+      { titre: 'The Box', artiste: 'Roddy Ricch' },
+      { titre: 'High Fashion', artiste: 'Roddy Ricch' },
+      { titre: 'Late at Night', artiste: 'Roddy Ricch' },
+      // --- DaBaby ---
+      { titre: 'BOP', artiste: 'DaBaby' },
+      { titre: 'Suge', artiste: 'DaBaby' },
+      { titre: 'ROCKSTAR', artiste: 'DaBaby' },
+      // --- Megan Thee Stallion ---
+      { titre: 'Savage', artiste: 'Megan Thee Stallion' },
+      { titre: 'Body', artiste: 'Megan Thee Stallion' },
+      { titre: 'HISS', artiste: 'Megan Thee Stallion' },
+      // --- Doja Cat ---
+      { titre: 'Say So', artiste: 'Doja Cat' },
+      { titre: 'Paint The Town Red', artiste: 'Doja Cat' },
+      { titre: 'Woman', artiste: 'Doja Cat' },
+      { titre: 'Need to Know', artiste: 'Doja Cat' },
+      { titre: 'Kiss Me More', artiste: 'Doja Cat' },
+      // --- Childish Gambino ---
+      { titre: 'This Is America', artiste: 'Childish Gambino' },
+      { titre: 'Bonfire', artiste: 'Childish Gambino' },
+      { titre: '3005', artiste: 'Childish Gambino' },
+      { titre: 'Feels Like Summer', artiste: 'Childish Gambino' },
+      // --- Mac Miller ---
+      { titre: 'Self Care', artiste: 'Mac Miller' },
+      { titre: 'Good News', artiste: 'Mac Miller' },
+      { titre: 'Dang!', artiste: 'Mac Miller' },
+      { titre: 'Donald Trump', artiste: 'Mac Miller' },
+      { titre: 'Weekend', artiste: 'Mac Miller' },
+      // --- Kid Cudi ---
+      { titre: 'Pursuit of Happiness', artiste: 'Kid Cudi' },
+      { titre: 'Day ’N’ Nite', artiste: 'Kid Cudi' },
+      { titre: 'Mr. Rager', artiste: 'Kid Cudi' },
+      // --- Lil Yachty ---
+      { titre: 'A Cold Sunday', artiste: 'Lil Yachty' },
+      { titre: 'Poland', artiste: 'Lil Yachty' },
+      { titre: 'Minnesota', artiste: 'Lil Yachty' },
+      // --- Young Thug ---
+      { titre: 'Hot', artiste: 'Young Thug' },
+      { titre: 'Best Friend', artiste: 'Young Thug' },
+      { titre: 'Digits', artiste: 'Young Thug' },
+      // --- Migos ---
+      { titre: 'Bad and Boujee', artiste: 'Migos' },
+      { titre: 'Walk It Talk It', artiste: 'Migos' },
+      { titre: 'Stir Fry', artiste: 'Migos' },
+      { titre: 'Versace', artiste: 'Migos' },
+    ],
+  },
+  {
+    id: 'pop',
+    nom: 'Pop',
+    chansons: [
+      // --- Michael Jackson ---
+      { titre: 'Billie Jean', artiste: 'Michael Jackson' },
+      { titre: 'Thriller', artiste: 'Michael Jackson' },
+      { titre: 'Beat It', artiste: 'Michael Jackson' },
+      { titre: 'Smooth Criminal', artiste: 'Michael Jackson' },
+      { titre: 'Don\'t Stop \'Til You Get Enough', artiste: 'Michael Jackson' },
+      // --- Dua Lipa ---
+      { titre: 'Levitating', artiste: 'Dua Lipa' },
+      { titre: 'Don\'t Start Now', artiste: 'Dua Lipa' },
+      { titre: 'New Rules', artiste: 'Dua Lipa' },
+      { titre: 'Houdini', artiste: 'Dua Lipa' },
+      { titre: 'Physical', artiste: 'Dua Lipa' },
+      // --- The Weeknd ---
+      { titre: 'Blinding Lights', artiste: 'The Weeknd' },
+      { titre: 'Save Your Tears', artiste: 'The Weeknd' },
+      { titre: 'Starboy', artiste: 'The Weeknd' },
+      { titre: 'Die For You', artiste: 'The Weeknd' },
+      { titre: 'The Hills', artiste: 'The Weeknd' },
+      // --- Ed Sheeran ---
+      { titre: 'Shape of You', artiste: 'Ed Sheeran' },
+      { titre: 'Perfect', artiste: 'Ed Sheeran' },
+      { titre: 'Thinking Out Loud', artiste: 'Ed Sheeran' },
+      { titre: 'Bad Habits', artiste: 'Ed Sheeran' },
+      { titre: 'Photograph', artiste: 'Ed Sheeran' },
+      // --- Taylor Swift ---
+      { titre: 'Shake It Off', artiste: 'Taylor Swift' },
+      { titre: 'Blank Space', artiste: 'Taylor Swift' },
+      { titre: 'Anti-Hero', artiste: 'Taylor Swift' },
+      { titre: 'Cruel Summer', artiste: 'Taylor Swift' },
+      { titre: 'Love Story', artiste: 'Taylor Swift' },
+      // --- Rihanna ---
+      { titre: 'Umbrella', artiste: 'Rihanna' },
+      { titre: 'Diamonds', artiste: 'Rihanna' },
+      { titre: 'We Found Love', artiste: 'Rihanna' },
+      { titre: 'Only Girl (In The World)', artiste: 'Rihanna' },
+      { titre: 'Rude Boy', artiste: 'Rihanna' },
+      // --- Mark Ronson ---
+      { titre: 'Uptown Funk', artiste: 'Mark Ronson' },
+      { titre: 'Valerie', artiste: 'Mark Ronson' },
+      { titre: 'Nothing Breaks Like a Heart', artiste: 'Mark Ronson' },
+      // --- Adele ---
+      { titre: 'Rolling in the Deep', artiste: 'Adele' },
+      { titre: 'Hello', artiste: 'Adele' },
+      { titre: 'Someone Like You', artiste: 'Adele' },
+      { titre: 'Easy On Me', artiste: 'Adele' },
+      { titre: 'Skyfall', artiste: 'Adele' },
+      // --- Lady Gaga ---
+      { titre: 'Poker Face', artiste: 'Lady Gaga' },
+      { titre: 'Bad Romance', artiste: 'Lady Gaga' },
+      { titre: 'Shallow', artiste: 'Lady Gaga' },
+      { titre: 'Just Dance', artiste: 'Lady Gaga' },
+      { titre: 'Abracadabra', artiste: 'Lady Gaga' },
+      // --- Harry Styles ---
+      { titre: 'As It Was', artiste: 'Harry Styles' },
+      { titre: 'Watermelon Sugar', artiste: 'Harry Styles' },
+      { titre: 'Sign of the Times', artiste: 'Harry Styles' },
+      { titre: 'Adore You', artiste: 'Harry Styles' },
+      // --- Billie Eilish ---
+      { titre: 'bad guy', artiste: 'Billie Eilish' },
+      { titre: 'Happier Than Ever', artiste: 'Billie Eilish' },
+      { titre: 'BIRDS OF A FEATHER', artiste: 'Billie Eilish' },
+      { titre: 'lovely', artiste: 'Billie Eilish' },
+      { titre: 'What Was I Made For?', artiste: 'Billie Eilish' },
+      // --- Ariana Grande ---
+      { titre: '7 rings', artiste: 'Ariana Grande' },
+      { titre: 'thank u, next', artiste: 'Ariana Grande' },
+      { titre: 'positions', artiste: 'Ariana Grande' },
+      { titre: 'we can’t be friends', artiste: 'Ariana Grande' },
+      { titre: 'Into You', artiste: 'Ariana Grande' },
+      // --- Aya Nakamura ---
+      { titre: 'Djadja', artiste: 'Aya Nakamura' },
+      { titre: 'Pookie', artiste: 'Aya Nakamura' },
+      { titre: 'Copines', artiste: 'Aya Nakamura' },
+      { titre: 'Jolie nana', artiste: 'Aya Nakamura' },
+      // --- Stromae ---
+      { titre: 'Alors on danse', artiste: 'Stromae' },
+      { titre: 'Papaoutai', artiste: 'Stromae' },
+      { titre: 'Formidable', artiste: 'Stromae' },
+      { titre: 'Tous les mêmes', artiste: 'Stromae' },
+      { titre: 'Santé', artiste: 'Stromae' },
+      // --- Angèle ---
+      { titre: 'Balance ton quoi', artiste: 'Angèle' },
+      { titre: 'Tout oublier', artiste: 'Angèle' },
+      { titre: 'Bruxelles je t’aime', artiste: 'Angèle' },
+      { titre: 'Fever', artiste: 'Angèle' },
+      { titre: 'Ta reine', artiste: 'Angèle' },
+      // --- Daft Punk ---
+      { titre: 'Get Lucky', artiste: 'Daft Punk' },
+      { titre: 'One More Time', artiste: 'Daft Punk' },
+      { titre: 'Around the World', artiste: 'Daft Punk' },
+      { titre: 'Harder, Better, Faster, Stronger', artiste: 'Daft Punk' },
+      // --- Coldplay ---
+      { titre: 'Viva la Vida', artiste: 'Coldplay' },
+      { titre: 'Yellow', artiste: 'Coldplay' },
+      { titre: 'Fix You', artiste: 'Coldplay' },
+      { titre: 'Paradise', artiste: 'Coldplay' },
+      { titre: 'Something Just Like This', artiste: 'Coldplay' },
+      // --- Miley Cyrus ---
+      { titre: 'Flowers', artiste: 'Miley Cyrus' },
+      { titre: 'Wrecking Ball', artiste: 'Miley Cyrus' },
+      { titre: 'Party in the U.S.A.', artiste: 'Miley Cyrus' },
+      { titre: 'Midnight Sky', artiste: 'Miley Cyrus' },
+      // --- Katy Perry ---
+      { titre: 'Roar', artiste: 'Katy Perry' },
+      { titre: 'Firework', artiste: 'Katy Perry' },
+      { titre: 'Dark Horse', artiste: 'Katy Perry' },
+      { titre: 'California Gurls', artiste: 'Katy Perry' },
+      { titre: 'Teenage Dream', artiste: 'Katy Perry' },
+      // --- Justin Bieber ---
+      { titre: 'Sorry', artiste: 'Justin Bieber' },
+      { titre: 'Baby', artiste: 'Justin Bieber' },
+      { titre: 'Love Yourself', artiste: 'Justin Bieber' },
+      { titre: 'Peaches', artiste: 'Justin Bieber' },
+      { titre: 'What Do You Mean?', artiste: 'Justin Bieber' },
+      { titre: 'Ghost', artiste: 'Justin Bieber' },
+      // --- Bruno Mars ---
+      { titre: 'Just the Way You Are', artiste: 'Bruno Mars' },
+      { titre: 'Locked Out of Heaven', artiste: 'Bruno Mars' },
+      { titre: '24K Magic', artiste: 'Bruno Mars' },
+      { titre: 'Die With A Smile', artiste: 'Bruno Mars' },
+      { titre: 'APT.', artiste: 'Bruno Mars' },
+      // --- Sabrina Carpenter ---
+      { titre: 'Espresso', artiste: 'Sabrina Carpenter' },
+      { titre: 'Please Please Please', artiste: 'Sabrina Carpenter' },
+      { titre: 'Feather', artiste: 'Sabrina Carpenter' },
+      { titre: 'Taste', artiste: 'Sabrina Carpenter' },
+      // --- Chappell Roan ---
+      { titre: 'Good Luck, Babe!', artiste: 'Chappell Roan' },
+      { titre: 'Pink Pony Club', artiste: 'Chappell Roan' },
+      { titre: 'HOT TO GO!', artiste: 'Chappell Roan' },
+      { titre: 'Femininomenon', artiste: 'Chappell Roan' },
+      // --- Olivia Rodrigo ---
+      { titre: 'drivers license', artiste: 'Olivia Rodrigo' },
+      { titre: 'good 4 u', artiste: 'Olivia Rodrigo' },
+      { titre: 'vampire', artiste: 'Olivia Rodrigo' },
+      { titre: 'deja vu', artiste: 'Olivia Rodrigo' },
+      { titre: 'traitor', artiste: 'Olivia Rodrigo' },
+    ],
+  },
+  {
+    id: 'rnb',
+    nom: 'R&B',
+    chansons: [
+      // --- Beyoncé ---
+      { titre: 'Crazy in Love', artiste: 'Beyoncé' },
+      { titre: 'Halo', artiste: 'Beyoncé' },
+      { titre: 'Single Ladies (Put a Ring on It)', artiste: 'Beyoncé' },
+      { titre: 'Drunk in Love', artiste: 'Beyoncé' },
+      { titre: 'Irreplaceable', artiste: 'Beyoncé' },
+      // --- Usher ---
+      { titre: 'Yeah!', artiste: 'Usher' },
+      { titre: 'OMG', artiste: 'Usher' },
+      { titre: 'Burn', artiste: 'Usher' },
+      { titre: 'DJ Got Us Fallin’ In Love', artiste: 'Usher' },
+      { titre: 'U Remind Me', artiste: 'Usher' },
+      // --- Alicia Keys ---
+      { titre: 'Fallin\'', artiste: 'Alicia Keys' },
+      { titre: 'No One', artiste: 'Alicia Keys' },
+      { titre: 'If I Ain’t Got You', artiste: 'Alicia Keys' },
+      { titre: 'Girl on Fire', artiste: 'Alicia Keys' },
+      // --- Destiny's Child ---
+      { titre: 'Say My Name', artiste: 'Destiny\'s Child' },
+      { titre: 'Survivor', artiste: 'Destiny\'s Child' },
+      { titre: 'Bootylicious', artiste: 'Destiny\'s Child' },
+      { titre: 'Jumpin\', Jumpin\'', artiste: 'Destiny\'s Child' },
+      // --- SZA ---
+      { titre: 'Kill Bill', artiste: 'SZA' },
+      { titre: 'Snooze', artiste: 'SZA' },
+      { titre: 'Good Days', artiste: 'SZA' },
+      { titre: 'Saturn', artiste: 'SZA' },
+      { titre: 'The Weekend', artiste: 'SZA' },
+      // --- Frank Ocean ---
+      { titre: 'Thinkin Bout You', artiste: 'Frank Ocean' },
+      { titre: 'Pink + White', artiste: 'Frank Ocean' },
+      { titre: 'Nights', artiste: 'Frank Ocean' },
+      { titre: 'Lost', artiste: 'Frank Ocean' },
+      { titre: 'Novacane', artiste: 'Frank Ocean' },
+      // --- Chris Brown ---
+      { titre: 'Forever', artiste: 'Chris Brown' },
+      { titre: 'Under The Influence', artiste: 'Chris Brown' },
+      { titre: 'Loyal', artiste: 'Chris Brown' },
+      { titre: 'With You', artiste: 'Chris Brown' },
+      { titre: 'No Guidance', artiste: 'Chris Brown' },
+      // --- Ne-Yo ---
+      { titre: 'So Sick', artiste: 'Ne-Yo' },
+      { titre: 'Miss Independent', artiste: 'Ne-Yo' },
+      { titre: 'Because Of You', artiste: 'Ne-Yo' },
+      { titre: 'Closer', artiste: 'Ne-Yo' },
+      // --- Aaliyah ---
+      { titre: 'Try Again', artiste: 'Aaliyah' },
+      { titre: 'Rock The Boat', artiste: 'Aaliyah' },
+      { titre: 'One In A Million', artiste: 'Aaliyah' },
+      { titre: 'Are You That Somebody', artiste: 'Aaliyah' },
+      // --- TLC ---
+      { titre: 'No Scrubs', artiste: 'TLC' },
+      { titre: 'Waterfalls', artiste: 'TLC' },
+      { titre: 'Creep', artiste: 'TLC' },
+      { titre: 'Unpretty', artiste: 'TLC' },
+      // --- The Weeknd ---
+      { titre: 'Earned It', artiste: 'The Weeknd' },
+      { titre: 'Often', artiste: 'The Weeknd' },
+      { titre: 'Wicked Games', artiste: 'The Weeknd' },
+      { titre: 'Call Out My Name', artiste: 'The Weeknd' },
+      // --- Mary J. Blige ---
+      { titre: 'Family Affair', artiste: 'Mary J. Blige' },
+      { titre: 'Real Love', artiste: 'Mary J. Blige' },
+      { titre: 'Be Without You', artiste: 'Mary J. Blige' },
+      // --- Amerie ---
+      { titre: '1 Thing', artiste: 'Amerie' },
+      // --- Ashanti ---
+      { titre: 'Foolish', artiste: 'Ashanti' },
+      { titre: 'Rock wit U (Awww Baby)', artiste: 'Ashanti' },
+      // --- Brandy ---
+      { titre: 'The Boy Is Mine', artiste: 'Brandy' },
+      { titre: 'Have You Ever?', artiste: 'Brandy' },
+      // --- Tems ---
+      { titre: 'Free Mind', artiste: 'Tems' },
+      { titre: 'Me & U', artiste: 'Tems' },
+      { titre: 'Love Me JeJe', artiste: 'Tems' },
+      // --- Childish Gambino ---
+      { titre: 'Redbone', artiste: 'Childish Gambino' },
+      // --- Mario ---
+      { titre: 'Let Me Love You', artiste: 'Mario' },
+      // --- Rihanna ---
+      { titre: 'Work', artiste: 'Rihanna' },
+      { titre: 'Love On The Brain', artiste: 'Rihanna' },
+      // --- Daniel Caesar ---
+      { titre: 'Best Part', artiste: 'Daniel Caesar' },
+      { titre: 'Get You', artiste: 'Daniel Caesar' },
+      { titre: 'Japanese Denim', artiste: 'Daniel Caesar' },
+      // --- Brent Faiyaz ---
+      { titre: 'Dead Man Walking', artiste: 'Brent Faiyaz' },
+      { titre: 'WASTING TIME', artiste: 'Brent Faiyaz' },
+      // --- Bryson Tiller ---
+      { titre: 'Don\'t', artiste: 'Bryson Tiller' },
+      { titre: 'Exchange', artiste: 'Bryson Tiller' },
+      { titre: 'Sorry Not Sorry', artiste: 'Bryson Tiller' },
+      // --- Summer Walker ---
+      { titre: 'Girls Need Love', artiste: 'Summer Walker' },
+      { titre: 'Playing Games', artiste: 'Summer Walker' },
+      // --- Jhené Aiko ---
+      { titre: 'Sativa', artiste: 'Jhené Aiko' },
+      { titre: 'B.S.', artiste: 'Jhené Aiko' },
+      { titre: 'The Worst', artiste: 'Jhené Aiko' },
+      // --- Giveon ---
+      { titre: 'Heartbreak Anniversary', artiste: 'Giveon' },
+      { titre: 'For Tonight', artiste: 'Giveon' },
+      // --- 6LACK ---
+      { titre: 'PRBLMS', artiste: '6LACK' },
+      { titre: 'Pretty Little Fears', artiste: '6LACK' },
+    ],
+  },
+  {
+    id: 'rock',
+    nom: 'Rock',
+    chansons: [
+      // --- Queen ---
+      { titre: 'Bohemian Rhapsody', artiste: 'Queen' },
+      { titre: 'Don\'t Stop Me Now', artiste: 'Queen' },
+      { titre: 'We Will Rock You', artiste: 'Queen' },
+      { titre: 'Another One Bites the Dust', artiste: 'Queen' },
+      { titre: 'Under Pressure', artiste: 'Queen' },
+      // --- Nirvana ---
+      { titre: 'Smells Like Teen Spirit', artiste: 'Nirvana' },
+      { titre: 'Come as You Are', artiste: 'Nirvana' },
+      { titre: 'Lithium', artiste: 'Nirvana' },
+      { titre: 'Heart-Shaped Box', artiste: 'Nirvana' },
+      // --- AC/DC ---
+      { titre: 'Highway to Hell', artiste: 'AC/DC' },
+      { titre: 'Back In Black', artiste: 'AC/DC' },
+      { titre: 'Thunderstruck', artiste: 'AC/DC' },
+      { titre: 'T.N.T.', artiste: 'AC/DC' },
+      // --- Guns N' Roses ---
+      { titre: 'Sweet Child O\' Mine', artiste: 'Guns N\' Roses' },
+      { titre: 'Welcome To The Jungle', artiste: 'Guns N\' Roses' },
+      { titre: 'November Rain', artiste: 'Guns N\' Roses' },
+      { titre: 'Paradise City', artiste: 'Guns N\' Roses' },
+      // --- The White Stripes ---
+      { titre: 'Seven Nation Army', artiste: 'The White Stripes' },
+      { titre: 'Fell In Love With A Girl', artiste: 'The White Stripes' },
+      { titre: 'Icky Thump', artiste: 'The White Stripes' },
+      // --- Linkin Park ---
+      { titre: 'In the End', artiste: 'Linkin Park' },
+      { titre: 'Numb', artiste: 'Linkin Park' },
+      { titre: 'Faint', artiste: 'Linkin Park' },
+      { titre: 'What I’ve Done', artiste: 'Linkin Park' },
+      { titre: 'The Emptiness Machine', artiste: 'Linkin Park' },
+      // --- Red Hot Chili Peppers ---
+      { titre: 'Californication', artiste: 'Red Hot Chili Peppers' },
+      { titre: 'Can\'t Stop', artiste: 'Red Hot Chili Peppers' },
+      { titre: 'Scar Tissue', artiste: 'Red Hot Chili Peppers' },
+      { titre: 'Otherside', artiste: 'Red Hot Chili Peppers' },
+      { titre: 'Snow (Hey Oh)', artiste: 'Red Hot Chili Peppers' },
+      // --- The Killers ---
+      { titre: 'Mr. Brightside', artiste: 'The Killers' },
+      { titre: 'Somebody Told Me', artiste: 'The Killers' },
+      { titre: 'When You Were Young', artiste: 'The Killers' },
+      { titre: 'Human', artiste: 'The Killers' },
+      // --- Arctic Monkeys ---
+      { titre: 'Do I Wanna Know?', artiste: 'Arctic Monkeys' },
+      { titre: '505', artiste: 'Arctic Monkeys' },
+      { titre: 'R U Mine?', artiste: 'Arctic Monkeys' },
+      { titre: 'I Wanna Be Yours', artiste: 'Arctic Monkeys' },
+      { titre: 'Why’d You Only Call Me When You’re High?', artiste: 'Arctic Monkeys' },
+      // --- The Rolling Stones ---
+      { titre: 'Satisfaction', artiste: 'The Rolling Stones' },
+      { titre: 'Paint It, Black', artiste: 'The Rolling Stones' },
+      { titre: 'Gimme Shelter', artiste: 'The Rolling Stones' },
+      // --- Bon Jovi ---
+      { titre: 'Livin\' On a Prayer', artiste: 'Bon Jovi' },
+      { titre: 'It\'s My Life', artiste: 'Bon Jovi' },
+      { titre: 'You Give Love a Bad Name', artiste: 'Bon Jovi' },
+      // --- Muse ---
+      { titre: 'Uprising', artiste: 'Muse' },
+      { titre: 'Supermassive Black Hole', artiste: 'Muse' },
+      { titre: 'Starlight', artiste: 'Muse' },
+      { titre: 'Hysteria', artiste: 'Muse' },
+      // --- Green Day ---
+      { titre: 'Boulevard of Broken Dreams', artiste: 'Green Day' },
+      { titre: 'American Idiot', artiste: 'Green Day' },
+      { titre: 'Basket Case', artiste: 'Green Day' },
+      { titre: 'Wake Me Up When September Ends', artiste: 'Green Day' },
+      // --- Oasis ---
+      { titre: 'Wonderwall', artiste: 'Oasis' },
+      { titre: 'Don\'t Look Back in Anger', artiste: 'Oasis' },
+      { titre: 'Champagne Supernova', artiste: 'Oasis' },
+      { titre: 'Live Forever', artiste: 'Oasis' },
+      // --- Indochine ---
+      { titre: 'J\'ai demandé à la lune', artiste: 'Indochine' },
+      { titre: 'L\'aventurier', artiste: 'Indochine' },
+      { titre: '3e sexe', artiste: 'Indochine' },
+      { titre: 'College Boy', artiste: 'Indochine' },
+      // --- Téléphone ---
+      { titre: 'Un autre monde', artiste: 'Téléphone' },
+      { titre: 'Ça (c\'est vraiment toi)', artiste: 'Téléphone' },
+      { titre: 'Hygiaphone', artiste: 'Téléphone' },
+      // --- Noir Désir ---
+      { titre: 'Le vent nous portera', artiste: 'Noir Désir' },
+      { titre: 'Tostaky', artiste: 'Noir Désir' },
+      { titre: 'L\'homme pressé', artiste: 'Noir Désir' },
+      // --- Imagine Dragons ---
+      { titre: 'Believer', artiste: 'Imagine Dragons' },
+      { titre: 'Radioactive', artiste: 'Imagine Dragons' },
+      { titre: 'Thunder', artiste: 'Imagine Dragons' },
+      { titre: 'Demons', artiste: 'Imagine Dragons' },
+      { titre: 'Enemy', artiste: 'Imagine Dragons' },
+      // --- Survivor ---
+      { titre: 'Eye of the Tiger', artiste: 'Survivor' },
+      { titre: 'Burning Heart', artiste: 'Survivor' },
+      // --- Led Zeppelin ---
+      { titre: 'Whole Lotta Love', artiste: 'Led Zeppelin' },
+      { titre: 'Stairway to Heaven', artiste: 'Led Zeppelin' },
+      { titre: 'Immigrant Song', artiste: 'Led Zeppelin' },
+      { titre: 'Black Dog', artiste: 'Led Zeppelin' },
+      // --- Metallica ---
+      { titre: 'Enter Sandman', artiste: 'Metallica' },
+      { titre: 'Nothing Else Matters', artiste: 'Metallica' },
+      { titre: 'Master of Puppets', artiste: 'Metallica' },
+      { titre: 'One', artiste: 'Metallica' },
+      // --- Foo Fighters ---
+      { titre: 'Everlong', artiste: 'Foo Fighters' },
+      { titre: 'The Pretender', artiste: 'Foo Fighters' },
+      { titre: 'Best of You', artiste: 'Foo Fighters' },
+      { titre: 'Learn to Fly', artiste: 'Foo Fighters' },
+      // --- System Of A Down ---
+      { titre: 'Chop Suey!', artiste: 'System Of A Down' },
+      { titre: 'Toxicity', artiste: 'System Of A Down' },
+      { titre: 'Aerials', artiste: 'System Of A Down' },
+      { titre: 'B.Y.O.B.', artiste: 'System Of A Down' },
+      // --- Måneskin ---
+      { titre: 'Beggin’', artiste: 'Måneskin' },
+      { titre: 'ZITTI E BUONI', artiste: 'Måneskin' },
+      { titre: 'I WANNA BE YOUR SLAVE', artiste: 'Måneskin' },
+    ],
+  },
+  {
+    id: 'annees-2000',
+    nom: 'Années 2000',
+    chansons: [
+      // --- Britney Spears ---
+      { titre: 'Toxic', artiste: 'Britney Spears' },
+      { titre: 'Oops!...I Did It Again', artiste: 'Britney Spears' },
+      { titre: 'Womanizer', artiste: 'Britney Spears' },
+      { titre: 'Circus', artiste: 'Britney Spears' },
+      // --- Shakira ---
+      { titre: 'Hips Don\'t Lie', artiste: 'Shakira' },
+      { titre: 'Whenever, Wherever', artiste: 'Shakira' },
+      { titre: 'She Wolf', artiste: 'Shakira' },
+      { titre: 'La Tortura', artiste: 'Shakira' },
+      // --- Black Eyed Peas ---
+      { titre: 'I Gotta Feeling', artiste: 'Black Eyed Peas' },
+      { titre: 'Where Is The Love?', artiste: 'Black Eyed Peas' },
+      { titre: 'Boom Boom Pow', artiste: 'Black Eyed Peas' },
+      { titre: 'Pump It', artiste: 'Black Eyed Peas' },
+      { titre: 'Let’s Get It Started', artiste: 'Black Eyed Peas' },
+      // --- Kylie Minogue ---
+      { titre: 'Can\'t Get You Out of My Head', artiste: 'Kylie Minogue' },
+      { titre: 'Love at First Sight', artiste: 'Kylie Minogue' },
+      { titre: 'Spinning Around', artiste: 'Kylie Minogue' },
+      // --- Gnarls Barkley ---
+      { titre: 'Crazy', artiste: 'Gnarls Barkley' },
+      // --- Nelly Furtado ---
+      { titre: 'Promiscuous', artiste: 'Nelly Furtado' },
+      { titre: 'Say It Right', artiste: 'Nelly Furtado' },
+      { titre: 'Maneater', artiste: 'Nelly Furtado' },
+      { titre: 'I’m Like a Bird', artiste: 'Nelly Furtado' },
+      // --- Gwen Stefani ---
+      { titre: 'Hollaback Girl', artiste: 'Gwen Stefani' },
+      { titre: 'The Sweet Escape', artiste: 'Gwen Stefani' },
+      { titre: 'Rich Girl', artiste: 'Gwen Stefani' },
+      { titre: 'Cool', artiste: 'Gwen Stefani' },
+      // --- Sean Paul ---
+      { titre: 'Temperature', artiste: 'Sean Paul' },
+      { titre: 'Get Busy', artiste: 'Sean Paul' },
+      { titre: 'Gimme the Light', artiste: 'Sean Paul' },
+      // --- Eminem ---
+      { titre: 'Without Me', artiste: 'Eminem' },
+      { titre: 'Lose Yourself', artiste: 'Eminem' },
+      { titre: 'The Real Slim Shady', artiste: 'Eminem' },
+      // --- Amy Winehouse ---
+      { titre: 'Rehab', artiste: 'Amy Winehouse' },
+      { titre: 'Back To Black', artiste: 'Amy Winehouse' },
+      { titre: 'Valerie', artiste: 'Amy Winehouse' },
+      { titre: 'You Know I’m No Good', artiste: 'Amy Winehouse' },
+      // --- Leona Lewis ---
+      { titre: 'Bleeding Love', artiste: 'Leona Lewis' },
+      { titre: 'Run', artiste: 'Leona Lewis' },
+      // --- Avril Lavigne ---
+      { titre: 'Complicated', artiste: 'Avril Lavigne' },
+      { titre: 'Sk8er Boi', artiste: 'Avril Lavigne' },
+      { titre: 'Girlfriend', artiste: 'Avril Lavigne' },
+      { titre: 'I’m with You', artiste: 'Avril Lavigne' },
+      // --- Alizée ---
+      { titre: 'Moi... Lolita', artiste: 'Alizée' },
+      { titre: 'J\'en ai marre !', artiste: 'Alizée' },
+      { titre: 'Gourmandises', artiste: 'Alizée' },
+      // --- Magic System ---
+      { titre: 'Premier gaou', artiste: 'Magic System' },
+      { titre: 'Bouger bouger', artiste: 'Magic System' },
+      { titre: 'Même pas fatigué !!!', artiste: 'Magic System' },
+      // --- Corneille ---
+      { titre: 'Parce qu\'on vient de loin', artiste: 'Corneille' },
+      // --- Kamini ---
+      { titre: 'Marly-Gomont', artiste: 'Kamini' },
+      // --- Bob Sinclar ---
+      { titre: 'Love Generation', artiste: 'Bob Sinclar' },
+      { titre: 'World, Hold On', artiste: 'Bob Sinclar' },
+      { titre: 'Rock This Party (Everybody Dance Now)', artiste: 'Bob Sinclar' },
+      // --- Timbaland ---
+      { titre: 'The Way I Are', artiste: 'Timbaland' },
+      { titre: 'Apologize', artiste: 'Timbaland' },
+      { titre: 'Give It to Me', artiste: 'Timbaland' },
+      // --- Akon ---
+      { titre: 'Lonely', artiste: 'Akon' },
+      { titre: 'Smack That', artiste: 'Akon' },
+      { titre: 'Right Now (Na Na Na)', artiste: 'Akon' },
+      { titre: 'I Wanna Love You', artiste: 'Akon' },
+      // --- Outkast ---
+      { titre: 'Hey Ya!', artiste: 'Outkast' },
+      { titre: 'Ms. Jackson', artiste: 'Outkast' },
+      { titre: 'Roses', artiste: 'Outkast' },
+      // --- Beyoncé ---
+      { titre: 'Crazy in Love', artiste: 'Beyoncé' },
+      { titre: 'Single Ladies (Put a Ring on It)', artiste: 'Beyoncé' },
+      { titre: 'Irreplaceable', artiste: 'Beyoncé' },
+      // --- Rihanna ---
+      { titre: 'Pon de Replay', artiste: 'Rihanna' },
+      { titre: 'SOS', artiste: 'Rihanna' },
+      { titre: 'Umbrella', artiste: 'Rihanna' },
+      // --- Justin Timberlake ---
+      { titre: 'Cry Me a River', artiste: 'Justin Timberlake' },
+      { titre: 'SexyBack', artiste: 'Justin Timberlake' },
+      { titre: 'Rock Your Body', artiste: 'Justin Timberlake' },
+      // --- Christina Aguilera ---
+      { titre: 'Beautiful', artiste: 'Christina Aguilera' },
+      { titre: 'Candyman', artiste: 'Christina Aguilera' },
+      { titre: 'Ain\'t No Other Man', artiste: 'Christina Aguilera' },
+      // --- Daft Punk ---
+      { titre: 'One More Time', artiste: 'Daft Punk' },
+      { titre: 'Harder, Better, Faster, Stronger', artiste: 'Daft Punk' },
+      // --- The Pussycat Dolls ---
+      { titre: 'Don’t Cha', artiste: 'The Pussycat Dolls' },
+      { titre: 'Buttons', artiste: 'The Pussycat Dolls' },
+      { titre: 'When I Grow Up', artiste: 'The Pussycat Dolls' },
+      // --- Usher ---
+      { titre: 'Yeah!', artiste: 'Usher' },
+      { titre: 'Burn', artiste: 'Usher' },
+      { titre: 'U Remind Me', artiste: 'Usher' },
+      // --- Lady Gaga ---
+      { titre: 'Just Dance', artiste: 'Lady Gaga' },
+      { titre: 'Poker Face', artiste: 'Lady Gaga' },
+      { titre: 'Paparazzi', artiste: 'Lady Gaga' },
+      // --- Kanye West ---
+      { titre: 'Gold Digger', artiste: 'Kanye West' },
+      { titre: 'Stronger', artiste: 'Kanye West' },
+      { titre: 'Heartless', artiste: 'Kanye West' },
+      // --- Diam's ---
+      { titre: 'La boulette', artiste: 'Diam\'s' },
+      { titre: 'DJ', artiste: 'Diam\'s' },
+      { titre: 'Jeune demoiselle', artiste: 'Diam\'s' },
     ],
   },
   {
@@ -325,128 +1246,99 @@ export const CATEGORIES = [
     nom: 'Classique',
     verifierArtiste: false,
     chansons: [
+      // --- Beethoven ---
       { titre: 'Für Elise', artiste: 'Beethoven' },
       { titre: 'Moonlight Sonata', artiste: 'Beethoven' },
+      { titre: 'Ode to Joy', artiste: 'Beethoven' },
+      { titre: 'Symphony No. 5', artiste: 'Beethoven' },
+      { titre: 'Symphony No. 7', artiste: 'Beethoven' },
+      // --- Mozart ---
       { titre: 'Eine kleine Nachtmusik', artiste: 'Mozart' },
       { titre: 'Lacrimosa', artiste: 'Mozart' },
+      { titre: 'Symphony No. 40', artiste: 'Mozart' },
+      { titre: 'Rondo alla Turca', artiste: 'Mozart' },
+      { titre: 'Queen of the Night', artiste: 'Mozart' },
+      { titre: 'Piano Concerto No. 21', artiste: 'Mozart' },
+      // --- Ravel ---
       { titre: 'Boléro', artiste: 'Ravel' },
+      { titre: 'Pavane pour une infante défunte', artiste: 'Ravel' },
+      // --- Debussy ---
       { titre: 'Clair de lune', artiste: 'Debussy' },
+      { titre: 'Arabesque No. 1', artiste: 'Debussy' },
+      { titre: 'Rêverie', artiste: 'Debussy' },
+      // --- Satie ---
       { titre: 'Gymnopédie No. 1', artiste: 'Satie' },
+      { titre: 'Gnossienne No. 1', artiste: 'Satie' },
+      { titre: 'Gymnopédie No. 3', artiste: 'Satie' },
+      // --- Pachelbel ---
       { titre: 'Canon in D', artiste: 'Pachelbel' },
+      // --- Orff ---
       { titre: 'O Fortuna', artiste: 'Orff' },
+      // --- Wagner ---
       { titre: 'Ride of the Valkyries', artiste: 'Wagner' },
+      { titre: 'Bridal Chorus', artiste: 'Wagner' },
+      // --- Tchaikovsky ---
       { titre: 'Swan Lake', artiste: 'Tchaikovsky' },
       { titre: 'Dance of the Sugar Plum Fairy', artiste: 'Tchaikovsky' },
+      { titre: '1812 Overture', artiste: 'Tchaikovsky' },
+      { titre: 'Waltz of the Flowers', artiste: 'Tchaikovsky' },
+      { titre: 'Piano Concerto No. 1', artiste: 'Tchaikovsky' },
+      // --- Bizet ---
       { titre: 'Habanera', artiste: 'Bizet' },
+      { titre: 'Toreador Song', artiste: 'Bizet' },
+      // --- Bach ---
       { titre: 'Toccata and Fugue in D Minor', artiste: 'Bach' },
       { titre: 'Air on the G String', artiste: 'Bach' },
+      { titre: 'Cello Suite No. 1', artiste: 'Bach' },
+      { titre: 'Brandenburg Concerto No. 3', artiste: 'Bach' },
+      { titre: 'Jesu, Joy of Man’s Desiring', artiste: 'Bach' },
+      // --- Brahms ---
       { titre: 'Hungarian Dance No. 5', artiste: 'Brahms' },
+      { titre: 'Lullaby', artiste: 'Brahms' },
+      // --- Grieg ---
       { titre: 'In the Hall of the Mountain King', artiste: 'Grieg' },
+      { titre: 'Morning Mood', artiste: 'Grieg' },
+      // --- Chopin ---
       { titre: 'Nocturne Op. 9 No. 2', artiste: 'Chopin' },
+      { titre: 'Fantaisie-Impromptu', artiste: 'Chopin' },
+      { titre: 'Minute Waltz', artiste: 'Chopin' },
+      { titre: 'Ballade No. 1', artiste: 'Chopin' },
+      // --- Strauss ---
       { titre: 'The Blue Danube', artiste: 'Strauss' },
+      { titre: 'Radetzky March', artiste: 'Strauss' },
+      // --- Rimsky-Korsakov ---
       { titre: 'Flight of the Bumblebee', artiste: 'Rimsky-Korsakov' },
+      // --- Vivaldi ---
       { titre: 'Spring', artiste: 'Vivaldi' },
-    ],
-  },
-  {
-    id: 'pop',
-    nom: 'Pop',
-    chansons: [
-      { titre: 'Billie Jean', artiste: 'Michael Jackson' },
-      { titre: 'Levitating', artiste: 'Dua Lipa' },
-      { titre: 'Blinding Lights', artiste: 'The Weeknd' },
-      { titre: 'Shape of You', artiste: 'Ed Sheeran' },
-      { titre: 'Shake It Off', artiste: 'Taylor Swift' },
-      { titre: 'Umbrella', artiste: 'Rihanna' },
-      { titre: 'Uptown Funk', artiste: 'Mark Ronson' },
-      { titre: 'Rolling in the Deep', artiste: 'Adele' },
-      { titre: 'Poker Face', artiste: 'Lady Gaga' },
-      { titre: 'As It Was', artiste: 'Harry Styles' },
-      { titre: 'bad guy', artiste: 'Billie Eilish' },
-      { titre: '7 rings', artiste: 'Ariana Grande' },
-      { titre: 'Djadja', artiste: 'Aya Nakamura' },
-      { titre: 'Alors on danse', artiste: 'Stromae' },
-      { titre: 'Balance ton quoi', artiste: 'Angèle' },
-      { titre: 'Get Lucky', artiste: 'Daft Punk' },
-      { titre: 'Viva la Vida', artiste: 'Coldplay' },
-      { titre: 'Flowers', artiste: 'Miley Cyrus' },
-      { titre: 'Roar', artiste: 'Katy Perry' },
-      { titre: 'Sorry', artiste: 'Justin Bieber' },
-    ],
-  },
-  {
-    id: 'rnb',
-    nom: 'R&B',
-    chansons: [
-      { titre: 'Crazy in Love', artiste: 'Beyoncé' },
-      { titre: 'Yeah!', artiste: 'Usher' },
-      { titre: "Fallin'", artiste: 'Alicia Keys' },
-      { titre: 'Say My Name', artiste: "Destiny's Child" },
-      { titre: 'Kill Bill', artiste: 'SZA' },
-      { titre: 'Thinkin Bout You', artiste: 'Frank Ocean' },
-      { titre: 'Forever', artiste: 'Chris Brown' },
-      { titre: 'So Sick', artiste: 'Ne-Yo' },
-      { titre: 'Try Again', artiste: 'Aaliyah' },
-      { titre: 'No Scrubs', artiste: 'TLC' },
-      { titre: 'Earned It', artiste: 'The Weeknd' },
-      { titre: 'Family Affair', artiste: 'Mary J. Blige' },
-      { titre: '1 Thing', artiste: 'Amerie' },
-      { titre: 'Foolish', artiste: 'Ashanti' },
-      { titre: 'The Boy Is Mine', artiste: 'Brandy' },
-      { titre: 'Free Mind', artiste: 'Tems' },
-      { titre: 'Redbone', artiste: 'Childish Gambino' },
-      { titre: 'Let Me Love You', artiste: 'Mario' },
-      { titre: 'Work', artiste: 'Rihanna' },
-    ],
-  },
-  {
-    id: 'rock',
-    nom: 'Rock',
-    chansons: [
-      { titre: 'Bohemian Rhapsody', artiste: 'Queen' },
-      { titre: 'Smells Like Teen Spirit', artiste: 'Nirvana' },
-      { titre: 'Highway to Hell', artiste: 'AC/DC' },
-      { titre: "Sweet Child O' Mine", artiste: "Guns N' Roses" },
-      { titre: 'Seven Nation Army', artiste: 'The White Stripes' },
-      { titre: 'In the End', artiste: 'Linkin Park' },
-      { titre: 'Californication', artiste: 'Red Hot Chili Peppers' },
-      { titre: 'Mr. Brightside', artiste: 'The Killers' },
-      { titre: 'Do I Wanna Know?', artiste: 'Arctic Monkeys' },
-      { titre: 'Satisfaction', artiste: 'The Rolling Stones' },
-      { titre: "Livin' On a Prayer", artiste: 'Bon Jovi' },
-      { titre: 'Uprising', artiste: 'Muse' },
-      { titre: 'Boulevard of Broken Dreams', artiste: 'Green Day' },
-      { titre: 'Wonderwall', artiste: 'Oasis' },
-      { titre: "J'ai demandé à la lune", artiste: 'Indochine' },
-      { titre: 'Un autre monde', artiste: 'Téléphone' },
-      { titre: 'Le vent nous portera', artiste: 'Noir Désir' },
-      { titre: 'Believer', artiste: 'Imagine Dragons' },
-      { titre: 'Eye of the Tiger', artiste: 'Survivor' },
-    ],
-  },
-  {
-    id: 'annees-2000',
-    nom: 'Années 2000',
-    chansons: [
-      { titre: 'Toxic', artiste: 'Britney Spears' },
-      { titre: "Hips Don't Lie", artiste: 'Shakira' },
-      { titre: 'I Gotta Feeling', artiste: 'Black Eyed Peas' },
-      { titre: "Can't Get You Out of My Head", artiste: 'Kylie Minogue' },
-      { titre: 'Crazy', artiste: 'Gnarls Barkley' },
-      { titre: 'Promiscuous', artiste: 'Nelly Furtado' },
-      { titre: 'Hollaback Girl', artiste: 'Gwen Stefani' },
-      { titre: 'Temperature', artiste: 'Sean Paul' },
-      { titre: 'Without Me', artiste: 'Eminem' },
-      { titre: 'Rehab', artiste: 'Amy Winehouse' },
-      { titre: 'Bleeding Love', artiste: 'Leona Lewis' },
-      { titre: 'Complicated', artiste: 'Avril Lavigne' },
-      { titre: 'Moi... Lolita', artiste: 'Alizée' },
-      { titre: 'Premier gaou', artiste: 'Magic System' },
-      { titre: "Parce qu'on vient de loin", artiste: 'Corneille' },
-      { titre: 'Marly-Gomont', artiste: 'Kamini' },
-      { titre: 'Love Generation', artiste: 'Bob Sinclar' },
-      { titre: 'The Way I Are', artiste: 'Timbaland' },
-      { titre: 'Lonely', artiste: 'Akon' },
+      { titre: 'Winter', artiste: 'Vivaldi' },
+      { titre: 'Summer', artiste: 'Vivaldi' },
+      // --- Saint-Saëns ---
+      { titre: 'Danse macabre', artiste: 'Saint-Saëns' },
+      { titre: 'The Swan', artiste: 'Saint-Saëns' },
+      // --- Offenbach ---
+      { titre: 'Can-Can', artiste: 'Offenbach' },
+      { titre: 'Barcarolle', artiste: 'Offenbach' },
+      // --- Rossini ---
+      { titre: 'William Tell Overture', artiste: 'Rossini' },
+      { titre: 'The Barber of Seville Overture', artiste: 'Rossini' },
+      // --- Verdi ---
+      { titre: 'La donna è mobile', artiste: 'Verdi' },
+      { titre: 'Dies irae', artiste: 'Verdi' },
+      // --- Puccini ---
+      { titre: 'Nessun dorma', artiste: 'Puccini' },
+      { titre: 'O mio babbino caro', artiste: 'Puccini' },
+      // --- Handel ---
+      { titre: 'Hallelujah', artiste: 'Handel' },
+      { titre: 'Sarabande', artiste: 'Handel' },
+      // --- Holst ---
+      { titre: 'Mars, the Bringer of War', artiste: 'Holst' },
+      { titre: 'Jupiter, the Bringer of Jollity', artiste: 'Holst' },
+      // --- Dvořák ---
+      { titre: 'New World Symphony', artiste: 'Dvořák' },
+      { titre: 'Humoresque', artiste: 'Dvořák' },
+      // --- Mendelssohn ---
+      { titre: 'Wedding March', artiste: 'Mendelssohn' },
+      { titre: 'Spring Song', artiste: 'Mendelssohn' },
     ],
   },
 ];
