@@ -62,6 +62,25 @@
   .ch-note { padding: 0 .9rem .5rem; color: var(--gris); font-size: .78rem; min-height: 0; }
   .ch-note:empty { display: none; }
   .ch-note.err { color: var(--danger, #ff8a7a); }
+  /* messages vocaux */
+  .ch-form .ch-mic[hidden], .ch-form .ch-send[hidden] { display: none; }
+  .ch-rec { flex: 1; display: flex; align-items: center; gap: .6rem; min-height: 2.6rem; padding: 0 .4rem; }
+  .ch-rec[hidden] { display: none; }
+  .ch-rec .dot { width: .7rem; height: .7rem; border-radius: 50%; background: #e2412b; animation: recDot 1s ease-in-out infinite; }
+  @keyframes recDot { 50% { opacity: .25; } }
+  .ch-rec .t { font-variant-numeric: tabular-nums; font-weight: 700; }
+  .ch-rec .lvl { flex: 1; height: 4px; border-radius: 2px; background: #2c2b32; overflow: hidden; }
+  .ch-rec .lvl i { display: block; height: 100%; width: 0; background: #e2412b; transition: width .08s linear; }
+  .ch-form.recording textarea { display: none; }
+  .ch-msg.voice { display: flex; align-items: center; gap: .55rem; min-width: 12.5rem; padding: .35rem .7rem .35rem .4rem; white-space: normal; }
+  .ch-play { flex: none; width: 2.2rem; height: 2.2rem; min-height: 0; padding: 0; border-radius: 50%; display: grid; place-items: center; }
+  .ch-msg.me .ch-play { background: #1b1b22; color: var(--orange); border-color: #1b1b22; box-shadow: none; }
+  .ch-play svg { width: .95rem; height: .95rem; }
+  .ch-wave { flex: 1; height: 1.6rem; display: flex; align-items: center; gap: 2px; cursor: pointer; }
+  .ch-wave i { flex: 1; min-width: 2px; border-radius: 1px; background: currentColor; opacity: .35; }
+  .ch-wave i.done { opacity: 1; }
+  .ch-dur { flex: none; font-size: .78rem; font-variant-numeric: tabular-nums; opacity: .85; }
+  @media (prefers-reduced-motion: reduce) { .ch-rec .dot { animation: none; } }
   .fb-msg { position: absolute; top: -.2rem; left: -.2rem; min-width: 1.35rem; height: 1.35rem; padding: 0 .3rem; border-radius: 999px; background: var(--orange); color: #1b1b22; font: 800 .78rem/1.35rem var(--texte); text-align: center; border: 2px solid var(--mur); }
   .fb-msg:empty { display: none; }
   .invite-toast[data-key^="msg:"] { border-left-color: var(--orange); }
@@ -76,12 +95,16 @@
     back: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>',
     close: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/></svg>',
     send: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12l16-8-6 16-2.5-6.5z" fill="currentColor"/></svg>',
+    mic: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3" fill="currentColor"/><path d="M6 11a6 6 0 0 0 12 0M12 17v4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>',
+    trash: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 7h14M10 7V4h4v3M7 7l1 13h8l1-13" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/></svg>',
+    play: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4l13 8-13 8z" fill="currentColor"/></svg>',
+    pause: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 4h4v16H6zM14 4h4v16h-4z" fill="currentColor"/></svg>',
   };
   const iconBtn = (svg, label, cls) => { const b = $('button', 'ghost ch-icon ' + (cls || '')); b.type = 'button'; b.innerHTML = svg; b.setAttribute('aria-label', label); b.title = label; return b; };
 
   const MAX = 500;
   let loggedIn = null;     // null = pas encore vérifié
-  let dialog, head, body, form, input, note;
+  let dialog, head, body, form, input, note, recBox, syncButtons = () => {};
   let view = 'list';       // 'list' ou 'conv'
   let current = null;      // pseudo de la discussion ouverte
   let conv = null;         // { username, messages, seenAt, ... }
@@ -137,17 +160,33 @@
     input.placeholder = 'Écris un message…';
     input.setAttribute('aria-label', 'Ton message');
     input.setAttribute('data-notranslate', '');
-    const send = $('button');
+    const send = $('button', 'ch-send');
     send.type = 'submit';
     send.innerHTML = SVG.send;
     send.setAttribute('aria-label', 'Envoyer');
     send.title = 'Envoyer';
-    form.append(input, send);
+    // micro : visible quand la zone de texte est vide (comme sur WhatsApp)
+    const mic = $('button', 'ch-mic');
+    mic.type = 'button';
+    mic.innerHTML = SVG.mic;
+    mic.setAttribute('aria-label', 'Enregistrer un message vocal');
+    mic.title = 'Message vocal';
+    mic.onclick = startRecording;
+    recBox = $('div', 'ch-rec');
+    recBox.hidden = true;
+    form.append(input, recBox, mic, send);
+    syncButtons = () => {
+      const typing = input.value.trim().length > 0;
+      mic.hidden = typing || Boolean(rec) || !canRecord();
+      send.hidden = !typing && !rec && canRecord();
+    };
+    syncButtons();
     dialog.append(head, body, note, form);
     document.body.append(dialog);
 
     // la zone de texte grandit avec le message ; Entrée envoie, Maj + Entrée va à la ligne
     input.addEventListener('input', () => {
+      syncButtons();
       input.style.height = 'auto';
       input.style.height = Math.min(input.scrollHeight + 2, 128) + 'px';
       const left = MAX - input.value.length;
@@ -157,9 +196,9 @@
     input.addEventListener('keydown', (e) => {
       if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); form.requestSubmit(); }
     });
-    form.addEventListener('submit', (e) => { e.preventDefault(); sendMessage(); });
+    form.addEventListener('submit', (e) => { e.preventDefault(); if (rec) stopRecording(true); else sendMessage(); });
     dialog.addEventListener('click', (e) => { if (e.target === dialog) dialog.close(); });
-    dialog.addEventListener('close', () => { stopPoll(); current = null; conv = null; refreshBadge(); });
+    dialog.addEventListener('close', () => { stopRecording(false); stopVoice(); stopPoll(); current = null; conv = null; refreshBadge(); });
   }
 
   function setNote(text, err) { note.textContent = text; note.classList.toggle('err', Boolean(err)); }
@@ -167,6 +206,7 @@
 
   // --- liste des conversations ---
   async function showList() {
+    stopRecording(false); stopVoice();
     view = 'list'; current = null; conv = null;
     stopPoll();
     form.hidden = true;
@@ -235,11 +275,12 @@
 
   // --- une discussion ---
   async function showConv(name) {
+    stopRecording(false); stopVoice();
     view = 'conv'; current = name; conv = null;
     stopPoll();
     setNote('');
     form.hidden = false;
-    input.value = ''; input.style.height = '';
+    input.value = ''; input.style.height = ''; syncButtons();
     const back = iconBtn(SVG.back, 'Retour aux messages');
     back.onclick = showList;
     const close = iconBtn(SVG.close, 'Fermer', 'ch-close');
@@ -290,7 +331,7 @@
       if (dayKey(m.at) !== lastDay) { lastDay = dayKey(m.at); box.append($('span', 'ch-day', dayLabel(m.at))); prev = null; }
       const who = m.fromMe ? 'me' : 'them';
       const first = !prev || prev.fromMe !== m.fromMe || m.at - prev.at > 5 * 60_000;
-      const el = $('div', `ch-msg ${who}${first ? ' first' : ''}${m.sending ? ' sending' : ''}`, m.text);
+      const el = m.voice ? voiceBubble(m, who, first) : $('div', `ch-msg ${who}${first ? ' first' : ''}${m.sending ? ' sending' : ''}`, m.text);
       el.setAttribute('data-notranslate', '');
       el.title = time(m.at);
       box.append(el);
@@ -331,7 +372,7 @@
     const name = current;
     const temp = { fromMe: true, text, at: Date.now(), sending: true };
     conv.messages.push(temp);
-    input.value = ''; input.style.height = '';
+    input.value = ''; input.style.height = ''; syncButtons();
     setNote('');
     drawMessages(true);
     try {
@@ -342,11 +383,168 @@
     } catch (err) {
       conv.messages = conv.messages.filter((m) => m !== temp);
       if (current !== name) return;
-      input.value = text;
+      input.value = text; syncButtons();
       setNote(err.message, true);
       drawMessages(true);
     }
   }
+
+  // --- messages vocaux : enregistrer ---
+  const fmt = (sec) => `${Math.floor(sec / 60)}:${String(Math.floor(sec % 60)).padStart(2, '0')}`;
+  const canRecord = () => Boolean(navigator.mediaDevices && navigator.mediaDevices.getUserMedia && window.MediaRecorder);
+  const MAX_SEC = 120;
+  let rec = null; // { recorder, stream, chunks, start, timer, ctx, raf }
+
+  async function startRecording() {
+    if (rec || !conv) return;
+    setNote('');
+    let stream;
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } });
+    } catch (err) {
+      setNote(err && err.name === 'NotAllowedError'
+        ? 'Autorise le micro dans ton navigateur pour envoyer des messages vocaux.'
+        : 'Impossible d’utiliser le micro sur cet appareil.', true);
+      return;
+    }
+    // le format que le navigateur sait faire (Chrome/Firefox : webm, Safari : mp4)
+    const type = ['audio/webm;codecs=opus', 'audio/webm', 'audio/ogg;codecs=opus', 'audio/mp4'].find((t) => MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(t)) || '';
+    const recorder = new MediaRecorder(stream, type ? { mimeType: type, audioBitsPerSecond: 32000 } : { audioBitsPerSecond: 32000 });
+    rec = { recorder, stream, chunks: [], start: Date.now(), send: false };
+    recorder.ondataavailable = (e) => { if (e.data && e.data.size) rec && rec.chunks.push(e.data); };
+    recorder.onstop = () => finishRecording();
+    recorder.start(250);
+    window.dispatchEvent(new CustomEvent('site-music', { detail: { playing: true, id: 'chat-rec' } })); // le jazz se tait
+    // l'écran pendant l'enregistrement : point rouge, chrono, niveau du micro, poubelle
+    const dot = $('span', 'dot'); dot.setAttribute('aria-hidden', 'true');
+    const t = $('span', 't', '0:00');
+    const lvl = $('span', 'lvl'); const bar = $('i'); lvl.append(bar);
+    const cancel = iconBtn(SVG.trash, 'Annuler l’enregistrement');
+    cancel.onclick = () => stopRecording(false);
+    recBox.replaceChildren(cancel, dot, t, lvl);
+    recBox.hidden = false;
+    form.classList.add('recording');
+    syncButtons();
+    setNote('Enregistrement… appuie sur la flèche pour envoyer.');
+    rec.timer = setInterval(() => {
+      const sec = (Date.now() - rec.start) / 1000;
+      t.textContent = fmt(sec);
+      if (sec >= MAX_SEC) stopRecording(true);
+    }, 200);
+    try { // petite barre qui bouge avec la voix
+      const ac = new (window.AudioContext || window.webkitAudioContext)();
+      const an = ac.createAnalyser(); an.fftSize = 256;
+      ac.createMediaStreamSource(stream).connect(an);
+      const data = new Uint8Array(an.fftSize);
+      const tick = () => {
+        if (!rec) return;
+        an.getByteTimeDomainData(data);
+        let peak = 0; for (const v of data) peak = Math.max(peak, Math.abs(v - 128));
+        bar.style.width = Math.min(100, peak * 1.6) + '%';
+        rec.raf = requestAnimationFrame(tick);
+      };
+      rec.ctx = ac; tick();
+    } catch { /* pas grave */ }
+  }
+
+  function stopRecording(sendIt) {
+    if (!rec) return;
+    rec.send = sendIt;
+    rec.duration = Math.round((Date.now() - rec.start) / 1000);
+    clearInterval(rec.timer);
+    cancelAnimationFrame(rec.raf);
+    try { rec.ctx && rec.ctx.close(); } catch {}
+    if (rec.recorder.state !== 'inactive') rec.recorder.stop(); else finishRecording();
+    rec.stream.getTracks().forEach((tr) => tr.stop());
+    recBox.hidden = true;
+    form.classList.remove('recording');
+    window.dispatchEvent(new CustomEvent('site-music', { detail: { playing: false, id: 'chat-rec' } }));
+  }
+
+  async function finishRecording() {
+    const r = rec;
+    rec = null;
+    syncButtons();
+    if (!r || !r.send) { setNote(''); return; }
+    if (r.duration < 1) { setNote('Message vocal trop court : garde le micro au moins 1 seconde.', true); return; }
+    const blob = new Blob(r.chunks, { type: (r.recorder.mimeType || 'audio/webm').split(';')[0] });
+    const name = current;
+    const temp = { fromMe: true, text: '', at: Date.now(), sending: true, voice: { id: '', duration: r.duration, local: URL.createObjectURL(blob) } };
+    conv.messages.push(temp);
+    setNote('');
+    drawMessages(true);
+    try {
+      const audio = await new Promise((ok, ko) => { const fr = new FileReader(); fr.onload = () => ok(fr.result); fr.onerror = ko; fr.readAsDataURL(blob); });
+      const d = await api('/api/messages/voice', { username: name, audio, duration: r.duration });
+      if (current !== name) return;
+      Object.assign(temp, d.message, { sending: false });
+      temp.voice.local = temp.voice.local || '';
+      drawMessages(true);
+    } catch (err) {
+      if (conv) conv.messages = conv.messages.filter((m) => m !== temp);
+      if (current !== name) return;
+      setNote(err.message, true);
+      drawMessages(true);
+    }
+  }
+
+  // --- messages vocaux : écouter ---
+  const player = new Audio();
+  player.preload = 'none';
+  let playingId = '';
+  function stopVoice() { player.pause(); playingId = ''; }
+  const voiceSrc = (v) => v.local || '/api/messages/voice?id=' + encodeURIComponent(v.id);
+  // une « onde » toujours la même pour un même message (fausse, juste pour le style)
+  function wave(id, n) {
+    let h = 7; for (const c of id || 'x') h = (h * 31 + c.charCodeAt(0)) >>> 0;
+    return Array.from({ length: n }, () => { h = (h * 1103515245 + 12345) >>> 0; return 25 + (h % 75); });
+  }
+  function voiceBubble(m, who, first) {
+    const el = $('div', `ch-msg voice ${who}${first ? ' first' : ''}${m.sending ? ' sending' : ''}`);
+    const key = m.voice.id || m.voice.local;
+    const b = $('button', 'ch-play');
+    b.type = 'button';
+    const isMe = playingId === key && !player.paused;
+    b.innerHTML = isMe ? SVG.pause : SVG.play;
+    b.setAttribute('aria-label', isMe ? 'Pause' : 'Écouter le message vocal');
+    const w = $('span', 'ch-wave');
+    w.setAttribute('aria-hidden', 'true');
+    for (const h of wave(key, 26)) { const i = $('i'); i.style.height = h + '%'; w.append(i); }
+    const dur = $('span', 'ch-dur', fmt(m.voice.duration));
+    el.append(b, w, dur);
+    const paint = () => {
+      const on = playingId === key;
+      // les enregistrements webm n'ont souvent pas de durée connue : on prend celle du message
+      const total = isFinite(player.duration) && player.duration > 0 ? player.duration : m.voice.duration;
+      const p = on && total ? Math.min(1, player.currentTime / total) : 0;
+      const bars = w.children;
+      for (let i = 0; i < bars.length; i++) bars[i].classList.toggle('done', on && i / bars.length < p);
+      dur.textContent = on && !player.paused ? fmt(player.currentTime) : fmt(m.voice.duration);
+      const playingNow = on && !player.paused;
+      b.innerHTML = playingNow ? SVG.pause : SVG.play;
+      b.setAttribute('aria-label', playingNow ? 'Pause' : 'Écouter le message vocal');
+    };
+    el._paint = paint;
+    b.onclick = () => {
+      if (m.sending && !m.voice.local) return;
+      if (playingId === key) { if (player.paused) player.play().catch(() => {}); else player.pause(); return; }
+      playingId = key;
+      player.src = voiceSrc(m.voice);
+      player.play().catch(() => setNote('Impossible de lire ce message vocal.', true));
+    };
+    // clic sur l'onde : avancer dans le message
+    w.onclick = (e) => {
+      const total = isFinite(player.duration) && player.duration > 0 ? player.duration : m.voice.duration;
+      if (playingId !== key || !total) return;
+      const r = w.getBoundingClientRect();
+      player.currentTime = ((e.clientX - r.left) / r.width) * total;
+    };
+    paint();
+    return el;
+  }
+  const repaint = () => body && body.querySelectorAll('.ch-msg.voice').forEach((el) => el._paint && el._paint());
+  for (const ev of ['timeupdate', 'play', 'pause', 'ended']) player.addEventListener(ev, repaint);
+  player.addEventListener('ended', () => { playingId = ''; repaint(); });
 
   // --- pastille sur la bulle Amis + notification quand un message arrive ---
   const wants = () => { try { return localStorage.getItem('notif-msg') !== '0'; } catch { return true; } };

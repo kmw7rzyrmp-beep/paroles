@@ -17,7 +17,7 @@ export const CATEGORIES = [
     id: 'rap-fr',
     nom: 'Rap FR',
     // Artistes dont TOUS les sons viennent automatiquement de Deezer (leurs 60 sons les plus écoutés)
-    artistesAuto: ['Bedry', '63KLUF', 'Inocasablanca', 'Faygee', 'DJUNO', 'Supremenova', 'Khali', 'Josman'],
+    artistesAuto: ['Bedry', '63KLUF', 'Inocasablanca', 'Faygee', 'DJUNO', 'Supremenova', 'Khali', 'Josman', 'Jolagreen23'],
     chansons: [
       // --- PNL ---
       { titre: 'Au DD', artiste: 'PNL' },

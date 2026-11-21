@@ -650,6 +650,35 @@ async function saveChat(key, list) {
   chatCache.set(key, data.m);
 }
 
+// messages vocaux : rangés à part (« voice:<id> »), comme les photos de profil
+const VOICE_MAX_SEC = 120;
+const VOICE_MAX_BYTES = 1_500_000; // ~2 min en Opus
+const voiceCache = new Map();
+const voiceFile = (id) => join(DATA_DIR, 'voice', id.replace(/[^a-z0-9:_-]/gi, '_') + '.json');
+async function saveVoice(id, v) {
+  const data = { type: v.type, b64: v.buf.toString('base64') };
+  if (REMOTE) {
+    await supabase('POST', '?on_conflict=id', { id: 'voice:' + id, data, updated_at: new Date().toISOString() },
+      { Prefer: 'resolution=merge-duplicates,return=minimal' });
+  } else {
+    await mkdir(join(DATA_DIR, 'voice'), { recursive: true });
+    await writeFile(voiceFile(id), JSON.stringify(data));
+  }
+  if (voiceCache.size > 60) voiceCache.delete(voiceCache.keys().next().value);
+  voiceCache.set(id, v);
+}
+async function loadVoice(id) {
+  if (voiceCache.has(id)) return voiceCache.get(id);
+  let raw = null;
+  try {
+    if (REMOTE) raw = (await (await supabase('GET', `?id=eq.${encodeURIComponent('voice:' + id)}&select=data`)).json())[0]?.data || null;
+    else raw = JSON.parse(await readFile(voiceFile(id), 'utf8'));
+  } catch { raw = null; }
+  const v = raw && raw.b64 ? { type: raw.type, buf: Buffer.from(raw.b64, 'base64') } : null;
+  if (v) { if (voiceCache.size > 60) voiceCache.delete(voiceCache.keys().next().value); voiceCache.set(id, v); }
+  return v;
+}
+
 // les résumés (non lus…) sont sauvegardés quelques secondes plus tard, en une seule fois
 let chatSaveTimer = null;
 function saveChatsSoon() {
@@ -704,36 +733,91 @@ async function handleMessages(req, res, url, me) {
       friend: isFriend,
       ...presence(other),
       seenAt: (theirs && theirs.readAt) || 0, // jusqu'où l'autre a lu
-      messages: list.filter((m) => m.at > after).slice(-100).map((m) => ({ fromMe: m.f === me.id, text: m.t, at: m.at })),
+      messages: list.filter((m) => m.at > after).slice(-100).map((m) => ({
+        fromMe: m.f === me.id, text: m.t || '', at: m.at, ...(m.v ? { voice: { id: m.v, duration: m.d || 0 } } : {}),
+      })),
     });
   }
 
-  if (req.method === 'POST' && action === 'send') {
-    const body = await readJson(req, 5_000);
-    const other = findByUsername(body.username);
+  // pour envoyer : il faut être amis, et pas plus de 30 messages par minute
+  const target = (username) => {
+    const other = findByUsername(username);
     if (!other || other.id === me.id) throw new HttpError(404, 'Cette personne n’existe pas.');
     if (!me.friends.includes(other.id)) throw new HttpError(403, 'Tu ne peux écrire qu’à tes amis.');
-    const text = String(body.text || '').replace(/[\u0000-\u0008\u000b-\u001f\u007f]/g, '').replace(/\n{3,}/g, '\n\n').trim();
-    if (!text) throw new HttpError(400, 'Écris un message.');
-    if (text.length > CHAT_MAX_LEN) throw new HttpError(400, `Message trop long (${CHAT_MAX_LEN} caractères maximum).`);
     const now = Date.now();
     const recent = (chatSends.get(me.id) || []).filter((t) => now - t < 60_000);
     if (recent.length >= 30) throw new HttpError(429, 'Doucement ! Attends un peu avant d’envoyer d’autres messages.');
     recent.push(now);
     chatSends.set(me.id, recent);
+    return other;
+  };
+  // ajoute un message à la conversation et met à jour les résumés (non lus…)
+  const append = async (other, entry, preview) => {
     const key = chatKey(me.id, other.id);
     const list = [...(await loadChat(key))];
-    const at = Math.max(now, (list[list.length - 1]?.at || 0) + 1); // jamais deux messages à la même milliseconde
-    list.push({ f: me.id, t: text, at });
+    const at = Math.max(Date.now(), (list[list.length - 1]?.at || 0) + 1); // jamais deux messages à la même milliseconde
+    list.push({ f: me.id, ...entry, at });
     await saveChat(key, list);
-    const preview = text.replace(/\s+/g, ' ').slice(0, 80);
     me.chats[other.id] = { ...(me.chats[other.id] || {}), at, text: preview, from: me.id, unread: 0, readAt: at };
     other.chats ||= {};
     const theirs = other.chats[me.id] || {};
     other.chats[me.id] = { ...theirs, at, text: preview, from: me.id, unread: Math.min(99, (theirs.unread || 0) + 1) };
     countStat('messages');
     saveChatsSoon();
+    return at;
+  };
+
+  if (req.method === 'POST' && action === 'send') {
+    const body = await readJson(req, 5_000);
+    const text = String(body.text || '').replace(/[\u0000-\u0008\u000b-\u001f\u007f]/g, '').replace(/\n{3,}/g, '\n\n').trim();
+    if (!text) throw new HttpError(400, 'Écris un message.');
+    if (text.length > CHAT_MAX_LEN) throw new HttpError(400, `Message trop long (${CHAT_MAX_LEN} caractères maximum).`);
+    const other = target(body.username);
+    const at = await append(other, { t: text }, text.replace(/\s+/g, ' ').slice(0, 80));
     return send(res, 201, { message: { fromMe: true, text, at } });
+  }
+
+  // message vocal : l'enregistrement est rangé à part, le message garde juste sa référence et sa durée
+  if (req.method === 'POST' && action === 'voice') {
+    const body = await readJson(req, Math.ceil(VOICE_MAX_BYTES * 1.4) + 2_000);
+    const m = /^data:(audio\/(?:webm|ogg|mp4|mpeg|aac|x-m4a|wav))(?:;[^,]*)?;base64,([A-Za-z0-9+/=]+)$/.exec(String(body.audio || ''));
+    if (!m) throw new HttpError(400, 'Enregistrement invalide.');
+    const buf = Buffer.from(m[2], 'base64');
+    if (buf.length < 500) throw new HttpError(400, 'Message vocal trop court.');
+    if (buf.length > VOICE_MAX_BYTES) throw new HttpError(413, 'Message vocal trop long (2 minutes maximum).');
+    const duration = Math.round(Number(body.duration) || 0);
+    if (duration < 1 || duration > VOICE_MAX_SEC) throw new HttpError(400, 'Message vocal : entre 1 seconde et 2 minutes.');
+    const other = target(body.username);
+    const id = chatKey(me.id, other.id) + ':' + randomBytes(9).toString('base64url');
+    await saveVoice(id, { type: m[1], buf });
+    const mins = `${Math.floor(duration / 60)}:${String(duration % 60).padStart(2, '0')}`;
+    const at = await append(other, { v: id, d: duration }, `🎤 Message vocal (${mins})`);
+    return send(res, 201, { message: { fromMe: true, text: '', voice: { id, duration }, at } });
+  }
+
+  // écouter un message vocal : seulement les deux personnes de la conversation
+  if (req.method === 'GET' && action === 'voice') {
+    const id = String(url.searchParams.get('id') || '');
+    const parts = id.split(':');
+    if (parts.length !== 3 || !parts.slice(0, 2).includes(me.id)) throw new HttpError(404, 'Introuvable.');
+    const voice = await loadVoice(id);
+    if (!voice) throw new HttpError(404, 'Ce message vocal n’existe plus.');
+    // lecture par morceaux (Safari en a besoin pour lire l'audio)
+    const range = /^bytes=(\d*)-(\d*)$/.exec(req.headers.range || '');
+    const size = voice.buf.length;
+    const headers = { 'Content-Type': voice.type, 'Accept-Ranges': 'bytes', 'Cache-Control': 'private, max-age=31536000, immutable' };
+    if (range && (range[1] || range[2])) {
+      let a = range[1] ? Number(range[1]) : size - Number(range[2]);
+      let b = range[1] && range[2] ? Number(range[2]) : size - 1;
+      a = Math.max(0, a); b = Math.min(size - 1, b);
+      if (a > b) { res.writeHead(416, { 'Content-Range': `bytes */${size}` }); res.end(); return true; }
+      res.writeHead(206, { ...headers, 'Content-Range': `bytes ${a}-${b}/${size}`, 'Content-Length': b - a + 1 });
+      res.end(voice.buf.subarray(a, b + 1));
+      return true;
+    }
+    res.writeHead(200, { ...headers, 'Content-Length': size });
+    res.end(voice.buf);
+    return true;
   }
 
   throw new HttpError(404, 'Introuvable.');
