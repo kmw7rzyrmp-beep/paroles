@@ -1,10 +1,12 @@
 // Serveur sans dépendance (Node 20.12+). Sert la page et relaie la recherche vers Genius.
 import { createServer } from 'node:http';
+import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { join, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { handleAuth, clientIp, sessionUser, findFriend, recordBlindtest, blindtestLeaderboard, markInBlindtest } from './auth.js';
+import { handleAuth, clientIp, sessionUser, findFriend, recordBlindtest, blindtestLeaderboard, markInBlindtest, countStat, isAdmin, adminStats } from './auth.js';
 import { createBlindtest } from './blindtest.js';
+import { CATEGORIES } from './categories.js';
 
 // Charge le fichier .env s'il existe (le jeton Genius y est facultatif, voir README).
 try { process.loadEnvFile(); } catch { /* pas de .env : pas grave */ }
@@ -367,7 +369,18 @@ function sendJson(res, code, body) {
   res.end(JSON.stringify(body));
 }
 
-const handleBlindtest = createBlindtest({ getJson, sameSong, clientIp, sessionUser, findFriend, recordBlindtest, blindtestLeaderboard, markInBlindtest, demo: DEMO });
+const handleBlindtest = createBlindtest({ getJson, sameSong, clientIp, sessionUser, findFriend, recordBlindtest, blindtestLeaderboard, markInBlindtest, countStat, demo: DEMO });
+const STARTED = Date.now();
+// visiteurs uniques du jour (empreinte de l'adresse IP, jamais l'adresse elle-même ; remis à zéro chaque jour)
+let visitorDay = '';
+const visitorsToday = new Set();
+function countVisit(req) {
+  countStat('visits');
+  const d = new Date().toISOString().slice(0, 10);
+  if (d !== visitorDay) { visitorDay = d; visitorsToday.clear(); }
+  const h = createHash('sha256').update(clientIp(req) + d).digest('base64url').slice(0, 16);
+  if (!visitorsToday.has(h)) { visitorsToday.add(h); countStat('visitors'); }
+}
 
 const server = createServer(async (req, res) => {
   const url = new URL(req.url, 'http://localhost');
@@ -378,6 +391,18 @@ const server = createServer(async (req, res) => {
   // Blind test entre amis : /api/bt/...
   if (await handleBlindtest(req, res, url)) return;
 
+  // Statistiques du site : seulement pour l'admin (ADMIN_USERNAME sur Render)
+  if (url.pathname === '/api/admin/stats') {
+    const user = sessionUser(req);
+    if (!isAdmin(user)) return sendJson(res, 404, { error: 'Introuvable.' });
+    const mem = process.memoryUsage();
+    return sendJson(res, 200, adminStats({
+      live: handleBlindtest.stats(),
+      songs: CATEGORIES.map((c) => ({ nom: c.nom, count: c.chansons.length, artists: new Set(c.chansons.map((s) => s.artiste)).size })),
+      server: { startedAt: new Date(STARTED).toISOString(), uptimeSec: Math.round((Date.now() - STARTED) / 1000), memoryMb: Math.round(mem.rss / 1048576), node: process.version, demo: DEMO },
+    }));
+  }
+
   if (url.pathname === '/api/search') {
     const ip = clientIp(req);
     if (tooMany(ip)) return sendJson(res, 429, { error: 'Trop de recherches, réessaie dans une minute.' });
@@ -386,7 +411,9 @@ const server = createServer(async (req, res) => {
     if (q.length < 3) return sendJson(res, 400, { error: 'Tape au moins 3 caractères.' });
 
     try {
-      return sendJson(res, 200, await searchLyrics(q));
+      const found = await searchLyrics(q);
+      countStat('searches');
+      return sendJson(res, 200, found);
     } catch (err) {
       console.error('Erreur de recherche :', err.message);
       return sendJson(res, 502, { error: 'Le service de paroles ne répond pas. Réessaie dans un instant.' });
@@ -402,7 +429,9 @@ const server = createServer(async (req, res) => {
     if (!title) return sendJson(res, 400, { error: 'Titre manquant.' });
 
     try {
-      return sendJson(res, 200, await findLyrics(title, artist));
+      const found = await findLyrics(title, artist);
+      countStat('lyrics');
+      return sendJson(res, 200, found);
     } catch (err) {
       console.error('Erreur paroles :', err.message);
       return sendJson(res, 502, { error: 'Le service de paroles ne répond pas.' });
@@ -415,6 +444,7 @@ const server = createServer(async (req, res) => {
     const title = (url.searchParams.get('title') || '').trim().slice(0, 200);
     const artist = (url.searchParams.get('artist') || '').trim().slice(0, 200);
     if (!title) return sendJson(res, 400, { error: 'Titre manquant.' });
+    countStat('clicks_' + go[1]);
     const q = encodeURIComponent(`${title} ${artist}`.trim());
     let target = go[1] === 'deezer' ? `https://www.deezer.com/search/${q}` : `https://open.spotify.com/search/${q}`;
     if (!DEMO && !tooMany(clientIp(req))) target = (await findLink(go[1], title, artist)).url;
@@ -424,6 +454,7 @@ const server = createServer(async (req, res) => {
 
   // Fichiers statiques (uniquement dans /public)
   const name = url.pathname === '/' ? '/index.html' : url.pathname === '/blindtest' ? '/blindtest.html' : url.pathname;
+  if ((name === '/index.html' || name === '/blindtest.html') && req.method === 'GET') countVisit(req);
   let file;
   try {
     file = resolve(join(PUBLIC_DIR, decodeURIComponent(name)));

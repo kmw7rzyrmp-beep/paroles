@@ -79,7 +79,7 @@ const categoryName = (id) => (id === ALL ? 'Tout mélangé' : CATEGORIES.find((c
 const INVITE_TTL = 15 * 60_000; // une invitation reste valable 15 min
 const invites = new Map(); // identifiant invité (minuscules) -> Map(code -> { from, code, category, at })
 
-export function createBlindtest({ getJson, sameSong, clientIp, sessionUser, findFriend, recordBlindtest, blindtestLeaderboard, markInBlindtest = () => {}, demo }) {
+export function createBlindtest({ getJson, sameSong, clientIp, sessionUser, findFriend, recordBlindtest, blindtestLeaderboard, markInBlindtest = () => {}, countStat = () => {}, demo }) {
   // --- Trouver l'extrait de 30 s (et la pochette) d'une chanson ---
   async function resolveSong(song) {
     const key = song.titre + '|' + song.artiste;
@@ -516,6 +516,8 @@ export function createBlindtest({ getJson, sameSong, clientIp, sessionUser, find
       g.phaseEnd = Date.now() + COUNTDOWN_MS;
       room.game = g;
       room.phase = 'countdown';
+      countStat('bt_games');
+      countStat('bt_players', room.players.size);
       topUp(g);
     } catch (err) {
       room.phase = 'lobby';
@@ -559,7 +561,18 @@ export function createBlindtest({ getJson, sameSong, clientIp, sessionUser, find
   };
 
   // Routes : /api/bt/categories, /api/bt/rooms, /api/bt/rooms/CODE(/join|/start|/answer|/leave)
-  return async function handleBlindtest(req, res, url) {
+  // Pour la page de stats de l'admin : ce qui se passe en ce moment
+  handleBlindtest.stats = () => {
+    const list = [...rooms.values()];
+    return {
+      rooms: list.length,
+      players: list.reduce((n, r) => n + r.players.size, 0),
+      playing: list.filter((r) => ['countdown', 'playing', 'reveal'].includes(r.phase)).length,
+      battleRoyale: list.filter((r) => r.mode === 'br' && ['countdown', 'playing', 'reveal'].includes(r.phase)).length,
+    };
+  };
+  return handleBlindtest;
+  async function handleBlindtest(req, res, url) {
     if (!url.pathname.startsWith('/api/bt/')) return false;
     try {
       const ip = clientIp(req);

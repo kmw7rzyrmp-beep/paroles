@@ -108,8 +108,90 @@ async function writeStore(snapshot) {
   await rename(tmp, DB_FILE); // écriture atomique : jamais de fichier à moitié écrit
 }
 
+// --- Statistiques du site (visibles seulement par l'admin) ---
+// total : compteurs depuis le début ; days : les mêmes compteurs jour par jour (90 derniers jours)
+const stats = { since: new Date().toISOString(), total: {}, days: {} };
+let statsDirty = false;
+const today = () => new Date().toISOString().slice(0, 10);
+export function countStat(name, n = 1) {
+  stats.total[name] = (stats.total[name] || 0) + n;
+  const d = (stats.days[today()] ||= {});
+  d[name] = (d[name] || 0) + n;
+  statsDirty = true;
+}
+// on sauvegarde les compteurs au plus une fois par minute (pas à chaque recherche)
+setInterval(() => {
+  if (!statsDirty) return;
+  statsDirty = false;
+  const keys = Object.keys(stats.days).sort();
+  for (const k of keys.slice(0, Math.max(0, keys.length - 90))) delete stats.days[k];
+  persist().catch((err) => { statsDirty = true; console.error('Stats : sauvegarde impossible :', err.message); });
+}, 60_000).unref();
+
+// L'admin : les identifiants listés dans ADMIN_USERNAME (sur Render), séparés par des virgules
+const ADMINS = new Set(String(process.env.ADMIN_USERNAME || '').split(',').map((x) => x.trim().toLowerCase()).filter(Boolean));
+export const isAdmin = (u) => Boolean(u && u.username && ADMINS.has(u.username.toLowerCase()));
+
+export function adminStats(extra = {}) {
+  const users = [...usersById.values()].filter((u) => u.username);
+  const now = Date.now();
+  const day = 86_400_000;
+  const created = (u) => Date.parse(u.createdAt || '') || 0;
+  const startOfToday = Date.parse(today() + 'T00:00:00Z');
+  const sumDays = (name, n) => {
+    let t = 0;
+    for (let i = 0; i < n; i++) t += (stats.days[new Date(now - i * day).toISOString().slice(0, 10)] || {})[name] || 0;
+    return t;
+  };
+  const counter = (name) => ({ total: stats.total[name] || 0, today: sumDays(name, 1), week: sumDays(name, 7) });
+  const pr = users.map((u) => presence(u));
+  const friendships = users.reduce((n, u) => n + (u.friends || []).length, 0) / 2;
+  const signupsOn = (date) => users.filter((u) => (u.createdAt || '').slice(0, 10) === date).length;
+  const days = [];
+  for (let i = 29; i >= 0; i--) {
+    const date = new Date(now - i * day).toISOString().slice(0, 10);
+    const d = stats.days[date] || {};
+    days.push({ date, searches: d.searches || 0, visits: d.visits || 0, signups: signupsOn(date), games: d.bt_games || 0 });
+  }
+  const played = users.filter((u) => u.bt && u.bt.games);
+  return {
+    generatedAt: new Date().toISOString(),
+    since: stats.since,
+    accounts: {
+      total: users.length,
+      today: users.filter((u) => created(u) >= startOfToday).length,
+      week: users.filter((u) => created(u) >= now - 7 * day).length,
+      month: users.filter((u) => created(u) >= now - 30 * day).length,
+      online: pr.filter((p) => p.online).length,
+      inBlindtest: pr.filter((p) => p.inBlindtest).length,
+      activeWeek: users.filter((u) => (u.lastSeen || 0) >= now - 7 * day).length,
+      withAvatar: users.filter((u) => profileOf(u).avatarV).length,
+      withBio: users.filter((u) => profileOf(u).bio).length,
+      friendships: Math.round(friendships),
+      pending: users.reduce((n, u) => n + (u.incoming || []).length, 0),
+      sessions: sessions.size,
+    },
+    recent: users.sort((a, b) => created(b) - created(a)).slice(0, 10).map((u) => ({ username: u.username, createdAt: u.createdAt || '' })),
+    activity: {
+      searches: counter('searches'), lyrics: counter('lyrics'), visits: counter('visits'), visitors: counter('visitors'),
+      spotify: counter('clicks_spotify'), deezer: counter('clicks_deezer'), logins: counter('logins'),
+    },
+    blindtest: {
+      games: counter('bt_games'),
+      players: counter('bt_players'),
+      accountsPlayed: played.length,
+      totalPoints: played.reduce((n, u) => n + u.bt.points, 0),
+      top: played.sort((a, b) => b.bt.points - a.bt.points).slice(0, 5)
+        .map((u) => ({ username: u.username, points: u.bt.points, games: u.bt.games, wins: u.bt.wins })),
+    },
+    days,
+    ...extra,
+  };
+}
+
 async function load() {
   const db = await readStore();
+  if (db.stats) Object.assign(stats, db.stats);
   for (const u of db.users || []) {
     usersById.set(u.id, u);
     indexUser(u);
@@ -127,6 +209,7 @@ function persist() {
   const snapshot = JSON.stringify({
     users: [...usersById.values()],
     sessions: [...sessions].map(([h, s]) => ({ h, ...s })),
+    stats,
   });
   const job = writing.then(() => writeStore(snapshot));
   writing = job.catch(() => {});
@@ -289,7 +372,7 @@ function sameSiteJson(req) {
   try { return new URL(origin).host === req.headers.host; } catch { return false; }
 }
 
-const publicUser = (u) => (u ? { username: u.username || '', email: u.email || '', name: u.username || u.email } : null);
+const publicUser = (u) => (u ? { username: u.username || '', email: u.email || '', name: u.username || u.email, ...(isAdmin(u) ? { admin: true } : {}) } : null);
 const normEmail = (e) => String(e || '').trim().toLowerCase();
 const validEmail = (e) => e.length <= 254 && /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(e);
 // Identifiant : 3 à 30 caractères, sans @ (pour ne jamais être confondu avec un e-mail)
@@ -734,6 +817,7 @@ export async function handleAuth(req, res, url) {
         console.error('Création de compte :', err.message);
         throw new HttpError(500, 'Impossible de créer le compte pour le moment.');
       }
+      countStat('signups');
       return send(res, 201, { user: publicUser(user) }, { 'Set-Cookie': cookie(req, token, SESSION_TTL / 1000) });
     }
 
@@ -752,6 +836,7 @@ export async function handleAuth(req, res, url) {
     }
     loginFails.delete(login);
     const token = createSession(user.id);
+    countStat('logins');
     await persist();
     return send(res, 200, { user: publicUser(user) }, { 'Set-Cookie': cookie(req, token, SESSION_TTL / 1000) });
   } catch (err) {

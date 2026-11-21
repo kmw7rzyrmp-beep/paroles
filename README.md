@@ -75,6 +75,12 @@ et avec lui tous les comptes. Pour l'éviter, le site peut garder les comptes da
    - `TRUST_PROXY` = `1`
 5. Enregistre : Render redémarre le site. Dans les **Logs**, tu dois voir « Comptes : … chargé(s) depuis Supabase ».
 
+### Fenêtre « Stats » (réservée à l'admin)
+
+Sur Render → **Environment**, ajoute `ADMIN_USERNAME` = ton identifiant sur le site (plusieurs : séparés par des virgules).
+Une fois connecté avec ce compte, un bouton **Stats** apparaît en haut de la page d'accueil : comptes, recherches,
+visites, blind test, etc. Personne d'autre ne voit ce bouton, et le serveur refuse les stats à tout autre compte.
+
 La clé secrète donne un accès complet à la base : ne la mets jamais dans `index.html` ni sur GitHub.
 Si Supabase ne répond pas au démarrage, le serveur s'arrête (Render le relance) au lieu de démarrer sans comptes.
 Un projet Supabase gratuit est mis en pause après 7 jours sans aucune visite : il suffit alors de le relancer
