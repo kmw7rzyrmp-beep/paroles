@@ -43,7 +43,7 @@ const categoryName = (id) => (id === ALL ? 'Tout mélangé' : CATEGORIES.find((c
 const INVITE_TTL = 15 * 60_000; // une invitation reste valable 15 min
 const invites = new Map(); // identifiant invité (minuscules) -> Map(code -> { from, code, category, at })
 
-export function createBlindtest({ getJson, sameSong, clientIp, sessionUser, findFriend, demo }) {
+export function createBlindtest({ getJson, sameSong, clientIp, sessionUser, findFriend, recordBlindtest, blindtestLeaderboard, demo }) {
   // --- Trouver l'extrait de 30 s (et la pochette) d'une chanson ---
   async function resolveSong(song) {
     const key = song.titre + '|' + song.artiste;
@@ -117,6 +117,7 @@ export function createBlindtest({ getJson, sameSong, clientIp, sessionUser, find
         if (now < g.phaseEnd) return;
         if (g.index + 1 >= g.rounds.length) {
           room.phase = 'end';
+          recordGame(room);
           return;
         }
         g.index += 1;
@@ -124,6 +125,20 @@ export function createBlindtest({ getJson, sameSong, clientIp, sessionUser, find
         g.roundStart = g.phaseEnd;
         g.phaseEnd = g.roundStart + ROUND_MS;
       } else return;
+    }
+  }
+
+  // Enregistre la partie dans le classement mondial (comptes connectés seulement)
+  function recordGame(room) {
+    if (!room.game || room.game.recorded) return;
+    room.game.recorded = true;
+    const players = [...room.players.values()];
+    const top = Math.max(0, ...players.map((p) => p.score));
+    // une victoire ne compte que s'il y avait au moins 2 joueurs et un score
+    const multi = players.length >= 2;
+    for (const p of players) {
+      if (!p.userId) continue;
+      recordBlindtest(p.userId, { points: p.score, won: multi && top > 0 && p.score === top });
     }
   }
 
@@ -140,13 +155,18 @@ export function createBlindtest({ getJson, sameSong, clientIp, sessionUser, find
     return p;
   }
 
-  function addPlayer(room, name) {
+  function addPlayer(room, name, user) {
+    // un compte déjà dans la partie la retrouve (pas de double inscription pour gonfler le classement)
+    if (user) {
+      const again = [...room.players.values()].find((p) => p.userId === user.id);
+      if (again) return again;
+    }
     if (room.players.size >= MAX_PLAYERS) throw new BtError(409, `La partie est pleine (${MAX_PLAYERS} joueurs maximum).`);
     let base = cleanName(name);
     if (!base) throw new BtError(400, 'Choisis un pseudo.');
     let n = base;
     for (let i = 2; [...room.players.values()].some((p) => p.name.toLowerCase() === n.toLowerCase()); i++) n = `${base.slice(0, 17)} ${i}`;
-    const p = { id: newToken().slice(0, 10), name: n, token: newToken(), score: 0 };
+    const p = { id: newToken().slice(0, 10), name: n, token: newToken(), score: 0, userId: user ? user.id : null };
     room.players.set(p.id, p);
     return p;
   }
@@ -254,6 +274,12 @@ export function createBlindtest({ getJson, sameSong, clientIp, sessionUser, find
         });
       }
 
+      // Classement mondial
+      if (parts[0] === 'leaderboard' && req.method === 'GET') {
+        const user = sessionUser(req);
+        return send(res, 200, { ...blindtestLeaderboard(user ? user.id : null, 50), loggedIn: Boolean(user) });
+      }
+
       // Invitations reçues par la personne connectée
       if (parts[0] === 'invites') {
         const user = sessionUser(req);
@@ -278,7 +304,7 @@ export function createBlindtest({ getJson, sameSong, clientIp, sessionUser, find
 
       // Créer une partie
       if (parts.length === 1 && req.method === 'POST') {
-        if (limited(ip, 10)) throw new BtError(429, 'Trop de parties créées, attends une minute.');
+        if (limited('creer:' + ip, 10)) throw new BtError(429, 'Trop de parties créées, attends une minute.');
         if (rooms.size >= MAX_ROOMS) throw new BtError(503, 'Trop de parties en cours, réessaie plus tard.');
         const body = await readBody(req);
         const category = categorySongs(body.category) ? body.category : 'rap-fr';
@@ -286,7 +312,7 @@ export function createBlindtest({ getJson, sameSong, clientIp, sessionUser, find
         let code;
         do code = newCode(); while (rooms.has(code));
         const room = { code, phase: 'lobby', category, roundCount, players: new Map(), hostId: '', game: null, seen: Date.now(), error: '' };
-        const host = addPlayer(room, body.name);
+        const host = addPlayer(room, body.name, sessionUser(req));
         room.hostId = host.id;
         rooms.set(code, room);
         return send(res, 201, { code, token: host.token, playerId: host.id });
@@ -300,12 +326,12 @@ export function createBlindtest({ getJson, sameSong, clientIp, sessionUser, find
         return send(res, 200, view(room, me));
       }
       if (req.method !== 'POST') throw new BtError(405, 'Méthode non autorisée.');
-      if (limited(ip, 240)) throw new BtError(429, 'Doucement ! Réessaie dans une minute.');
+      if (limited('jeu:' + ip, 240)) throw new BtError(429, 'Doucement ! Réessaie dans une minute.');
       const body = await readBody(req);
 
       if (action === 'join') {
         if (room.phase !== 'lobby' && room.phase !== 'end') throw new BtError(409, 'La partie a déjà commencé. Attends la prochaine !');
-        const p = addPlayer(room, body.name);
+        const p = addPlayer(room, body.name, sessionUser(req));
         return send(res, 200, { code: room.code, token: p.token, playerId: p.id });
       }
 
