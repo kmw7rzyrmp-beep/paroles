@@ -13,6 +13,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <script src="/i18n.js"></script>
+<script src="/profile.js" defer></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..900&family=Permanent+Marker&display=swap" rel="stylesheet">
@@ -211,6 +212,9 @@
     transition: opacity .45s ease, transform .45s cubic-bezier(.2, .8, .2, 1), background .3s;
   }
   .board-row.in { opacity: 1; transform: none; }
+  .board-row { cursor: pointer; }
+  .board-row:hover { background-color: #302f37; }
+  .board-row:focus-visible { outline: 3px solid var(--jaune); outline-offset: 2px; }
   .board-row .rk { font: 900 1.6rem/1 var(--texte); font-stretch: 62%; color: var(--gris); text-align: center; }
   .board-row .who { min-width: 0; }
   .board-row .name { display: block; font: 800 1.12rem/1.15 var(--texte); font-stretch: 75%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -628,9 +632,17 @@
     pts.append(num, lbl);
     li.append(rk, who, pts);
     li._pts = 0;
+    // un clic sur une ligne ouvre le profil du joueur
+    li.tabIndex = 0;
+    li.setAttribute('role', 'button');
+    li.title = 'Afficher le profil';
+    const open = () => window.openProfile && window.openProfile(li.dataset.name);
+    li.addEventListener('click', open);
+    li.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(); } });
     return li;
   }
   function fillRow(li, r, isMe) {
+    li.dataset.name = r.username;
     li.querySelector('.rk').textContent = r.rank;
     li.querySelector('.name').textContent = r.username + (isMe ? ' (toi)' : '');
     li.querySelector('.meta').textContent =
