@@ -74,19 +74,21 @@ export function createBlindtest({ getJson, sameSong, clientIp, sessionUser, find
     const key = song.titre + '|' + song.artiste;
     if (previewCache.has(key)) return previewCache.get(key);
     if (demo) return { preview: '', cover: '' };
-    const check = (t, a) => sameSong(song.titre, song.verifierArtiste ? song.artiste : '', t, a);
+    const check = (t, a, strict) => sameSong(song.titre, song.verifierArtiste ? song.artiste : '', t, a, strict);
+    // d'abord le titre exact, sinon un titre proche (ex. « Otto (feat. X) »)
+    const pick = (list, ok) => list.find((r) => ok(r, true)) || list.find((r) => ok(r, false));
     let found = null;
     let failed = false;
     try {
       const p = new URLSearchParams({ term: `${song.titre} ${song.artiste}`, media: 'music', entity: 'song', limit: '15', country: 'FR' });
       const json = await getJson(`https://itunes.apple.com/search?${p}`, 'iTunes');
-      const m = (json.results || []).find((r) => r.previewUrl && check(r.trackName, r.artistName));
+      const m = pick(json.results || [], (r, strict) => r.previewUrl && check(r.trackName, r.artistName, strict));
       if (m) found = { preview: m.previewUrl, cover: (m.artworkUrl100 || '').replace('100x100', '300x300') };
     } catch (err) { failed = true; console.error('Blind test, iTunes :', err.message); }
     if (!found) {
       try {
         const json = await getJson(`https://api.deezer.com/search?${new URLSearchParams({ q: `${song.titre} ${song.artiste}`, limit: '15' })}`, 'Deezer');
-        const m = (json.data || []).find((r) => r.preview && check(r.title, r.artist?.name));
+        const m = pick(json.data || [], (r, strict) => r.preview && check(r.title, r.artist?.name, strict));
         if (m) found = { preview: m.preview, cover: m.album?.cover_medium || '' };
       } catch (err) { failed = true; console.error('Blind test, Deezer :', err.message); }
     }
