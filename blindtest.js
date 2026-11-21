@@ -79,7 +79,7 @@ const categoryName = (id) => (id === ALL ? 'Tout mélangé' : CATEGORIES.find((c
 const INVITE_TTL = 15 * 60_000; // une invitation reste valable 15 min
 const invites = new Map(); // identifiant invité (minuscules) -> Map(code -> { from, code, category, at })
 
-export function createBlindtest({ getJson, sameSong, clientIp, sessionUser, findFriend, recordBlindtest, blindtestLeaderboard, demo }) {
+export function createBlindtest({ getJson, sameSong, clientIp, sessionUser, findFriend, recordBlindtest, blindtestLeaderboard, markInBlindtest = () => {}, demo }) {
   // --- Trouver l'extrait de 30 s (et la pochette) d'une chanson ---
   async function resolveSong(song) {
     const key = song.titre + '|' + song.artiste;
@@ -174,10 +174,13 @@ export function createBlindtest({ getJson, sameSong, clientIp, sessionUser, find
   async function fillArtist(cat, artiste, have) {
     // 1) retrouver l'artiste sur Deezer (le nom doit être exactement le même)
     const found = await deezer(`https://api.deezer.com/search/artist?${new URLSearchParams({ q: artiste, limit: '10' })}`);
-    const same = (x, y) => simple(x).replace(/ /g, '') === simple(y).replace(/ /g, ''); // « Supreme Nova » = « Supremenova »
-    const match = (found.data || []).filter((a) => same(a.name, artiste))
-      .sort((x, y) => (y.nb_fan || 0) - (x.nb_fan || 0))[0];
-    if (!match) return 0;
+    const squash = (x) => simple(x).replace(/ /g, ''); // « Supreme Nova » = « Supremenova »
+    const byFans = (x, y) => (y.nb_fan || 0) - (x.nb_fan || 0);
+    const results = found.data || [];
+    // d'abord le nom exact ; sinon un nom à 1 lettre près (ex. « Bedry » / « Bedri »), pour les noms assez longs
+    const match = results.filter((a) => squash(a.name) === squash(artiste)).sort(byFans)[0]
+      || (squash(artiste).length >= 5 ? results.filter((a) => typo(squash(a.name), squash(artiste)) <= 1).sort(byFans)[0] : null);
+    if (!match) { missing.push(artiste); return 0; }
     // 2) ses sons les plus écoutés
     const top = await deezer(`https://api.deezer.com/artist/${match.id}/top?limit=100`);
     if (have === 0) artiste = match.name; // nouvel artiste : on prend son nom exact sur Deezer
@@ -200,6 +203,18 @@ export function createBlindtest({ getJson, sameSong, clientIp, sessionUser, find
     return added;
   }
 
+  // nombre de lettres à changer pour passer d'un mot à l'autre
+  function typo(a, b) {
+    if (Math.abs(a.length - b.length) > 1) return 2;
+    const d = Array.from({ length: a.length + 1 }, (_, i) => [i]);
+    for (let j = 1; j <= b.length; j++) d[0][j] = j;
+    for (let i = 1; i <= a.length; i++) for (let j = 1; j <= b.length; j++) {
+      d[i][j] = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+    }
+    return d[a.length][b.length];
+  }
+  const missing = []; // artistes introuvables sur Deezer (affichés dans les logs)
+
   async function fillAllArtists() {
     let total = 0;
     for (const cat of CATEGORIES) {
@@ -215,6 +230,7 @@ export function createBlindtest({ getJson, sameSong, clientIp, sessionUser, find
       }
     }
     console.log(`Blind test : ${total} sons ajoutés automatiquement (objectif ${TARGET_PER_ARTIST} par artiste).`);
+    if (missing.length) console.log(`Blind test : artistes introuvables sur Deezer : ${missing.join(', ')}`);
   }
 
   // Au démarrage du serveur : on complète les artistes, puis on récupère la popularité des sons restants
@@ -612,6 +628,7 @@ export function createBlindtest({ getJson, sameSong, clientIp, sessionUser, find
 
       if (req.method === 'GET' && action === '') {
         const me = getPlayer(room, url.searchParams.get('token'));
+        if (me.userId) markInBlindtest(me.userId); // ses amis voient « En blind test »
         return send(res, 200, view(room, me));
       }
       if (req.method !== 'POST') throw new BtError(405, 'Méthode non autorisée.');
