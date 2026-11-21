@@ -4,6 +4,13 @@
 // tag : 'new' (nouveauté), 'better' (amélioration), 'fix' (correction), 'removed' (retiré)
 export const PATCH_NOTES = [
   {
+    version: '2.9', date: '2026-11-21', time: '21:20', title: '« Écouter le passage » plus précis',
+    items: [
+      ['better', '« Écouter le passage » vise le mot exact où commencent tes paroles (et plus seulement le début de la ligne).'],
+      ['better', 'La vidéo choisie est celle qui a la même durée que le morceau : plus de décalage à cause d’une intro de clip.'],
+    ],
+  },
+  {
     version: '2.8', date: '2026-11-21', time: '21:15', title: 'Lancement plus rapide et « prêt » à côté de la difficulté',
     items: [
       ['better', 'Le bouton « Prêt » est à côté de la difficulté. L’hôte n’a plus besoin d’être prêt (son bouton est grisé) : c’est lui qui lance.'],

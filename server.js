@@ -141,7 +141,10 @@ const videoCache = new Map();
 async function findVideo(title, artist) {
   const key = norm(title + artist);
   if (videoCache.has(key)) return videoCache.get(key);
-  let id = '';
+  // la durée exacte du morceau (paroles synchronisées) : la vidéo qui a la même durée a le même minutage
+  const target = (await findLyrics(title, artist).catch(() => ({}))).duration || 0;
+  const seconds = (txt) => String(txt || '').split(':').reduce((n, x) => n * 60 + Number(x), 0);
+  const found = [];
   for (const q of [`${artist} ${title} audio`, `${artist} ${title}`]) {
     try {
       const res = await fetch(`https://www.youtube.com/results?${new URLSearchParams({ search_query: q, hl: 'fr', gl: 'FR' })}`, {
@@ -150,9 +153,19 @@ async function findVideo(title, artist) {
       });
       if (!res.ok) continue;
       const html = await res.text();
-      const m = html.match(/"videoRenderer":\{"videoId":"([\w-]{11})"/) || html.match(/"videoId":"([\w-]{11})"/);
-      if (m) { id = m[1]; break; }
+      // chaque vidéo : son identifiant et sa durée (« 3:45 »)
+      const re = /"videoRenderer":\{"videoId":"([\w-]{11})"[\s\S]{0,4000}?"lengthText":\{[^}]*?"simpleText":"([\d:]+)"/g;
+      let m;
+      while ((m = re.exec(html)) && found.length < 20) if (!found.some((f) => f.id === m[1])) found.push({ id: m[1], dur: seconds(m[2]), rank: found.length });
+      if (!found.length) { const one = html.match(/"videoId":"([\w-]{11})"/); if (one) found.push({ id: one[1], dur: 0, rank: 0 }); }
+      if (target && found.some((f) => Math.abs(f.dur - target) <= 2)) break; // une vidéo à la bonne durée : on a ce qu'il faut
     } catch (err) { console.error('YouTube :', err.message); }
+  }
+  let id = '';
+  if (found.length) {
+    // la plus proche de la durée du morceau, sinon la première de la liste
+    const pick = target ? [...found].sort((a, b) => (Math.abs(a.dur - target) - Math.abs(b.dur - target)) || a.rank - b.rank)[0] : found[0];
+    id = pick.id;
   }
   if (videoCache.size >= CACHE_MAX * 4) videoCache.delete(videoCache.keys().next().value);
   videoCache.set(key, id);
@@ -258,7 +271,7 @@ async function findLyrics(title, artist) {
       if (best) {
         const synced = parseLrc(best.syncedLyrics);
         const lyrics = (best.plainLyrics || synced.map((l) => l.text).join('\n')).trim();
-        data = { lyrics, synced };
+        data = { lyrics, synced, duration: Number(best.duration) || 0 }; // duration : durée du morceau (s), pour choisir la bonne vidéo
         break;
       }
     } catch (err) {
@@ -356,17 +369,34 @@ const words = (t) => String(t || '').toLowerCase().normalize('NFD').replace(/[̀
 // Trouve la ligne (ou les 2 lignes qui se suivent) des paroles synchronisées qui contient le mieux ce qu'on a tapé
 function lyricsMoment(q, synced) {
   if (!Array.isArray(synced) || !synced.length) return null;
-  const qw = words(q).split(' ').filter((w) => w.length >= 2);
+  const qw = words(q).split(' ').filter(Boolean);
   if (!qw.length) return null;
-  let best = { score: 0, t: null };
+  // chaque mot des paroles reçoit son heure : début de la ligne + sa place dans la ligne
+  // (on suppose que la ligne est chantée sur ~85 % du temps jusqu'à la ligne suivante, 6 s max)
+  const flat = [];
   for (let i = 0; i < synced.length; i++) {
-    const text = ' ' + words(synced[i].text + ' ' + (synced[i + 1]?.text || '')) + ' ';
-    const exact = text.includes(' ' + qw.join(' ') + ' ');
-    const hits = qw.filter((w) => text.includes(' ' + w + ' ') || text.includes(' ' + w)).length / qw.length;
-    const score = exact ? 2 : hits;
-    if (score > best.score + 0.001) best = { score, t: synced[i].t };
+    const ws = words(synced[i].text).split(' ').filter(Boolean);
+    const next = synced[i + 1] ? synced[i + 1].t : synced[i].t + 4;
+    const span = Math.min(6, Math.max(0.5, next - synced[i].t)) * 0.85;
+    ws.forEach((w, k) => flat.push({ w, t: synced[i].t + (span * k) / ws.length }));
   }
-  return best.score >= 0.7 ? Math.max(0, Math.round(best.t * 10) / 10) : null;
+  const same = (a, b) => a === b || (a.length >= 3 && b.length >= 3 && (a.startsWith(b) || b.startsWith(a)));
+  // on cherche l'endroit où les mots tapés apparaissent dans l'ordre (avec un peu de tolérance)
+  let best = { score: 0, t: null };
+  for (let j = 0; j < flat.length; j++) {
+    if (!same(flat[j].w, qw[0]) && !(qw.length > 1 && same(flat[j].w, qw[1]))) continue; // ça commence par un des 2 premiers mots tapés
+    let qi = same(flat[j].w, qw[0]) ? 0 : 1, matched = 0, last = j, pos = j;
+    const end = Math.min(flat.length, j + qw.length + 4);
+    for (; pos < end && qi < qw.length; pos++) {
+      // le mot tapé peut être sauté s'il ne se trouve pas tout de suite (faute de frappe, mot oublié)
+      if (same(flat[pos].w, qw[qi])) { matched++; qi++; last = pos; }
+      else if (qi + 1 < qw.length && same(flat[pos].w, qw[qi + 1])) { matched++; qi += 2; last = pos; }
+    }
+    // les mots trouvés comptent, et les mots en trop au milieu font perdre un peu
+    const score = matched / qw.length - 0.02 * Math.max(0, last - j + 1 - matched);
+    if (score > best.score + 1e-6) best = { score, t: flat[j].t };
+  }
+  return best.score >= 0.6 ? Math.max(0, Math.round(best.t * 10) / 10) : null;
 }
 
 function lyricsScore(q, lyrics) {

@@ -867,10 +867,10 @@
         videoId: lyr.videoId,
         width: '100%',
         height: '100%',
-        // « Écouter le passage » : on démarre 2 s avant les paroles tapées
-        playerVars: { autoplay: 1, playsinline: 1, rel: 0, ...(startAt !== null ? { start: Math.max(0, Math.floor(startAt - (lyr.off.yt || 0) - 2)) } : {}) },
+        // « Écouter le passage » : on démarre 1,5 s avant les paroles tapées (le temps d'entendre arriver la phrase)
+        playerVars: { autoplay: 1, playsinline: 1, rel: 0, ...(startAt !== null ? { start: Math.max(0, Math.floor(startAt - (lyr.off.yt || 0) - 1.5)) } : {}) },
         events: {
-          onReady: (e) => { if (startAt !== null) e.target.seekTo(Math.max(0, startAt - (lyr.off.yt || 0) - 2), true); e.target.playVideo(); },
+          onReady: (e) => { if (startAt !== null) e.target.seekTo(Math.max(0, startAt - (lyr.off.yt || 0) - 1.5), true); e.target.playVideo(); },
           onStateChange: (e) => {
             if (current !== me) return;
             cancelAnimationFrame(raf);
