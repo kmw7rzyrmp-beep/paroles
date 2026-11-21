@@ -187,14 +187,14 @@ async function randomCover() {
       try {
         const json = await getJson(`https://api.deezer.com/search/album?${new URLSearchParams({ q: `artist:"${artist}"`, limit: '25' })}`, 'Deezer');
         albums = (json.data || []).filter((a) => a.cover_xl && norm(a.artist?.name).includes(norm(artist).slice(0, 5)))
-          .map((a) => ({ cover: a.cover_xl, album: a.title, artist: a.artist.name }));
+          .map((a) => ({ cover: a.cover_xl, album: a.title, artist: a.artist.name, deezerId: a.id }));
       } catch (err) { console.error('Pochette (Deezer) :', err.message); }
       if (!albums.length) {
         try {
           const params = new URLSearchParams({ term: artist, media: 'music', entity: 'album', limit: '25', country: 'FR' });
           const json = await getJson(`https://itunes.apple.com/search?${params}`, 'iTunes');
           albums = (json.results || []).filter((r) => r.artworkUrl100 && norm(r.artistName).includes(norm(artist).slice(0, 5)))
-            .map((r) => ({ cover: r.artworkUrl100.replace('100x100bb', '600x600bb'), album: r.collectionName, artist: r.artistName }));
+            .map((r) => ({ cover: r.artworkUrl100.replace('100x100bb', '600x600bb'), album: r.collectionName, artist: r.artistName, itunesId: r.collectionId }));
         } catch (err) { console.error('Pochette (iTunes) :', err.message); }
       }
       if (albums.length) { // on ne garde en mémoire que les réussites (un échec sera réessayé plus tard)
@@ -202,9 +202,30 @@ async function randomCover() {
         if (albumCache.size > 300) albumCache.delete(albumCache.keys().next().value);
       }
     }
-    if (albums.length) return albums[Math.floor(Math.random() * albums.length)];
+    if (albums.length) {
+      const a = albums[Math.floor(Math.random() * albums.length)];
+      if (a.track === undefined) a.track = await albumTrack(a).catch(() => null); // un son de l'album, pour l'écouter
+      return { cover: a.cover, album: a.album, artist: a.artist, ...(a.track ? { title: a.track.title, preview: a.track.preview } : {}) };
+    }
   }
   return { cover: '' };
+}
+
+// Un son de l'album (avec un extrait de 30 s) : de préférence parmi les premiers titres
+async function albumTrack(a) {
+  let tracks = [];
+  if (a.deezerId) {
+    const json = await getJson(`https://api.deezer.com/album/${encodeURIComponent(a.deezerId)}`, 'Deezer');
+    tracks = (json.tracks?.data || []).filter((t) => t.preview).map((t) => ({ title: t.title, preview: t.preview, rank: t.rank || 0 }));
+  } else if (a.itunesId) {
+    const json = await getJson(`https://itunes.apple.com/lookup?${new URLSearchParams({ id: a.itunesId, entity: 'song', country: 'FR' })}`, 'iTunes');
+    tracks = (json.results || []).filter((t) => t.wrapperType === 'track' && t.previewUrl).map((t) => ({ title: t.trackName, preview: t.previewUrl, rank: 0 }));
+  }
+  if (!tracks.length) return null;
+  // le plus écouté de l'album s'il est connu, sinon un des 5 premiers au hasard
+  const top = tracks.some((t) => t.rank) ? [...tracks].sort((x, y) => y.rank - x.rank).slice(0, 3) : tracks.slice(0, 5);
+  const t = top[Math.floor(Math.random() * top.length)];
+  return { title: t.title, preview: t.preview };
 }
 
 async function previewFromDeezer(title, artist) {

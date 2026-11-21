@@ -111,7 +111,16 @@
     if (want === 'notifications') { window.dispatchEvent(new Event('notif-open')); drawHistory(); }
     if (want === 'classement') window.dispatchEvent(new Event('ranking-open'));
     if (want === 'patch') drawPatch();
-    if (want === 'admin') window.dispatchEvent(new Event('admin-open'));
+    if (want === 'admin') {
+      window.dispatchEvent(new Event('admin-open'));
+      // filet de sécurité : si la page reste vide, on le dit (au lieu d'un écran noir)
+      setTimeout(() => {
+        const pg = $('#pageAdmin');
+        if (!pg || current !== 'admin' || pg.querySelector('.pw-grid')) return;
+        if (window.ssOpenAdmin) { window.ssOpenAdmin(); if (pg.querySelector('.pw-grid')) return; }
+        if (!pg.querySelector('.pw-fail')) pg.append(el('p', 'nf-empty pw-fail', 'La page Admin ne s’est pas chargée. Recharge la page (Ctrl + F5). Si ça continue, un bloqueur de pubs empêche peut-être le fichier de se charger.'));
+      }, 1500);
+    }
   }
   function closePage() {
     if (!current) return;

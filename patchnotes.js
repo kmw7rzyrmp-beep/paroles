@@ -4,7 +4,14 @@
 // tag : 'new' (nouveauté), 'better' (amélioration), 'fix' (correction), 'removed' (retiré)
 export const PATCH_NOTES = [
   {
-    version: '2.9', date: '2026-11-21', time: '21:20', title: '« Écouter le passage » plus précis',
+    version: '2.10', date: '2026-11-21', time: '21:20', title: 'Écouter la pochette, Admin réparé',
+    items: [
+      ['new', 'Accueil : un bouton sur la pochette pour écouter 30 s d’un son de l’album (sous la recherche sur téléphone).'],
+      ['fix', 'La page Admin restait vide avec certains bloqueurs de pubs : c’est réglé.'],
+    ],
+  },
+  {
+    version: '2.9', date: '2026-11-21', time: '21:06', title: '« Écouter le passage » plus précis',
     items: [
       ['better', '« Écouter le passage » vise le mot exact où commencent tes paroles (et plus seulement le début de la ligne).'],
       ['better', 'La vidéo choisie est celle qui a la même durée que le morceau : plus de décalage à cause d’une intro de clip.'],

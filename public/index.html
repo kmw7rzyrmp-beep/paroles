@@ -23,11 +23,11 @@
 <script src="/ranking.js" defer></script>
 <script src="/app.js" defer></script>
 <script src="/live.js" defer></script>
-<script src="/adminpage.js" defer></script>
+<script src="/outils.js?v=11" defer></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/app.css?v=10">
+<link rel="stylesheet" href="/app.css?v=11">
 <style>
   /* ---------- Accueil : le grand bandeau orange avec la recherche ---------- */
   .hero {
@@ -78,6 +78,31 @@
   .hero-art .vinyl .lbl { position: absolute; inset: 31%; border-radius: 50%; background: center / cover no-repeat; opacity: 0; transition: opacity .7s; }
   .hero-art .vinyl .lbl::after { content: ""; position: absolute; inset: 44%; border-radius: 50%; background: #0b0b0c; }
   .hero-art.has-cover .vinyl .lbl { opacity: 1; }
+  /* écouter un extrait du son de la pochette */
+  .cover-play { position: absolute; z-index: 3; right: calc(8% + 1rem); bottom: calc(50% - min(7.5rem, 41%) + .9rem); display: flex; align-items: center; gap: .55rem; max-width: min(13rem, 70%);
+    padding: .35rem .9rem .35rem .35rem; border: 0; border-radius: 999px; background: rgba(12, 12, 14, .82); color: #fff; backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+    box-shadow: 0 10px 24px rgba(0,0,0,.45); cursor: pointer; overflow: hidden; transform: rotate(-6deg); transition: transform .3s cubic-bezier(.2, 1.4, .4, 1), background .2s; animation: cpIn .5s .4s cubic-bezier(.2, 1.4, .4, 1) both; }
+  .cover-play:hover { transform: rotate(-6deg) scale(1.05); background: rgba(12, 12, 14, .95); }
+  .cover-play:focus-visible { outline: 3px solid #fff; outline-offset: 2px; }
+  @keyframes cpIn { from { opacity: 0; transform: rotate(-6deg) translateY(10px) scale(.8); } }
+  .cp-ico { flex: none; width: 2.3rem; height: 2.3rem; border-radius: 50%; display: grid; place-items: center; background: var(--orange); }
+  .cp-ico svg { width: 1.05rem; height: 1.05rem; grid-area: 1 / 1; }
+  .cp-ico .pa, .cover-play.playing .cp-ico .pl { display: none; }
+  .cover-play.playing .cp-ico .pa { display: block; }
+  .cover-play.playing .cp-ico { animation: cpPulse 1.2s ease-in-out infinite; }
+  @keyframes cpPulse { 50% { box-shadow: 0 0 0 6px rgba(242, 107, 58, .35); } }
+  .cp-txt { min-width: 0; text-align: left; line-height: 1.15; }
+  .cp-txt b { display: block; font: 800 .82rem var(--texte); }
+  .cp-txt small { display: block; font-size: .72rem; opacity: .8; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .cp-bar { position: absolute; left: 0; bottom: 0; height: 3px; width: 0; background: var(--orange); }
+  .hero-art.cp-on .vinyl { animation-duration: 1.8s; }
+  .hero-art:has(.cover-play:not([hidden])) .sleeve .cap { display: none; } /* le bouton affiche déjà le titre */
+  @media (max-width: 760px) {
+    /* téléphone : la pochette est cachée, le bouton passe sous la barre de recherche */
+    .hero .cover-play { position: relative; right: auto; bottom: auto; margin-top: 1rem; transform: none; max-width: 100%; z-index: 1; }
+    .hero .cover-play:hover { transform: none; }
+    @keyframes cpIn { from { opacity: 0; transform: translateY(10px); } }
+  }
   @media (max-width: 760px) {
     .hero { grid-template-columns: 1fr; padding: 1.7rem 1.3rem 1.4rem; min-height: 0; }
     .hero-art { position: absolute; right: -3rem; top: -2rem; width: 11rem; min-height: 0; height: 11rem; opacity: .35; z-index: 0; }
@@ -262,10 +287,11 @@
           <span>Paroles synchronisées, Spotify et Deezer</span>
         </div>
       </div>
-      <div class="hero-art" aria-hidden="true">
-        <div class="vinyl"><span class="lbl"></span></div>
-        <div class="sleeve"><img class="cv" alt="" referrerpolicy="no-referrer"><span class="cap"></span></div>
-        <svg class="wave" viewBox="0 0 400 80" preserveAspectRatio="none"><path d="M0 50 C40 10 80 70 120 40 S200 10 240 45 S320 75 400 30" fill="none" stroke="#fff" stroke-width="2"/></svg>
+      <div class="hero-art">
+        <div class="vinyl" aria-hidden="true"><span class="lbl"></span></div>
+        <div class="sleeve" aria-hidden="true"><img class="cv" alt="" referrerpolicy="no-referrer"><span class="cap"></span></div>
+        <button class="cover-play" type="button" hidden aria-pressed="false"><span class="cp-ico" aria-hidden="true"><svg class="pl" viewBox="0 0 24 24"><path d="M8 5l11 7-11 7z" fill="currentColor"/></svg><svg class="pa" viewBox="0 0 24 24"><path d="M7 5h3.5v14H7zM13.5 5H17v14h-3.5z" fill="currentColor"/></svg></span><span class="cp-txt"><b>Écouter</b><small data-notranslate></small></span><i class="cp-bar" aria-hidden="true"></i></button>
+        <svg aria-hidden="true" class="wave" viewBox="0 0 400 80" preserveAspectRatio="none"><path d="M0 50 C40 10 80 70 120 40 S200 10 240 45 S320 75 400 30" fill="none" stroke="#fff" stroke-width="2"/></svg>
       </div>
     </section>
 
@@ -2174,12 +2200,40 @@ document.addEventListener('visibilitychange', () => { if (document.visibilitySta
   document.getElementById('iosInstallClose').addEventListener('click', () => iosDlg.close());
 })();
 
-// --- Le disque de l'accueil : la pochette d'un album de rap au hasard, nouvelle à chaque passage sur l'accueil ---
+// --- Le disque de l'accueil : la pochette d'un album de rap au hasard, nouvelle à chaque passage sur l'accueil,
+// avec un bouton pour écouter 30 s d'un son de cet album ---
 (() => {
   const art = document.querySelector('.hero-art');
   if (!art) return;
   const sleeve = art.querySelector('.sleeve'), img = sleeve.querySelector('.cv'), cap = sleeve.querySelector('.cap'), lbl = art.querySelector('.vinyl .lbl');
-  let busy = false;
+  const play = art.querySelector('.cover-play'), bar = play.querySelector('.cp-bar'), sub = play.querySelector('small');
+  const foot = document.querySelector('.hero-foot');
+  const audio = new Audio();
+  audio.preload = 'none';
+  let busy = false, raf = 0;
+  // sur téléphone, le bouton va sous la recherche (la pochette y est cachée)
+  const phone = matchMedia('(max-width: 760px)');
+  const place = () => { if (phone.matches) { if (foot && play.parentElement !== foot.parentElement) foot.after(play); } else if (play.parentElement !== art) art.append(play); };
+  place(); phone.addEventListener('change', place);
+  const tick = () => { if (audio.duration) bar.style.width = (audio.currentTime / audio.duration * 100) + '%'; if (!audio.paused) raf = requestAnimationFrame(tick); };
+  const paint = () => {
+    const on = !audio.paused;
+    play.classList.toggle('playing', on); art.classList.toggle('cp-on', on);
+    play.setAttribute('aria-pressed', String(on));
+    play.querySelector('b').textContent = on ? 'En écoute…' : 'Écouter';
+    if (on) { cancelAnimationFrame(raf); raf = requestAnimationFrame(tick); }
+  };
+  audio.addEventListener('play', paint); audio.addEventListener('pause', paint);
+  audio.addEventListener('ended', () => { bar.style.width = '0'; paint(); });
+  play.addEventListener('click', () => {
+    if (!audio.src) return;
+    if (audio.paused) {
+      document.querySelectorAll('audio, video').forEach((m) => { if (m !== audio) try { m.pause(); } catch {} });
+      audio.play().catch(() => {});
+    } else audio.pause();
+  });
+  // si un autre son démarre sur la page, celui de la pochette s'arrête
+  document.addEventListener('play', (e) => { if (e.target !== audio && !audio.paused) audio.pause(); }, true);
   async function newCover() {
     if (busy) return;
     busy = true;
@@ -2197,6 +2251,16 @@ document.addEventListener('visibilitychange', () => { if (document.visibilitySta
           cap.setAttribute('data-notranslate', '');
           sleeve.classList.add('has-cover'); art.classList.add('has-cover');
           requestAnimationFrame(() => img.classList.add('in'));
+          // le son de la pochette
+          audio.pause(); bar.style.width = '0';
+          if (d.preview) {
+            audio.src = d.preview;
+            sub.textContent = `${d.title || 'Un son'} · ${d.artist || ''}`;
+            play.setAttribute('aria-label', `Écouter un extrait de ${d.title || 'ce son'} de ${d.artist || ''}`);
+            play.hidden = false;
+            play.style.animation = 'none'; void play.offsetWidth; play.style.animation = '';
+          } else { audio.removeAttribute('src'); play.hidden = true; }
+          paint();
         }, sleeve.classList.contains('has-cover') ? 350 : 0);
       };
       pre.src = d.cover;
