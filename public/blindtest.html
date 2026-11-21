@@ -227,6 +227,31 @@
   .board-me { margin-top: .8rem; padding-top: .8rem; border-top: 1px dashed var(--ligne); }
   .board-empty { color: var(--gris); font-style: italic; }
 
+  /* ---------- Choix des artistes ---------- */
+  .artists { margin-top: -1rem; }
+  .artists-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: .3rem 1rem; }
+  .artists-head .lbl { margin: 0 0 .45rem; }
+  .artists-count { color: var(--gris); font-weight: 500; }
+  .artists-tools { display: inline-flex; gap: 1rem; }
+  .artists-tools[hidden] { display: none; }
+  .artists-tools button { min-height: 2.2rem; padding: 0; background: none; border: 0; box-shadow: none; color: var(--jaune); font: 700 .92rem var(--texte); text-decoration: underline; text-underline-offset: 3px; }
+  .artists-tools button:active { transform: none; background: none; }
+  .artists-search { width: 100%; min-height: 2.6rem; margin: 0 0 .6rem; padding: .4rem .8rem; border: 1px solid var(--ligne); border-radius: 999px; background: #0d0c0f; color: var(--blanc); font: 500 1rem var(--texte); }
+  .artists-search:focus { outline: none; border-color: var(--orange); }
+  .artist-chips { display: flex; flex-wrap: wrap; gap: .45rem; max-height: 17rem; overflow-y: auto; padding: .2rem .1rem; overscroll-behavior: contain; }
+  .artist-chip {
+    min-height: 2.4rem; padding: .3rem .85rem .3rem .7rem; border-radius: 999px; gap: .45rem;
+    background: transparent; color: var(--gris); border: 1px solid var(--ligne); border-bottom-width: 1px; box-shadow: none;
+    font: 700 .95rem var(--texte); font-stretch: 85%; transition: background .18s, color .18s, border-color .18s, transform .12s;
+  }
+  .artist-chip::before { content: ""; width: .9rem; height: .9rem; border-radius: 50%; border: 2px solid currentColor; box-sizing: border-box; transition: background .18s; }
+  .artist-chip small { font-weight: 500; font-size: .78rem; opacity: .75; }
+  .artist-chip[aria-pressed="true"] { background: rgba(242, 140, 28, .16); color: var(--blanc); border-color: var(--orange); }
+  .artist-chip[aria-pressed="true"]::before { background: var(--orange) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M2.5 6.2l2.3 2.3 4.7-5' fill='none' stroke='%231b1b22' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center / 80% no-repeat; border-color: var(--orange); }
+  .artist-chip:active:not(:disabled) { transform: scale(.95); border-bottom-width: 1px; background: rgba(242, 140, 28, .25); box-shadow: none; }
+  .artist-chip:disabled { opacity: 1; cursor: default; }
+  .artist-chip:disabled[aria-pressed="false"] { display: none; }
+
   /* boutons de difficulté : une pastille de couleur, et HARRR MODE qui en jette */
   .levels button::before { content: ""; width: .6rem; height: .6rem; border-radius: 50%; }
   .levels .lv-facile::before { background: var(--vert); }
@@ -301,6 +326,14 @@
       <h2>Créer une partie</h2>
       <p class="lbl">Catégorie</p>
       <div id="catChips" class="chips block" role="radiogroup" aria-label="Catégorie"></div>
+      <div id="homeArtists" class="artists block" hidden>
+        <div class="artists-head">
+          <p class="lbl">Artistes <span class="artists-count"></span></p>
+          <span class="artists-tools"><button type="button" data-all>Tout cocher</button><button type="button" data-none>Tout décocher</button></span>
+        </div>
+        <input class="artists-search" type="search" placeholder="Chercher un artiste" aria-label="Chercher un artiste" hidden>
+        <div class="artist-chips" role="group" aria-label="Artistes à entendre"></div>
+      </div>
       <p class="lbl">Nombre de sons</p>
       <div id="roundChips" class="chips block" role="radiogroup" aria-label="Nombre de sons" style="width: fit-content"></div>
       <p class="lbl">Difficulté</p>
@@ -335,6 +368,14 @@
     <div id="hostSettings">
       <p class="lbl">Catégorie</p>
       <div id="lobbyCats" class="chips block" role="radiogroup" aria-label="Catégorie"></div>
+      <div id="lobbyArtists" class="artists block" hidden>
+        <div class="artists-head">
+          <p class="lbl">Artistes <span class="artists-count"></span></p>
+          <span class="artists-tools"><button type="button" data-all>Tout cocher</button><button type="button" data-none>Tout décocher</button></span>
+        </div>
+        <input class="artists-search" type="search" placeholder="Chercher un artiste" aria-label="Chercher un artiste" hidden>
+        <div class="artist-chips" role="group" aria-label="Artistes à entendre"></div>
+      </div>
       <p class="lbl">Nombre de sons</p>
       <div id="lobbyRounds" class="chips block" role="radiogroup" aria-label="Nombre de sons" style="width: fit-content"></div>
       <p class="lbl">Difficulté</p>
@@ -414,7 +455,7 @@
   const API = '/api/bt';
   let cats = [], roundsChoices = [5, 10, 15];
   let levels = [{ id: 'facile', nom: 'Facile' }, { id: 'intermediaire', nom: 'Intermédiaire' }, { id: 'hard', nom: 'HARRR MODE' }];
-  let pick = { category: 'rap-fr', rounds: 10, level: 'intermediaire' };
+  let pick = { category: 'rap-fr', rounds: 10, level: 'intermediaire', artists: null }; // artists : null = tous
   let session = null; // { code, token }
   let state = null, clockOffset = 0, pollTimer = null;
   let playingKey = '', answering = false;
@@ -463,11 +504,57 @@
     }));
   }
 
+  // --- Choix des artistes : des boutons à cocher, tous cochés au départ ---
+  // sel = liste des artistes choisis (null = tous). onChange reçoit la nouvelle liste (null si tous sont cochés).
+  function artistPicker(box, catId, sel, onChange, readOnly) {
+    const cat = cats.find((c) => c.id === catId);
+    const list = cat && cat.artists ? cat.artists : [];
+    box.hidden = !list.length;
+    if (!list.length) return;
+    const chosen = new Set(Array.isArray(sel) ? sel : list.map((a) => a.nom));
+    const songs = list.filter((a) => chosen.has(a.nom)).reduce((n, a) => n + a.count, 0);
+    box.querySelector('.artists-count').textContent = chosen.size === list.length
+      ? `(tous, ${songs} sons)` : !chosen.size ? '(aucun : coche ceux que tu veux entendre)' : `(${chosen.size} sur ${list.length}, ${songs} sons)`;
+    box.querySelector('.artists-tools').hidden = readOnly;
+    const search = box.querySelector('.artists-search');
+    search.hidden = readOnly || list.length < 12;
+    const send = (set) => onChange(set.size === list.length ? null : list.map((a) => a.nom).filter((n) => set.has(n)));
+    box.querySelector('[data-all]').onclick = () => send(new Set(list.map((a) => a.nom)));
+    box.querySelector('[data-none]').onclick = () => send(new Set());
+    const wrap = box.querySelector('.artist-chips');
+    const q = search.value.trim().toLowerCase();
+    // on ne redessine que si quelque chose a changé (évite de casser un clic en cours)
+    const sig = catId + '|' + [...chosen].join(',') + '|' + q + '|' + readOnly;
+    if (wrap.dataset.sig === sig) return;
+    wrap.dataset.sig = sig;
+    wrap.replaceChildren(...list.filter((a) => !q || a.nom.toLowerCase().includes(q)).map((a) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'artist-chip';
+      b.setAttribute('aria-pressed', String(chosen.has(a.nom)));
+      b.disabled = readOnly;
+      const n = document.createElement('span'); n.textContent = a.nom;
+      const c = document.createElement('small'); c.textContent = a.count;
+      b.append(n, c);
+      b.addEventListener('click', () => {
+        const next = new Set(chosen);
+        if (next.has(a.nom)) next.delete(a.nom); else next.add(a.nom);
+        send(next);
+      });
+      return b;
+    }));
+    search.oninput = () => artistPicker(box, catId, sel, onChange, readOnly);
+  }
+
   // chaque bouton de niveau garde sa couleur (vert, orange, rouge)
   function markLevels(el) { [...el.children].forEach((b, i) => b.classList.add('lv-' + ['facile', 'intermediaire', 'hard'][i])); }
 
   function drawHomeChips() {
-    chips($('catChips'), cats.map((c) => [c.id, c.nom]), pick.category, (v) => { pick.category = v; drawHomeChips(); });
+    chips($('catChips'), cats.map((c) => [c.id, c.nom]), pick.category, (v) => {
+      if (v !== pick.category) { pick.artists = null; $('homeArtists').querySelector('.artists-search').value = ''; }
+      pick.category = v; drawHomeChips();
+    });
+    artistPicker($('homeArtists'), pick.category, pick.artists, (list) => { pick.artists = list; drawHomeChips(); }, false);
     chips($('roundChips'), roundsChoices.map((n) => [n, String(n)]), pick.rounds, (v) => { pick.rounds = v; drawHomeChips(); });
     chips($('levelChips'), levels.map((l) => [l.id, l.nom]), pick.level, (v) => { pick.level = v; drawHomeChips(); });
     markLevels($('levelChips'));
@@ -631,9 +718,10 @@
     unlockAudio();
     $('homeMsg').textContent = '';
     if (!myName()) { $('homeMsg').textContent = 'Choisis d’abord un pseudo.'; $('nameInput').focus(); return; }
+    if (Array.isArray(pick.artists) && !pick.artists.length) { $('homeMsg').textContent = 'Coche au moins un artiste.'; return; }
     rememberName();
     try {
-      const d = await api('/rooms', { name: myName(), category: pick.category, rounds: pick.rounds, level: pick.level });
+      const d = await api('/rooms', { name: myName(), category: pick.category, rounds: pick.rounds, level: pick.level, artists: pick.artists });
       session = { code: d.code, token: d.token };
       saveSession();
       history.replaceState(null, '', '/blindtest?room=' + d.code);
@@ -713,12 +801,14 @@
     $('hostSettings').hidden = !isHost();
     const loading = state.phase === 'loading';
     $('guestWait').textContent = loading ? 'Chargement des extraits…'
-      : isHost() ? '' : `En attente que l’hôte lance la partie (${state.categoryName}, ${state.levelName}, ${state.rounds} sons).`;
+      : isHost() ? '' : `En attente que l’hôte lance la partie (${state.categoryName}, ${state.levelName}, ${state.rounds} sons`
+        + (Array.isArray(state.artists) ? `, artistes : ${state.artists.slice(0, 4).join(', ')}${state.artists.length > 4 ? ` et ${state.artists.length - 4} autres` : ''}` : '') + ').';
     if (isHost()) {
       const set = (body) => api(`/rooms/${state.code}/settings`, { token: session.token, ...body }).then((d) => { state = d; render(); }).catch((e) => { $('lobbyMsg').textContent = e.message; });
       chips($('lobbyCats'), cats.map((c) => [c.id, c.nom]), state.category, (v) => set({ category: v }));
       chips($('lobbyRounds'), roundsChoices.map((n) => [n, String(n)]), state.rounds, (v) => set({ rounds: v }));
       chips($('lobbyLevels'), levels.map((l) => [l.id, l.nom]), state.level, (v) => set({ level: v }));
+      artistPicker($('lobbyArtists'), state.category, state.artists, (list) => set({ artists: list }), false);
       markLevels($('lobbyLevels'));
       $('startBtn').disabled = loading;
       $('startBtn').textContent = loading ? 'Chargement…' : 'Lancer la partie';
