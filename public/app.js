@@ -73,7 +73,7 @@
     if (!frame || location.pathname !== '/') return;
     const name = location.hash.slice(1);
     const want = PAGES[name] ? name : '';
-    if (want === 'amis' && !me) { const lb = $('#loginBtn'); if (meKnown) { history.replaceState(null, '', '/'); if (lb && !lb.hidden) lb.click(); return route(); } }
+    if (want === 'amis' && !me) { const lb = $('#loginBtn'); if (meKnown) { window.history.replaceState(null, '', '/'); if (lb && !lb.hidden) lb.click(); return route(); } }
     if (want === current) return;
     // on ferme l'ancienne page
     if (current) {
@@ -97,13 +97,13 @@
   }
   function closePage() {
     if (!current) return;
-    if (history.length > 1 && document.referrer.startsWith(location.origin) || history.state === 'page') history.back();
-    else { history.replaceState(null, '', '/'); route(); }
+    if (window.history.length > 1 && document.referrer.startsWith(location.origin) || window.history.state === 'page') window.history.back();
+    else { window.history.replaceState(null, '', '/'); route(); }
   }
   window.addEventListener('hashchange', route);
-  document.addEventListener('click', (e) => { if (e.target.closest('[data-page-close]')) { e.preventDefault(); location.hash = ''; history.replaceState(null, '', '/'); route(); } });
+  document.addEventListener('click', (e) => { if (e.target.closest('[data-page-close]')) { e.preventDefault(); location.hash = ''; window.history.replaceState(null, '', '/'); route(); } });
   document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape' && current && !document.querySelector('dialog[open]:modal')) { history.replaceState(null, '', '/'); route(); }
+    if (e.key === 'Escape' && current && !document.querySelector('dialog[open]:modal')) { window.history.replaceState(null, '', '/'); route(); }
   });
 
   // la fenêtre Amis devient une grande page
@@ -112,7 +112,7 @@
     frame.append(fd);
     fd.classList.add('as-page');
     fd.showModal = function () { this.show(); };
-    fd.addEventListener('close', () => { if (current === 'amis') { history.replaceState(null, '', '/'); route(); } });
+    fd.addEventListener('close', () => { if (current === 'amis') { window.history.replaceState(null, '', '/'); route(); } });
     // deux colonnes : à gauche ajouter / demandes, à droite la liste des amis
     const view = $('#friendsView', fd);
     if (view && !view.querySelector('.fpg-left')) {
@@ -439,7 +439,7 @@
   setInterval(() => { if (document.visibilityState === 'visible') drawRailFriends(); }, 30_000);
   // nouveaux messages d'un admin : on revérifie de temps en temps
   setInterval(() => { if (me && document.visibilityState === 'visible') refreshUnread(); }, 20_000);
-  if (new URLSearchParams(location.search).get('notifs')) { history.replaceState(null, '', '/#notifications'); }
+  if (new URLSearchParams(location.search).get('notifs')) { window.history.replaceState(null, '', '/#notifications'); }
 
   // ---------- le lecteur du bas : il montre l'extrait en cours ----------
   const bar = $('#nowBar');
