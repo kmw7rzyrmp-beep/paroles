@@ -62,6 +62,12 @@
       const st = el('span', 'presence' + (p.inBlindtest ? ' ingame' : p.online ? ' online' : ''), p.inBlindtest ? 'En blind test' : p.online ? 'En ligne' : 'Hors ligne');
       meta.append(st);
     }
+    if (p.streak) {
+      const n = p.streak.count;
+      const fl = el('span', 'pp-flame' + (n ? '' : ' out'), `🔥 ${n} jour${n > 1 ? 's' : ''}`);
+      fl.title = `Série en cours : ${n} jour${n > 1 ? 's' : ''} · record : ${p.streak.best}`;
+      meta.append(fl);
+    }
     if (p.since) {
       const d = new Date(p.since);
       if (!isNaN(d)) meta.append(el('span', 'pp-since', `Membre depuis ${MONTHS[d.getMonth()]} ${d.getFullYear()}`));
@@ -100,6 +106,47 @@
       stat(fmt(p.blindtest.best), 'Record');
       sec.append(grid);
       body.append(sec);
+    }
+
+    // flammes et badges
+    if (p.streak || (p.badges && p.badges.length) || p.relation === 'me') {
+      const fs = el('section', 'pp-section');
+      fs.append(el('h3', '', 'Flammes et badges'));
+      if (p.streak) {
+        const grid = el('div', 'pp-stats pp-stats-2');
+        const stat = (v, l) => { const s2 = el('div', 'pp-stat'); s2.append(el('strong', '', v), el('span', '', l)); grid.append(s2); };
+        stat('🔥 ' + p.streak.count, 'Série en cours');
+        stat(String(p.streak.best), 'Meilleure série');
+        fs.append(grid);
+      }
+      if (p.badges && p.badges.length) {
+        const list = el('ul', 'pp-badges');
+        for (const b of p.badges) {
+          const li = el('li', 'pp-badge tier-' + b.tier);
+          const medal = el('span', 'pp-medal'); medal.setAttribute('aria-hidden', 'true');
+          const txt = el('div', 'pp-badge-txt');
+          const name = el('strong', '', b.artist); name.setAttribute('data-notranslate', '');
+          const lvl = el('span', 'pp-badge-lvl', `${b.tierName} · ${fmt(b.count)} écoute${b.count > 1 ? 's' : ''}`);
+          txt.append(name, lvl);
+          if (b.next) {
+            const bar = el('span', 'pp-badge-bar');
+            const fill = el('i');
+            fill.style.width = Math.round(((b.count - b.from) / (b.next.at - b.from)) * 100) + '%';
+            bar.append(fill);
+            bar.title = `${b.next.at - b.count} écoute${b.next.at - b.count > 1 ? 's' : ''} avant ${b.next.tierName}`;
+            txt.append(bar);
+          }
+          li.append(medal, txt);
+          li.title = b.next ? `${b.tierName} : encore ${b.next.at - b.count} écoute${b.next.at - b.count > 1 ? 's' : ''} pour passer ${b.next.tierName}` : `${b.tierName} : niveau maximum`;
+          list.append(li);
+        }
+        fs.append(list);
+      } else {
+        fs.append(el('p', 'pp-empty', p.relation === 'me'
+          ? 'Pas encore de badge. Écoute un artiste au blind test (ou ouvre ses paroles) 5 fois pour gagner son badge Bronze.'
+          : 'Pas encore de badge.'));
+      }
+      body.append(fs);
     }
 
     // sons préférés
@@ -350,6 +397,24 @@
   .pp-section { margin-top: 2rem; }
   .pp-section h3 { margin: 0 0 .7rem; font: 900 1.35rem/1 var(--texte, sans-serif); font-stretch: 62%; text-transform: uppercase; color: var(--gris, #a6a3ad); letter-spacing: .02em; }
   .pp-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: .6rem; }
+  .pp-stats-2 { grid-template-columns: repeat(2, 1fr); margin-bottom: .8rem; }
+  .pp-flame { color: #ffb15c; font-weight: 800; }
+  .pp-flame.out { color: var(--gris, #a6a3ad); }
+  .pp-badges { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(13rem, 1fr)); gap: .5rem; }
+  .pp-badge { display: flex; align-items: center; gap: .65rem; padding: .55rem .7rem; border-radius: 8px; background: #26252c; }
+  .pp-medal { flex: none; width: 2.2rem; height: 2.2rem; border-radius: 50%; position: relative;
+    background: radial-gradient(circle at 35% 30%, rgba(255,255,255,.65), transparent 40%), var(--m1); box-shadow: inset 0 0 0 3px var(--m2), 0 2px 6px rgba(0,0,0,.4); }
+  .pp-medal::after { content: "★"; position: absolute; inset: 0; display: grid; place-items: center; color: var(--m2); font-size: 1rem; }
+  .tier-bronze { --m1: #b8743a; --m2: #7a4720; }
+  .tier-argent { --m1: #c9ccd3; --m2: #7d818b; }
+  .tier-or { --m1: #f1c23a; --m2: #a3780d; }
+  .tier-platine { --m1: #9fe3e0; --m2: #3c8f8b; }
+  .tier-diamant { --m1: #b9a7ff; --m2: #5b3fd1; }
+  .pp-badge-txt { min-width: 0; flex: 1; }
+  .pp-badge-txt strong { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .pp-badge-lvl { display: block; color: var(--gris, #a6a3ad); font-size: .78rem; }
+  .pp-badge-bar { display: block; height: 4px; margin-top: .3rem; border-radius: 2px; background: #3a3940; overflow: hidden; }
+  .pp-badge-bar i { display: block; height: 100%; background: var(--m1); }
   .pp-stat { padding: .8rem .7rem; border-radius: 8px; background: #26252c; text-align: center; }
   .pp-stat strong { display: block; font: 900 1.7rem/1 var(--texte, sans-serif); font-stretch: 62%; color: var(--orange, #f28c1c); }
   .pp-stat span { display: block; margin-top: .3rem; color: var(--gris, #a6a3ad); font-size: .8rem; }

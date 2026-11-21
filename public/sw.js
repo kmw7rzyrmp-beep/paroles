@@ -1,6 +1,6 @@
 // Service worker de Star Song : rend le site installable et l'ouvre même sans connexion.
 // Change VERSION quand tu modifies les icônes pour forcer la mise à jour du cache.
-const VERSION = 'star-song-v4';
+const VERSION = 'star-song-v5';
 const SHELL = ['/', '/blindtest', '/manifest.webmanifest', '/icon.png', '/icon-192.png', '/icon-512.png', '/apple-touch-icon.png', '/favicon.ico'];
 
 self.addEventListener('install', (event) => {
@@ -36,4 +36,35 @@ self.addEventListener('fetch', (event) => {
 
   // Icônes et images : la copie gardée si elle existe, sinon le réseau
   event.respondWith(caches.match(req).then((hit) => hit || fetch(req)));
+});
+
+// Notifications envoyées par le serveur (même quand le site est fermé)
+self.addEventListener('push', (event) => {
+  let data = {};
+  try { data = event.data ? event.data.json() : {}; } catch { data = { title: 'Star Song', body: event.data ? event.data.text() : '' }; }
+  event.waitUntil(self.registration.showNotification(data.title || 'Star Song', {
+    body: data.body || '',
+    icon: '/icon-192.png',
+    badge: '/icon-192.png',
+    tag: data.tag || undefined,
+    renotify: Boolean(data.tag),
+    data: { url: data.url || '/' },
+  }));
+});
+
+// clic sur la notification : on ouvre (ou on remet au premier plan) la bonne page
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const target = new URL(event.notification.data?.url || '/', self.location.origin).href;
+  event.waitUntil((async () => {
+    const tabs = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+    for (const tab of tabs) {
+      if (new URL(tab.url).origin === self.location.origin && 'focus' in tab) {
+        await tab.focus();
+        if ('navigate' in tab) return tab.navigate(target);
+        return;
+      }
+    }
+    return self.clients.openWindow(target);
+  })());
 });

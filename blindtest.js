@@ -79,7 +79,7 @@ const categoryName = (id) => (id === ALL ? 'Tout mélangé' : CATEGORIES.find((c
 const INVITE_TTL = 15 * 60_000; // une invitation reste valable 15 min
 const invites = new Map(); // identifiant invité (minuscules) -> Map(code -> { from, code, category, at })
 
-export function createBlindtest({ getJson, sameSong, clientIp, sessionUser, findFriend, recordBlindtest, blindtestLeaderboard, markInBlindtest = () => {}, countStat = () => {}, demo }) {
+export function createBlindtest({ getJson, sameSong, clientIp, sessionUser, findFriend, recordBlindtest, blindtestLeaderboard, markInBlindtest = () => {}, countStat = () => {}, recordListen = () => null, streakOf = null, notifyUser = () => {}, demo }) {
   // --- Trouver l'extrait de 30 s (et la pochette) d'une chanson ---
   async function resolveSong(song) {
     const key = song.titre + '|' + song.artiste;
@@ -369,6 +369,12 @@ export function createBlindtest({ getJson, sameSong, clientIp, sessionUser, find
         if (now < g.phaseEnd && !everyone) return;
         room.phase = 'reveal';
         if (room.mode === 'br') eliminate(room, round, g.index);
+        // badges : chaque son entendu compte pour son artiste
+        for (const p of room.players.values()) {
+          if (!p.userId) continue;
+          const up = recordListen(p.userId, round.song.artiste);
+          if (up) (p.newBadges ||= []).push(up);
+        }
         const end = Math.min(now, g.phaseEnd);
         g.phaseEnd = end + REVEAL_MS;
       } else if (room.phase === 'reveal') {
@@ -496,7 +502,11 @@ export function createBlindtest({ getJson, sameSong, clientIp, sessionUser, find
         out.survivedAll = Boolean(round.survivedAll);
       }
     }
-    if (room.phase === 'end') out.winners = winners(room).map((p) => p.name);
+    if (room.phase === 'end') {
+      out.winners = winners(room).map((p) => p.name);
+      out.newBadges = me.newBadges || [];
+      if (me.userId && streakOf) out.myStreak = streakOf(me.userId);
+    }
     if (room.phase === 'end') out.history = g.rounds.slice(0, g.index + 1).map((r) => r.song);
     return out;
   }
@@ -504,7 +514,7 @@ export function createBlindtest({ getJson, sameSong, clientIp, sessionUser, find
   async function start(room) {
     room.phase = 'loading';
     room.error = '';
-    for (const p of room.players.values()) { p.score = 0; p.out = null; }
+    for (const p of room.players.values()) { p.score = 0; p.out = null; p.newBadges = []; }
     try {
       const deck = await makeDeck(room.category, room.level, room.artists);
       if (room.mode === 'br' && room.players.size < 2) throw new BtError(400, 'Il faut être au moins 2 pour jouer en battle royale. Invite un pote !');
@@ -666,6 +676,7 @@ export function createBlindtest({ getJson, sameSong, clientIp, sessionUser, find
         const key = friend.username.toLowerCase();
         if (!invites.has(key)) invites.set(key, new Map());
         invites.get(key).set(room.code, { from: user.username, code: room.code, at: Date.now() });
+        notifyUser(friend.id, 'inv', { title: `${user.username} t’invite à un blind test`, body: 'Rejoins la partie avant qu’elle commence !', url: '/blindtest?room=' + room.code, tag: 'inv:' + room.code });
         return send(res, 200, { ok: true, invited: friend.username });
       }
 

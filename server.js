@@ -4,7 +4,7 @@ import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { join, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { handleAuth, clientIp, sessionUser, findFriend, recordBlindtest, blindtestLeaderboard, markInBlindtest, countStat, isAdmin, adminStats } from './auth.js';
+import { handleAuth, clientIp, sessionUser, findFriend, recordBlindtest, blindtestLeaderboard, markInBlindtest, countStat, isAdmin, adminStats, recordActivity, recordListen, streakOf, notifyUser, usersStreak } from './auth.js';
 import { createBlindtest } from './blindtest.js';
 import { CATEGORIES } from './categories.js';
 
@@ -369,7 +369,7 @@ function sendJson(res, code, body) {
   res.end(JSON.stringify(body));
 }
 
-const handleBlindtest = createBlindtest({ getJson, sameSong, clientIp, sessionUser, findFriend, recordBlindtest, blindtestLeaderboard, markInBlindtest, countStat, demo: DEMO });
+const handleBlindtest = createBlindtest({ getJson, sameSong, clientIp, sessionUser, findFriend, recordBlindtest, blindtestLeaderboard, markInBlindtest, countStat, recordListen, streakOf: usersStreak, notifyUser, demo: DEMO });
 const STARTED = Date.now();
 // visiteurs uniques du jour (empreinte de l'adresse IP, jamais l'adresse elle-même ; remis à zéro chaque jour)
 let visitorDay = '';
@@ -413,6 +413,8 @@ const server = createServer(async (req, res) => {
     try {
       const found = await searchLyrics(q);
       countStat('searches');
+      const who = sessionUser(req);
+      if (who) recordActivity(who.id); // une recherche par jour garde la flamme allumée
       return sendJson(res, 200, found);
     } catch (err) {
       console.error('Erreur de recherche :', err.message);
@@ -431,6 +433,8 @@ const server = createServer(async (req, res) => {
     try {
       const found = await findLyrics(title, artist);
       countStat('lyrics');
+      const who = sessionUser(req);
+      if (who && artist) recordListen(who.id, artist); // badge de l'artiste
       return sendJson(res, 200, found);
     } catch (err) {
       console.error('Erreur paroles :', err.message);
@@ -445,6 +449,8 @@ const server = createServer(async (req, res) => {
     const artist = (url.searchParams.get('artist') || '').trim().slice(0, 200);
     if (!title) return sendJson(res, 400, { error: 'Titre manquant.' });
     countStat('clicks_' + go[1]);
+    const who = sessionUser(req);
+    if (who && artist) recordListen(who.id, artist);
     const q = encodeURIComponent(`${title} ${artist}`.trim());
     let target = go[1] === 'deezer' ? `https://www.deezer.com/search/${q}` : `https://open.spotify.com/search/${q}`;
     if (!DEMO && !tooMany(clientIp(req))) target = (await findLink(go[1], title, artist)).url;

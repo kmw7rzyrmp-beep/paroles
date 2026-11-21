@@ -2,6 +2,7 @@
 // Sans dépendance : mots de passe hachés avec scrypt (node:crypto),
 // données gardées dans data/db.json (créé automatiquement, ignoré par git).
 import { randomBytes, randomUUID, createHash, scrypt, timingSafeEqual } from 'node:crypto';
+import { newVapidKeys, sendPush, validSubscription } from './push.js';
 import { readFile, writeFile, rename, mkdir } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -192,6 +193,8 @@ export function adminStats(extra = {}) {
 async function load() {
   const db = await readStore();
   if (db.stats) Object.assign(stats, db.stats);
+  vapid = db.vapid || null;
+  if (!vapid) { vapid = newVapidKeys(); vapidIsNew = true; } // première fois : on crée les clés des notifications
   for (const u of db.users || []) {
     usersById.set(u.id, u);
     indexUser(u);
@@ -210,6 +213,7 @@ function persist() {
     users: [...usersById.values()],
     sessions: [...sessions].map(([h, s]) => ({ h, ...s })),
     stats,
+    vapid,
   });
   const job = writing.then(() => writeStore(snapshot));
   writing = job.catch(() => {});
@@ -272,6 +276,150 @@ const presence = (u) => {
   const inBlindtest = online && Boolean(u.playingAt) && Date.now() - u.playingAt < BLINDTEST_MS;
   return { online, inBlindtest, lastSeen: u.lastSeen || 0 };
 };
+// ===================== Flammes, badges, notifications =====================
+let vapid = null, vapidIsNew = false;
+let saveTimer = null;
+function saveSoon() { // une seule sauvegarde pour plein de petits changements
+  if (saveTimer) return;
+  saveTimer = setTimeout(() => { saveTimer = null; persist().catch((err) => console.error('Sauvegarde :', err.message)); }, 4000);
+}
+
+// --- Flammes 🔥 : un jour avec au moins une activité (une partie de blind test ou une recherche) = une flamme de plus.
+// Les jours sont ceux de l'heure française. Un jour raté : la série repart de zéro.
+const parisDay = (d = new Date()) => new Intl.DateTimeFormat('fr-CA', { timeZone: 'Europe/Paris', year: 'numeric', month: '2-digit', day: '2-digit' }).format(d);
+const dayBefore = (day) => { const d = new Date(day + 'T12:00:00Z'); d.setUTCDate(d.getUTCDate() - 1); return d.toISOString().slice(0, 10); };
+export function streakOf(u) {
+  const st = u && u.streak;
+  if (!st || !st.last) return { count: 0, best: (st && st.best) || 0, today: false };
+  const today = parisDay();
+  const alive = st.last === today || st.last === dayBefore(today);
+  return { count: alive ? st.count : 0, best: st.best || 0, today: st.last === today };
+}
+export const usersStreak = (userId) => streakOf(usersById.get(userId));
+// renvoie la série si elle vient d'augmenter aujourd'hui (pour afficher « +1 flamme »)
+export function recordActivity(userId) {
+  const u = usersById.get(userId);
+  if (!u || !u.username) return null;
+  const today = parisDay();
+  const st = u.streak || (u.streak = { count: 0, best: 0, last: '' });
+  if (st.last === today) return null;
+  st.count = st.last === dayBefore(today) ? st.count + 1 : 1;
+  st.best = Math.max(st.best || 0, st.count);
+  st.last = today;
+  saveSoon();
+  return { count: st.count, best: st.best };
+}
+
+// --- Badges : plus tu écoutes un artiste (blind test, paroles ouvertes, liens Spotify/Deezer), plus son badge monte
+export const BADGE_TIERS = [
+  { id: 'bronze', name: 'Bronze', min: 5 },
+  { id: 'argent', name: 'Argent', min: 25 },
+  { id: 'or', name: 'Or', min: 75 },
+  { id: 'platine', name: 'Platine', min: 200 },
+  { id: 'diamant', name: 'Diamant', min: 500 },
+];
+const tierOf = (n) => { let t = null; for (const x of BADGE_TIERS) if (n >= x.min) t = x; return t; };
+const artistKey = (name) => String(name || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, ' ').trim();
+// « Drake, Future » ou « Drake feat. Future » : on garde l'artiste principal (« Bigflo & Oli » reste entier)
+const mainArtist = (name) => String(name || '').split(/\s*(?:,|\(?\bfeat\.?|\(?\bft\.?|\bwith\b)\s*/i)[0].trim().slice(0, 60);
+// renvoie le badge si l'écoute fait passer un nouveau palier
+export function recordListen(userId, artistName, n = 1) {
+  const u = usersById.get(userId);
+  const name = mainArtist(artistName);
+  const key = artistKey(name);
+  if (!u || !u.username || !key) return null;
+  const listens = u.listens || (u.listens = {});
+  const cur = listens[key] || (listens[key] = { name, n: 0 });
+  const before = tierOf(cur.n);
+  cur.n += n;
+  // on garde les 400 artistes les plus écoutés
+  const keys = Object.keys(listens);
+  if (keys.length > 400) { keys.sort((a, b) => listens[a].n - listens[b].n); for (const k of keys.slice(0, keys.length - 400)) delete listens[k]; }
+  saveSoon();
+  const after = tierOf(cur.n);
+  return after && after !== before ? { artist: cur.name, tier: after.id, tierName: after.name } : null;
+}
+export function badgesOf(u, limit = 60) {
+  return Object.values(u.listens || {})
+    .filter((x) => x.n >= BADGE_TIERS[0].min)
+    .sort((a, b) => b.n - a.n)
+    .slice(0, limit)
+    .map((x) => {
+      const t = tierOf(x.n);
+      const next = BADGE_TIERS.find((b) => b.min > x.n) || null;
+      return { artist: x.name, count: x.n, tier: t.id, tierName: t.name, next: next ? { tierName: next.name, at: next.min } : null, from: t.min };
+    });
+}
+
+// --- Notifications sur le téléphone / l'ordinateur (Web Push) ---
+const NOTIF_TYPES = ['req', 'inv', 'msg', 'streak'];
+const prefsOf = (u) => ({ req: true, inv: true, msg: true, streak: true, ...(u.notif || {}) });
+// on prévient seulement si la personne n'est pas déjà sur le site (sinon elle voit la notification dans la page)
+export function notifyUser(userId, type, data, { evenIfOnline = false } = {}) {
+  const u = usersById.get(userId);
+  if (!u || !vapid || !(u.push || []).length || !prefsOf(u)[type]) return;
+  if (!evenIfOnline && presence(u).online) return;
+  const payload = { title: data.title, body: data.body || '', url: data.url || '/', tag: data.tag || type };
+  for (const sub of [...u.push]) {
+    sendPush(sub, payload, vapid).then((r) => {
+      if (r === 'gone') { u.push = (u.push || []).filter((x) => x.endpoint !== sub.endpoint); saveSoon(); }
+    }).catch((err) => console.error('Notification :', err.message));
+  }
+}
+
+async function handlePush(req, res, url, me) {
+  const action = url.pathname.slice('/api/push/'.length);
+  if (action === 'key' && req.method === 'GET') return send(res, 200, { publicKey: vapid ? vapid.publicKey : '' });
+  if (!me || !me.username) throw new HttpError(401, 'Connecte-toi pour activer les notifications.');
+  if (action === 'prefs' && req.method === 'GET') return send(res, 200, { prefs: prefsOf(me), devices: (me.push || []).length });
+  const body = await readJson(req, 6_000);
+  if (action === 'subscribe') {
+    const sub = body.subscription || {};
+    if (!validSubscription(sub)) throw new HttpError(400, 'Abonnement aux notifications invalide.');
+    me.push = (me.push || []).filter((x) => x.endpoint !== sub.endpoint);
+    me.push.push({ endpoint: sub.endpoint, keys: { p256dh: sub.keys.p256dh, auth: sub.keys.auth }, at: Date.now() });
+    me.push = me.push.slice(-5); // 5 appareils maximum
+    // les autres comptes qui utilisaient ce même appareil ne le reçoivent plus
+    for (const u of usersById.values()) if (u !== me && u.push) u.push = u.push.filter((x) => x.endpoint !== sub.endpoint);
+    await persist();
+    return send(res, 200, { ok: true, devices: me.push.length });
+  }
+  if (action === 'unsubscribe') {
+    me.push = (me.push || []).filter((x) => x.endpoint !== String(body.endpoint || ''));
+    await persist();
+    return send(res, 200, { ok: true, devices: me.push.length });
+  }
+  if (action === 'prefs') {
+    me.notif = prefsOf(me);
+    for (const k of NOTIF_TYPES) if (typeof body[k] === 'boolean') me.notif[k] = body[k];
+    saveSoon();
+    return send(res, 200, { prefs: me.notif });
+  }
+  if (action === 'test') {
+    notifyUser(me.id, 'msg', { title: 'Star Song', body: 'Les notifications marchent ! 🔥', tag: 'test' }, { evenIfOnline: true });
+    return send(res, 200, { ok: true });
+  }
+  throw new HttpError(404, 'Introuvable.');
+}
+
+// Rappel du soir : « ta série va s'éteindre » (entre 19 h et 22 h, une fois par jour)
+setInterval(() => {
+  const hour = Number(new Intl.DateTimeFormat('fr-FR', { timeZone: 'Europe/Paris', hour: '2-digit', hour12: false }).format(new Date()));
+  if (hour < 19 || hour >= 22) return;
+  const today = parisDay();
+  for (const u of usersById.values()) {
+    const st = u.streak;
+    if (!st || st.last !== dayBefore(today) || st.count < 1 || st.reminded === today || !(u.push || []).length) continue;
+    st.reminded = today;
+    notifyUser(u.id, 'streak', {
+      title: `🔥 Ta série de ${st.count} jour${st.count > 1 ? 's' : ''} va s’éteindre !`,
+      body: 'Fais un blind test ou une recherche avant minuit pour la garder.',
+      url: '/blindtest', tag: 'streak',
+    });
+    saveSoon();
+  }
+}, 10 * 60_000).unref();
+
 // appelé par le blind test tant que la personne est dans une partie
 export function markInBlindtest(userId) {
   const u = usersById.get(userId);
@@ -372,7 +520,7 @@ function sameSiteJson(req) {
   try { return new URL(origin).host === req.headers.host; } catch { return false; }
 }
 
-const publicUser = (u) => (u ? { username: u.username || '', email: u.email || '', name: u.username || u.email, ...(isAdmin(u) ? { admin: true } : {}) } : null);
+const publicUser = (u) => (u ? { username: u.username || '', email: u.email || '', name: u.username || u.email, ...(u.username ? { streak: streakOf(u) } : {}), ...(isAdmin(u) ? { admin: true } : {}) } : null);
 const normEmail = (e) => String(e || '').trim().toLowerCase();
 const validEmail = (e) => e.length <= 254 && /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(e);
 // Identifiant : 3 à 30 caractères, sans @ (pour ne jamais être confondu avec un e-mail)
@@ -450,7 +598,7 @@ function listFriends(me) {
     .sort((a, b) => a.username.localeCompare(b.username));
   // Seuls les amis voient si tu es en ligne (pas les demandes en attente)
   const friends = users(me.friends)
-    .map((u) => ({ username: u.username, avatarUrl: avatar(u), ...presence(u), unread: (me.chats && me.chats[u.id]?.unread) || 0 }))
+    .map((u) => ({ username: u.username, avatarUrl: avatar(u), ...presence(u), unread: (me.chats && me.chats[u.id]?.unread) || 0, streak: streakOf(u).count }))
     .sort((a, b) => b.inBlindtest - a.inBlindtest || b.online - a.online || a.username.localeCompare(b.username));
   return { friends, incoming: names(me.incoming), outgoing: names(me.outgoing) };
 }
@@ -476,6 +624,7 @@ export async function recordBlindtest(userId, { points, won }) {
   bt.games += 1;
   if (won) bt.wins += 1;
   bt.best = Math.max(bt.best, Math.round(points) || 0);
+  recordActivity(userId);
   try { await persist(); } catch (err) { console.error('Classement : sauvegarde impossible :', err.message); }
 }
 
@@ -534,10 +683,14 @@ async function handleFriends(req, res, url, me) {
     if (me.friends.includes(target.id)) throw new HttpError(409, 'Vous êtes déjà amis.');
     if (me.outgoing.includes(target.id)) throw new HttpError(409, 'Demande déjà envoyée.');
     if (me.incoming.includes(target.id)) befriend(); // il t'avait déjà invité : c'est accepté
-    else { add(me.outgoing, target.id); add(target.incoming, me.id); }
+    else {
+      add(me.outgoing, target.id); add(target.incoming, me.id);
+      notifyUser(target.id, 'req', { title: `${me.username} veut être ton ami`, body: 'Ouvre Star Song pour accepter.', url: '/?amis=1', tag: 'req:' + me.id });
+    }
   } else if (action === 'accept') {
     if (!me.incoming.includes(target.id)) throw new HttpError(404, 'Aucune demande de cette personne.');
     befriend();
+    notifyUser(target.id, 'req', { title: `${me.username} a accepté ta demande d’ami`, body: 'Vous pouvez vous écrire et jouer ensemble.', url: '/?amis=1', tag: 'acc:' + me.id });
   } else if (action === 'decline') {
     rm(me.incoming, target.id); rm(target.outgoing, me.id);
   } else if (action === 'cancel') {
@@ -764,6 +917,7 @@ async function handleMessages(req, res, url, me) {
     other.chats[me.id] = { ...theirs, at, text: preview, from: me.id, unread: Math.min(99, (theirs.unread || 0) + 1) };
     countStat('messages');
     saveChatsSoon();
+    notifyUser(other.id, 'msg', { title: `Message de ${me.username}`, body: preview, url: '/?chat=' + encodeURIComponent(me.username), tag: 'msg:' + me.id });
     return at;
   };
 
@@ -839,6 +993,8 @@ function publicProfile(u, viewer) {
     since: u.createdAt || '',
     blindtest: bt ? { rank: bt.rank, points: bt.points, games: bt.games, wins: bt.wins, best: bt.best } : null,
     friends: (u.friends || []).length,
+    streak: streakOf(u),
+    badges: badgesOf(u),
     isMe,
     relation: isMe ? 'me' : isFriend ? 'friend'
       : viewer && (viewer.outgoing || []).includes(u.id) ? 'outgoing'
@@ -925,7 +1081,8 @@ export async function handleAuth(req, res, url) {
   const isFriends = path === '/api/friends' || path.startsWith('/api/friends/');
   const isProfile = path === '/api/profile' || path === '/api/profile/image';
   const isMessages = path === '/api/messages' || path.startsWith('/api/messages/');
-  if (!ROUTES.has(path) && !isFriends && !isProfile && !isMessages) return false;
+  const isPush = path.startsWith('/api/push/');
+  if (!ROUTES.has(path) && !isFriends && !isProfile && !isMessages && !isPush) return false;
 
   try {
     if (isProfile) return await handleProfile(req, res, url);
@@ -934,6 +1091,8 @@ export async function handleAuth(req, res, url) {
       if (req.method !== 'GET') throw new HttpError(405, 'Méthode non autorisée.');
       return send(res, 200, { user: publicUser(currentUser(req)) });
     }
+
+    if (isPush) return await handlePush(req, res, url, currentUser(req));
 
     if (isMessages) {
       const me = currentUser(req);
@@ -1065,3 +1224,4 @@ export async function handleAuth(req, res, url) {
 }
 
 await load();
+if (vapidIsNew) persist().catch((err) => console.error('Notifications, clés :', err.message));

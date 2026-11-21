@@ -143,6 +143,22 @@
   .reveal .vinyl { border-radius: 50%; background: radial-gradient(circle, var(--orange) 0 .8rem, #111 .85rem 1rem, transparent 1.05rem), repeating-radial-gradient(circle, #1a1a1d 0 2px, #26252b 2px 3px); }
   .reveal .t { font: 900 1.7rem/1.05 var(--texte); font-stretch: 65%; }
   .reveal .a { color: var(--gris); }
+  /* ---------- Récompenses de fin de partie : flamme et badges ---------- */
+  .rewards { display: flex; flex-wrap: wrap; gap: .6rem; margin: 1.2rem 0 .4rem; }
+  .rewards[hidden] { display: none; }
+  .reward { display: flex; align-items: center; gap: .6rem; padding: .6rem .9rem; border-radius: 10px; background: #1d1c21; border: 1px solid #3a3940;
+    animation: rewardIn .5s cubic-bezier(.2, 1.4, .4, 1) both; }
+  .reward:nth-child(2) { animation-delay: .12s; } .reward:nth-child(3) { animation-delay: .24s; } .reward:nth-child(n+4) { animation-delay: .36s; }
+  .reward .big { font-size: 1.6rem; line-height: 1; }
+  .reward b { display: block; }
+  .reward small { display: block; color: var(--gris); font-size: .8rem; }
+  .reward.flame { border-color: #f28c1c; }
+  .reward .medal { width: 1.8rem; height: 1.8rem; border-radius: 50%; background: radial-gradient(circle at 35% 30%, rgba(255,255,255,.65), transparent 40%), var(--m1); box-shadow: inset 0 0 0 3px var(--m2); }
+  .tier-bronze { --m1: #b8743a; --m2: #7a4720; } .tier-argent { --m1: #c9ccd3; --m2: #7d818b; } .tier-or { --m1: #f1c23a; --m2: #a3780d; }
+  .tier-platine { --m1: #9fe3e0; --m2: #3c8f8b; } .tier-diamant { --m1: #b9a7ff; --m2: #5b3fd1; }
+  @keyframes rewardIn { from { opacity: 0; transform: translateY(8px) scale(.94); } }
+  @media (prefers-reduced-motion: reduce) { .reward { animation: none; } }
+
   /* ---------- Battle royale ---------- */
   .mode-hint { margin: .5rem 0 1.4rem; color: var(--gris); font-size: .9rem; max-width: 30rem; }
   .mode-hint:empty { display: none; }
@@ -514,6 +530,7 @@
       <p id="winnerLbl" class="lbl">Vainqueur</p>
       <p id="winner" class="winner"></p>
     </div>
+    <div id="rewards" class="rewards" hidden></div>
     <ul id="endScores" class="scores"></ul>
     <h2 style="margin-top: 2rem">Les sons de la partie</h2>
     <ol id="tracklist" class="tracklist"></ol>
@@ -1208,6 +1225,33 @@
     $('winnerLbl').textContent = s.mode === 'br' ? 'Dernier survivant' : 'Vainqueur';
     $('winner').textContent = tie.length > 1 ? `Égalité : ${tie.join(' et ')}` : (tie[0] || '');
     playersList($('endScores'), s.players, true);
+    // flamme du jour et nouveaux badges (pour les joueurs connectés)
+    const rewards = [];
+    const card = (cls, icon, title, sub) => {
+      const d = document.createElement('div'); d.className = 'reward ' + cls;
+      const i = document.createElement('span');
+      if (icon) { i.className = 'big'; i.textContent = icon; } else { i.className = 'medal'; }
+      i.setAttribute('aria-hidden', 'true');
+      const t = document.createElement('div');
+      const b = document.createElement('b'); b.textContent = title;
+      const sm = document.createElement('small'); sm.textContent = sub;
+      t.append(b, sm); d.append(i, t); return d;
+    };
+    if (s.myStreak && s.myStreak.count) {
+      const n = s.myStreak.count;
+      rewards.push(card('flame', '🔥', `Série : ${n} jour${n > 1 ? 's' : ''}`, n >= s.myStreak.best && n > 1 ? 'Ton record !' : 'Reviens demain pour la garder'));
+    }
+    for (const b of s.newBadges || []) {
+      const c = card('tier-' + b.tier, '', `Badge ${b.tierName}`, b.artist);
+      c.querySelector('small').setAttribute('data-notranslate', '');
+      rewards.push(c);
+    }
+    const sig = state.code + JSON.stringify([s.myStreak, s.newBadges, (s.history || []).length]);
+    if ($('rewards').dataset.sig !== sig) { // sinon l'animation recommencerait à chaque mise à jour
+      $('rewards').dataset.sig = sig;
+      $('rewards').replaceChildren(...rewards);
+      $('rewards').hidden = !rewards.length;
+    }
     $('tracklist').replaceChildren(...(s.history || []).map((x) => {
       const li = document.createElement('li'); li.textContent = `${x.titre}, ${x.artiste}`; return li;
     }));
