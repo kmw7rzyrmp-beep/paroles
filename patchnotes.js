@@ -4,6 +4,13 @@
 // tag : 'new' (nouveauté), 'better' (amélioration), 'fix' (correction), 'removed' (retiré)
 export const PATCH_NOTES = [
   {
+    version: '2.14', date: '2026-11-21', time: '21:25', title: 'Blind test vraiment instantané',
+    items: [
+      ['better', 'Les extraits sont pré-chargés au démarrage du serveur : les parties se lancent sans attente, même avec beaucoup de sons.'],
+      ['better', 'Chaque extrait est cherché sur iTunes et Deezer en même temps (deux fois plus rapide qu’avant).'],
+    ],
+  },
+  {
     version: '2.13', date: '2026-11-21', time: '21:20', title: 'Bouton « Prêt » déplacé',
     items: [
       ['better', 'Le bouton « Prêt » de l’hôte est maintenant à côté de « Lancer la partie ».'],

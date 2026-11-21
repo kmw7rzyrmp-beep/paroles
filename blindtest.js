@@ -124,21 +124,23 @@ export function createBlindtest({ getJson, sameSong, clientIp, sessionUser, find
     const check = (t, a, strict) => sameSong(song.titre, song.verifierArtiste ? song.artiste : '', t, a, strict);
     // d'abord le titre exact, sinon un titre proche (ex. « Otto (feat. X) »)
     const pick = (list, ok) => list.find((r) => ok(r, true)) || list.find((r) => ok(r, false));
-    let found = null;
     let failed = false;
-    try {
+    // iTunes ET Deezer sont interrogés EN MÊME TEMPS (avant, c'était l'un après l'autre : deux fois plus long).
+    // On préfère le résultat iTunes s'il arrive avec un extrait, sinon celui de Deezer.
+    const itunes = (async () => {
       const p = new URLSearchParams({ term: `${song.titre} ${song.artiste}`, media: 'music', entity: 'song', limit: '15', country: 'FR' });
       const json = await getJson(`https://itunes.apple.com/search?${p}`, 'iTunes');
       const m = pick(json.results || [], (r, strict) => r.previewUrl && check(r.trackName, r.artistName, strict));
-      if (m) found = { preview: m.previewUrl, cover: (m.artworkUrl100 || '').replace('100x100', '300x300') };
-    } catch (err) { failed = true; console.error('Blind test, iTunes :', err.message); }
-    if (!found) {
-      try {
-        const json = await getJson(`https://api.deezer.com/search?${new URLSearchParams({ q: `${song.titre} ${song.artiste}`, limit: '15' })}`, 'Deezer');
-        const m = pick(json.data || [], (r, strict) => r.preview && check(r.title, r.artist?.name, strict));
-        if (m) found = { preview: m.preview, cover: m.album?.cover_medium || '' };
-      } catch (err) { failed = true; console.error('Blind test, Deezer :', err.message); }
-    }
+      return m ? { preview: m.previewUrl, cover: (m.artworkUrl100 || '').replace('100x100', '300x300') } : null;
+    })().catch((err) => { failed = true; console.error('Blind test, iTunes :', err.message); return null; });
+    const deezer = (async () => {
+      const json = await getJson(`https://api.deezer.com/search?${new URLSearchParams({ q: `${song.titre} ${song.artiste}`, limit: '15' })}`, 'Deezer');
+      const m = pick(json.data || [], (r, strict) => r.preview && check(r.title, r.artist?.name, strict));
+      return m ? { preview: m.preview, cover: m.album?.cover_medium || '' } : null;
+    })().catch((err) => { failed = true; console.error('Blind test, Deezer :', err.message); return null; });
+    // dès qu'iTunes répond on s'arrête (Deezer tourne déjà en parallèle en secours)
+    let found = await itunes;
+    if (!found) found = await deezer;
     const result = { ...(found || { preview: '', cover: '' }), at: Date.now() };
     if (found || !failed) previewCache.set(key, result); // une erreur réseau ne doit pas être gardée
     return result;
@@ -283,6 +285,16 @@ export function createBlindtest({ getJson, sameSong, clientIp, sessionUser, find
     let n = 0;
     for (const c of CATEGORIES) for (const s of categorySongs(c.id)) if (!popularity.has(songKey(s))) { await fetchPopularity(s); n++; }
     console.log(`Blind test : popularité de ${n} sons récupérée (niveaux prêts).`);
+    // On pré-charge les extraits des sons (du plus populaire au moins), par paquets de 10 en parallèle.
+    // Ainsi, quand quelqu'un lance une partie, les extraits sont déjà prêts → lancement instantané.
+    const allSongs = [...new Map(CATEGORIES.flatMap((c) => categorySongs(c.id)).map((s) => [songKey(s), s])).values()]
+      .sort((a, b) => (popularity.get(songKey(b)) || 0) - (popularity.get(songKey(a)) || 0));
+    let warm = 0;
+    for (let i = 0; i < allSongs.length; i += 10) {
+      await Promise.all(allSongs.slice(i, i + 10).map((s) => resolveSong(s).then((r) => { if (r.preview) warm++; }).catch(() => {})));
+      await new Promise((r) => setTimeout(r, 300)); // on ménage iTunes et Deezer
+    }
+    console.log(`Blind test : ${warm} extraits pré-chargés (parties instantanées).`);
   })().catch((err) => console.error('Blind test, popularité :', err.message));
 
   // --- Préparer les manches : N chansons avec un extrait, + 3 mauvaises réponses chacune ---
