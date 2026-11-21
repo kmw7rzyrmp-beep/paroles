@@ -201,6 +201,81 @@ async function findLyrics(title, artist) {
   return data;
 }
 
+// 5) Liens directs vers le son sur Spotify et Deezer (cherchés seulement au clic, puis gardés en cache)
+const SPOTIFY_ID = process.env.SPOTIFY_CLIENT_ID || '';
+const SPOTIFY_SECRET = process.env.SPOTIFY_CLIENT_SECRET || '';
+const linkCache = new Map();
+let spotifyToken = { value: '', exp: 0 };
+
+async function deezerTrack(title, artist) {
+  const tries = [`artist:"${artist}" track:"${title}"`, `${title} ${artist}`];
+  for (const q of tries) {
+    const json = await getJson(`https://api.deezer.com/search?${new URLSearchParams({ q, limit: '10' })}`, 'Deezer');
+    const m = (json.data || []).find((r) => r.link && sameSong(title, artist, r.title, r.artist?.name));
+    if (m) return m.link;
+  }
+  return '';
+}
+
+async function spotifyApiTrack(title, artist) {
+  if (!SPOTIFY_ID || !SPOTIFY_SECRET) return '';
+  if (Date.now() > spotifyToken.exp) {
+    const res = await fetch('https://accounts.spotify.com/api/token', {
+      method: 'POST',
+      headers: {
+        Authorization: 'Basic ' + Buffer.from(`${SPOTIFY_ID}:${SPOTIFY_SECRET}`).toString('base64'),
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: 'grant_type=client_credentials',
+      signal: AbortSignal.timeout(5000),
+    });
+    if (!res.ok) throw new Error(`Spotify (jeton) HTTP ${res.status}`);
+    const t = await res.json();
+    spotifyToken = { value: t.access_token, exp: Date.now() + (t.expires_in - 60) * 1000 };
+  }
+  const params = new URLSearchParams({ q: `track:${title} artist:${artist}`, type: 'track', limit: '10', market: 'FR' });
+  const res = await fetch(`https://api.spotify.com/v1/search?${params}`, {
+    headers: { Authorization: `Bearer ${spotifyToken.value}` },
+    signal: AbortSignal.timeout(5000),
+  });
+  if (!res.ok) throw new Error(`Spotify HTTP ${res.status}`);
+  const json = await res.json();
+  const m = (json.tracks?.items || []).find((t) => sameSong(title, artist, t.name, t.artists?.map((a) => a.name).join(' ')));
+  return m?.external_urls?.spotify || '';
+}
+
+// Sans clé Spotify : on passe par song.link (Odesli), qui connaît l'équivalent Spotify d'un lien Deezer
+async function spotifyViaOdesli(title, artist) {
+  const deezer = await findLink('deezer', title, artist);
+  if (!deezer.direct) return '';
+  const json = await getJson(`https://api.song.link/v1-alpha.1/links?${new URLSearchParams({ url: deezer.url, userCountry: 'FR' })}`, 'song.link');
+  return json.linksByPlatform?.spotify?.url || '';
+}
+
+// Renvoie { url, direct } : direct = lien vers le morceau, sinon une page de recherche sur la plateforme
+async function findLink(platform, title, artist) {
+  const key = platform + norm(title + artist);
+  if (linkCache.has(key)) return linkCache.get(key);
+  let url = '';
+  let failed = false;
+  try {
+    if (platform === 'deezer') url = await deezerTrack(title, artist);
+    else url = (await spotifyApiTrack(title, artist)) || (await spotifyViaOdesli(title, artist));
+  } catch (err) {
+    failed = true;
+    console.error(`Lien ${platform} :`, err.message);
+  }
+  const q = encodeURIComponent(`${title} ${artist}`.trim());
+  const result = url
+    ? { url, direct: true }
+    : { url: platform === 'deezer' ? `https://www.deezer.com/search/${q}` : `https://open.spotify.com/search/${q}`, direct: false };
+  if (!failed) {
+    if (linkCache.size >= CACHE_MAX * 4) linkCache.delete(linkCache.keys().next().value);
+    linkCache.set(key, result);
+  }
+  return result;
+}
+
 async function searchLyrics(q) {
   if (DEMO) return { demo: true, results: DEMO_RESULTS };
 
@@ -269,6 +344,19 @@ const server = createServer(async (req, res) => {
       console.error('Erreur paroles :', err.message);
       return sendJson(res, 502, { error: 'Le service de paroles ne répond pas.' });
     }
+  }
+
+  // /api/go/spotify ou /api/go/deezer : redirige vers le son sur la plateforme
+  const go = url.pathname.match(/^\/api\/go\/(spotify|deezer)$/);
+  if (go) {
+    const title = (url.searchParams.get('title') || '').trim().slice(0, 200);
+    const artist = (url.searchParams.get('artist') || '').trim().slice(0, 200);
+    if (!title) return sendJson(res, 400, { error: 'Titre manquant.' });
+    const q = encodeURIComponent(`${title} ${artist}`.trim());
+    let target = go[1] === 'deezer' ? `https://www.deezer.com/search/${q}` : `https://open.spotify.com/search/${q}`;
+    if (!DEMO && !tooMany(clientIp(req))) target = (await findLink(go[1], title, artist)).url;
+    res.writeHead(302, { Location: target, 'Cache-Control': 'no-store' });
+    return res.end();
   }
 
   // Fichiers statiques (uniquement dans /public)
