@@ -15,6 +15,7 @@
 <meta name="apple-mobile-web-app-title" content="Star Song">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <script src="/i18n.js"></script>
+<script src="/profile.js" defer></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..900&family=Permanent+Marker&display=swap" rel="stylesheet">
@@ -483,6 +484,12 @@
   .welcome-guest:hover, .welcome-guest:active { background: transparent; color: var(--blanc); transform: none; box-shadow: none; filter: none; }
   @media (max-width: 380px) { .welcome-actions { grid-template-columns: 1fr; } }
 
+  /* bouton « mon profil » dans la barre du haut */
+  .profile-btn { display: inline-flex; align-items: center; gap: .5rem; padding: .2rem .9rem .2rem .25rem !important; border-radius: 999px !important; }
+  .profile-btn[hidden] { display: none; }
+  .pb-av { width: 1.9rem; height: 1.9rem; border-radius: 50%; display: grid; place-items: center; background: linear-gradient(135deg, var(--jaune), var(--orange) 55%, var(--rouge)) center / cover; color: #1b1b22; font: 900 1rem var(--texte); font-stretch: 62%; }
+  .pb-name { max-width: 10rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
   /* ---------- Compte ---------- */
   .account { display: flex; flex-wrap: wrap; align-items: center; gap: .55rem; }
   .account [hidden] { display: none; }
@@ -562,6 +569,7 @@
   <div class="topbar">
     <p class="brand"><span aria-hidden="true">★</span> Star Song <span class="pa" aria-hidden="true"><b data-en="Explicit">Paroles</b><b data-en="lyrics">explicites</b></span></p>
     <div class="account" id="account">
+      <button id="profileBtn" class="ghost profile-btn" type="button" hidden><span class="pb-av" aria-hidden="true"></span><span class="pb-name" data-notranslate></span></button>
       <span id="accountEmail" class="account-email" hidden></span>
       <button id="usernameBtn" type="button" hidden>Choisir un identifiant</button>
       <button id="loginBtn" class="ghost" type="button" hidden>Se connecter</button>
@@ -1555,9 +1563,34 @@
   const authSwitch = document.getElementById('authSwitch');
   let authMode = 'signup';
 
+  // bouton « mon profil » : ma photo (ou mon initiale) + mon pseudo
+  const profileBtn = document.getElementById('profileBtn');
+  function drawProfileBtn(avatarUrl) {
+    const av = profileBtn.querySelector('.pb-av');
+    av.replaceChildren();
+    av.style.backgroundImage = '';
+    if (avatarUrl) av.style.backgroundImage = `url("${avatarUrl}")`;
+    else av.textContent = account && account.username ? account.username.slice(0, 1).toUpperCase() : '';
+    profileBtn.querySelector('.pb-name').textContent = account && account.username ? account.username : '';
+    profileBtn.title = 'Afficher le profil';
+  }
+  profileBtn.addEventListener('click', () => window.openProfile && window.openProfile());
+  window.addEventListener('profile-changed', (e) => drawProfileBtn(e.detail.avatarUrl));
+  async function loadMyAvatar() {
+    try {
+      const d = await (await fetch('/api/profile')).json();
+      if (d.profile) drawProfileBtn(d.profile.avatarUrl);
+    } catch { /* pas grave */ }
+  }
+
   function renderAccount() {
     loginBtn.hidden = signupBtn.hidden = !!account;
-    logoutBtn.hidden = accountEmail.hidden = !account;
+    logoutBtn.hidden = !account;
+    // avec un pseudo : le bouton profil remplace l'affichage du nom
+    const withName = Boolean(account && account.username);
+    profileBtn.hidden = !withName;
+    accountEmail.hidden = !account || withName;
+    if (withName) { drawProfileBtn(''); loadMyAvatar(); }
     usernameBtn.hidden = !account || !!account.username;
     tabFriends.hidden = !(account && account.username);
     accountEmail.textContent = account ? account.name : '';
@@ -1850,6 +1883,7 @@
     }
     for (const f of friends.friends) {
       friendList.append(friendRow(f.username, [
+        mkBtn('Afficher le profil', () => window.openProfile && window.openProfile(f.username)),
         mkBtn(selectedFriend === f.username ? 'Fermer' : 'Voir', () => (selectedFriend === f.username ? (closeFriend(), renderFriends()) : openFriend(f.username))),
         mkBtn('Retirer', () => { if (confirm('Retirer ' + f.username + ' de tes amis ?')) friendAction('remove', f.username); }, true),
       ], '', f));
