@@ -5,7 +5,7 @@ import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { join, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { handleAuth, clientIp, sessionUser, findFriend, recordBlindtest, blindtestLeaderboard, markInBlindtest, countStat, isAdmin, adminStats, recordActivity, recordListen, streakOf, notifyUser, usersStreak, getPlaylist, playlistsFor, adminNotify, atReplacer } from './auth.js';
+import { handleAuth, clientIp, sessionUser, findFriend, recordBlindtest, blindtestLeaderboard, markInBlindtest, countStat, isAdmin, adminStats, recordActivity, recordListen, streakOf, notifyUser, usersStreak, getPlaylist, playlistsFor, adminNotify, atReplacer, runAdminCommand, addAdminCommand, ADMIN_COMMANDS, liveState, isMuted } from './auth.js';
 import { createBlindtest } from './blindtest.js';
 import { CATEGORIES } from './categories.js';
 
@@ -60,7 +60,7 @@ setInterval(() => {
 
 // --- Résultats d'exemple pour le mode démo (npm run demo) ---
 const DEMO_RESULTS = [
-  { title: 'Titre d’exemple A', artist: 'Artiste démo', image: '', url: '', preview: '' },
+  { title: 'Titre d’exemple A', artist: 'Artiste démo', image: '', url: '', preview: '', at: 83 },
   { title: 'Titre d’exemple B', artist: 'Artiste démo', image: '', url: '', preview: '' },
   { title: 'Titre d’exemple C', artist: 'Autre artiste démo', image: '', url: '', preview: '' },
 ];
@@ -132,6 +132,55 @@ async function previewFromItunes(title, artist) {
   const json = await getJson(`https://itunes.apple.com/search?${params}`, 'iTunes');
   const m = (json.results || []).find((r) => r.previewUrl && sameSong(title, artist, r.trackName, r.artistName));
   return m?.previewUrl || '';
+}
+
+// --- La vidéo YouTube d'un son (pour écouter le passage exact des paroles tapées) ---
+// Pas de clé YouTube : on lit la page de résultats et on prend la première vidéo « audio » si possible
+// (la version audio a le même minutage que les paroles synchronisées).
+const videoCache = new Map();
+async function findVideo(title, artist) {
+  const key = norm(title + artist);
+  if (videoCache.has(key)) return videoCache.get(key);
+  let id = '';
+  for (const q of [`${artist} ${title} audio`, `${artist} ${title}`]) {
+    try {
+      const res = await fetch(`https://www.youtube.com/results?${new URLSearchParams({ search_query: q, hl: 'fr', gl: 'FR' })}`, {
+        headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36', 'Accept-Language': 'fr-FR,fr;q=0.9', Cookie: 'SOCS=CAI; CONSENT=YES+cb' },
+        signal: AbortSignal.timeout(6000),
+      });
+      if (!res.ok) continue;
+      const html = await res.text();
+      const m = html.match(/"videoRenderer":\{"videoId":"([\w-]{11})"/) || html.match(/"videoId":"([\w-]{11})"/);
+      if (m) { id = m[1]; break; }
+    } catch (err) { console.error('YouTube :', err.message); }
+  }
+  if (videoCache.size >= CACHE_MAX * 4) videoCache.delete(videoCache.keys().next().value);
+  videoCache.set(key, id);
+  return id;
+}
+
+// --- Pochettes d'albums de rap (le disque de l'accueil change à chaque visite) ---
+const albumCache = new Map(); // artiste -> [{ cover, album, artist }]
+async function randomCover() {
+  const rap = CATEGORIES.filter((c) => c.id === 'rap-fr' || c.id === 'rap-us');
+  const artists = [...new Set(rap.flatMap((c) => c.chansons.map((s) => s.artiste)))];
+  if (!artists.length || DEMO) return { cover: '' };
+  for (let tries = 0; tries < 3; tries++) {
+    const artist = artists[Math.floor(Math.random() * artists.length)];
+    let albums = albumCache.get(artist);
+    if (!albums) {
+      try {
+        const params = new URLSearchParams({ term: artist, media: 'music', entity: 'album', attribute: 'artistTerm', limit: '25', country: 'FR' });
+        const json = await getJson(`https://itunes.apple.com/search?${params}`, 'iTunes');
+        albums = (json.results || []).filter((r) => r.artworkUrl100 && norm(r.artistName).includes(norm(artist).slice(0, 6)))
+          .map((r) => ({ cover: r.artworkUrl100.replace('100x100bb', '600x600bb'), album: r.collectionName, artist: r.artistName }));
+      } catch { albums = []; }
+      albumCache.set(artist, albums);
+      if (albumCache.size > 300) albumCache.delete(albumCache.keys().next().value);
+    }
+    if (albums.length) return albums[Math.floor(Math.random() * albums.length)];
+  }
+  return { cover: '' };
 }
 
 async function previewFromDeezer(title, artist) {
@@ -293,6 +342,22 @@ async function findLink(platform, title, artist) {
 const words = (t) => String(t || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
   .replace(/['’`]/g, ' ').replace(/[^a-z0-9]+/g, ' ').trim();
 
+// Trouve la ligne (ou les 2 lignes qui se suivent) des paroles synchronisées qui contient le mieux ce qu'on a tapé
+function lyricsMoment(q, synced) {
+  if (!Array.isArray(synced) || !synced.length) return null;
+  const qw = words(q).split(' ').filter((w) => w.length >= 2);
+  if (!qw.length) return null;
+  let best = { score: 0, t: null };
+  for (let i = 0; i < synced.length; i++) {
+    const text = ' ' + words(synced[i].text + ' ' + (synced[i + 1]?.text || '')) + ' ';
+    const exact = text.includes(' ' + qw.join(' ') + ' ');
+    const hits = qw.filter((w) => text.includes(' ' + w + ' ') || text.includes(' ' + w)).length / qw.length;
+    const score = exact ? 2 : hits;
+    if (score > best.score + 0.001) best = { score, t: synced[i].t };
+  }
+  return best.score >= 0.7 ? Math.max(0, Math.round(best.t * 10) / 10) : null;
+}
+
 function lyricsScore(q, lyrics) {
   const text = ' ' + words(lyrics) + ' ';
   if (text.trim() === '') return null; // paroles introuvables : on ne peut pas savoir
@@ -314,7 +379,7 @@ function lyricsScore(q, lyrics) {
 }
 
 async function searchLyrics(q) {
-  if (DEMO) return { demo: true, results: DEMO_RESULTS };
+  if (DEMO) return { demo: true, yt: true, results: DEMO_RESULTS.map((r) => ({ ...r })) };
 
   const hit = cache.get(q);
   if (hit && Date.now() - hit.at < CACHE_TTL) return hit.data;
@@ -344,6 +409,9 @@ async function searchLyrics(q) {
     ]);
     r.preview = preview;
     r._score = lyricsScore(q, lyr.lyrics);
+    // le moment du son où se trouvent les paroles tapées (paroles synchronisées), en secondes
+    const at = lyricsMoment(q, lyr.synced);
+    if (at !== null) r.at = at;
     r._rank = i;
   }));
 
@@ -359,7 +427,7 @@ async function searchLyrics(q) {
   console.log(`  → ${matched.length} confirmé(s) par les paroles, ${unknown.length} sans paroles connues, ${others.length} ${byTitle ? 'écarté(s)' : 'mis à la fin'}`);
   for (const r of results) { delete r._score; delete r._rank; }
 
-  const data = { demo: false, byTitle, results };
+  const data = { demo: false, byTitle, results, yt: true };
   if (cache.size >= CACHE_MAX) cache.delete(cache.keys().next().value);
   cache.set(q, { at: Date.now(), data });
   return data;
@@ -370,8 +438,13 @@ function sendJson(res, code, body) {
   res.end(JSON.stringify(body, atReplacer));
 }
 
-const handleBlindtest = createBlindtest({ getJson, sameSong, clientIp, sessionUser, findFriend, recordBlindtest, blindtestLeaderboard, markInBlindtest, countStat, recordListen, streakOf: usersStreak, notifyUser, getPlaylist, playlistsFor, demo: DEMO });
+const handleBlindtest = createBlindtest({ getJson, sameSong, clientIp, sessionUser, findFriend, recordBlindtest, blindtestLeaderboard, markInBlindtest, countStat, recordListen, streakOf: usersStreak, notifyUser, getPlaylist, playlistsFor, isMuted, demo: DEMO });
 const STARTED = Date.now();
+// commandes de la console admin qui touchent au blind test
+addAdminCommand({ name: 'salons', use: 'salons', help: 'Les parties de blind test en cours.',
+  run: () => { const list = handleBlindtest.rooms(); return list.length ? list.map((r) => `${r.code} · ${r.phase} · ${r.mode === 'br' ? 'battle royale' : 'normal'} · ${r.category} · ${r.players.join(', ')}`).join('\n') : 'Aucun salon ouvert.'; } });
+addAdminCommand({ name: 'fermer-salon', use: 'fermer-salon CODE', help: 'Ferme un salon de blind test.',
+  run: ([code]) => (handleBlindtest.closeRoom(code) ? `Salon ${String(code).toUpperCase()} fermé.` : 'Ce salon n’existe pas.') });
 // visiteurs uniques du jour (empreinte de l'adresse IP, jamais l'adresse elle-même ; remis à zéro chaque jour)
 let visitorDay = '';
 const visitorsToday = new Set();
@@ -395,6 +468,36 @@ const server = createServer(async (req, res) => {
   // Notification envoyée par l'admin à la personne de son choix
   if (url.pathname === '/api/patchnotes') { // le patch note : visible par tout le monde
     return sendJson(res, 200, { notes: PATCH_NOTES });
+  }
+  if (url.pathname === '/api/video') {
+    const title = String(url.searchParams.get('title') || '').slice(0, 200), artist = String(url.searchParams.get('artist') || '').slice(0, 200);
+    if (!title) return sendJson(res, 400, { error: 'Titre manquant.' });
+    if (tooMany(clientIp(req))) return sendJson(res, 429, { error: 'Trop de demandes, réessaie dans une minute.' });
+    return sendJson(res, 200, { videoId: DEMO ? '' : await findVideo(title, artist) });
+  }
+  // Une pochette d'album d'un rappeur au hasard (le disque de l'accueil)
+  if (url.pathname === '/api/cover/random') return sendJson(res, 200, await randomCover());
+  // Les effets en direct (annonce, confettis, couronnes) : pour tout le monde
+  if (url.pathname === '/api/live') return sendJson(res, 200, liveState());
+  // La console des admins
+  if (url.pathname === '/api/admin/commands') {
+    if (!isAdmin(sessionUser(req))) return sendJson(res, 404, { error: 'Introuvable.' });
+    return sendJson(res, 200, { commands: ADMIN_COMMANDS.map((c) => ({ name: c.name, use: c.use, help: c.help })) });
+  }
+  if (url.pathname === '/api/admin/cmd' && req.method === 'POST') {
+    const user = sessionUser(req);
+    if (!isAdmin(user)) return sendJson(res, 404, { error: 'Introuvable.' });
+    let body = {};
+    try {
+      let raw = '';
+      for await (const chunk of req) { raw += chunk; if (raw.length > 5000) throw new Error('trop long'); }
+      body = JSON.parse(raw || '{}');
+    } catch { return sendJson(res, 400, { error: 'Requête invalide.' }); }
+    try {
+      return sendJson(res, 200, { out: runAdminCommand(user, body.line) });
+    } catch (err) {
+      return sendJson(res, err.status || 500, { error: err.status ? err.message : 'Erreur : ' + err.message });
+    }
   }
   if (url.pathname === '/api/admin/notify' && req.method === 'POST') {
     const user = sessionUser(req);

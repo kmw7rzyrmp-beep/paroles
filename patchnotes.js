@@ -1,9 +1,44 @@
 // Le patch note du site : visible par tout le monde (page « Patch note » du menu).
 // La plus récente en premier. Pour ajouter une version : copier un bloc en haut de la liste.
+// date + time : le jour et l'heure (heure de Paris) où la version est sortie
 // tag : 'new' (nouveauté), 'better' (amélioration), 'fix' (correction), 'removed' (retiré)
 export const PATCH_NOTES = [
   {
-    version: '2.4', date: '2026-11-21', title: 'Grandes pages, classement et chat en avant',
+    version: '2.6', date: '2026-11-21', time: '20:55', title: 'Admin, prêt, battle royale et nouveau logo',
+    items: [
+      ['new', 'Nouveau logo Star Song (vinyle noir, étiquette orange, étoile).'],
+      ['new', 'Le disque de l’accueil affiche la pochette d’un album de rap au hasard, nouvelle à chaque passage.'],
+      ['new', 'Blind test : chaque joueur doit cliquer sur « Je suis prêt » pour que la partie puisse commencer.'],
+      ['new', '« Terminer la partie » demande confirmation : en partant, tous tes points de la partie sont annulés.'],
+      ['new', 'Bouton ❤️ pour mettre un son en favori pendant la partie (et dans la liste de fin).'],
+      ['better', 'Battle royale : vies au choix (1 à 3), le temps pour répondre baisse à chaque son, « duel final », et un joueur absent 2 sons de suite est éliminé.'],
+      ['fix', 'Battle royale : la partie ne tourne plus sans fin quand personne ne répond.'],
+      ['new', 'Playlists d’artistes à côté des playlists de sons, avec tous les genres mélangés.'],
+      ['new', 'Onglet Admin (réservé aux admins) : tous les pouvoirs, une console de commandes, notification à tout le monde, annonce, confettis, couronnes…'],
+      ['new', 'Recherche : « Écouter le passage » démarre le son pile au moment des paroles tapées (et un bouton « Morceau entier »).'],
+      ['new', 'Classement « Temps sur le site ».'],
+      ['new', 'Sur téléphone : onglet « Plus » en bas (Classement, Patch note, Profil, Playlists, Admin).'],
+      ['new', 'Affiche pour activer les notifications à chaque visite tant qu’elles sont coupées.'],
+      ['new', 'Message de bienvenue au hasard quand tu te reconnectes (40 phrases).'],
+      ['new', 'Confirmation avant de se déconnecter.'],
+      ['new', 'Grand message « Tu dois te connecter » quand on ouvre Amis ou Messages sans compte.'],
+      ['better', 'Messagerie refaite pour le téléphone (plein écran, grosses zones à toucher, le clavier ne cache plus la zone d’écriture).'],
+      ['better', 'Messages vocaux bien plus nets (qualité doublée, réduction de bruit) et lecture plus fluide.'],
+      ['better', 'Les favoris et recherches d’un ami sont dans « Afficher le profil » (le bouton « Voir » est retiré).'],
+      ['better', 'Le patch note affiche l’heure de chaque version, et il est accessible sur téléphone.'],
+      ['fix', 'Connecté mais « connecte-toi » demandé pour les amis ou les messages : corrigé.'],
+      ['fix', 'La page Amis défile de nouveau sur téléphone.'],
+    ],
+  },
+  {
+    version: '2.5', date: '2026-11-21', time: '18:03', title: 'Corrections',
+    items: [
+      ['fix', 'Le classement s’affichait mal quand l’ancienne version du style était gardée en mémoire.'],
+      ['better', 'Sur téléphone, le bouton « Retour » des grandes pages flotte en bas à gauche.'],
+    ],
+  },
+  {
+    version: '2.4', date: '2026-11-21', time: '17:19', title: 'Grandes pages, classement et chat en avant',
     items: [
       ['new', 'Amis s’ouvre maintenant en grande page (plus de petite fenêtre).'],
       ['new', 'Page Notifications : tout l’historique, groupé par jour, avec filtres et « Tout marquer lu ».'],
@@ -19,13 +54,13 @@ export const PATCH_NOTES = [
     ],
   },
   {
-    version: '2.3', date: '2026-11-21', title: 'Favoris dans les playlists',
+    version: '2.3', date: '2026-11-21', time: '16:58', title: 'Favoris dans les playlists',
     items: [
       ['new', 'Onglet « Mes favoris » dans l’éditeur de playlist pour ajouter ses sons favoris en un clic.'],
     ],
   },
   {
-    version: '2.2', date: '2026-11-21', title: 'Nouvelle interface',
+    version: '2.2', date: '2026-11-21', time: '16:57', title: 'Nouvelle interface',
     items: [
       ['new', 'Tout le site refait façon lecteur de musique (menu à gauche, barre de lecture, onglets en bas sur téléphone).'],
       ['new', 'Couronne 👑 à côté de @kylrom.'],
@@ -35,7 +70,7 @@ export const PATCH_NOTES = [
     ],
   },
   {
-    version: '2.1', date: '2026-11-21', title: 'Playlists de blind test',
+    version: '2.1', date: '2026-11-21', time: '16:45', title: 'Playlists de blind test',
     items: [
       ['new', 'Chaque joueur crée ses propres playlists de blind test (recherche de sons, animations).'],
       ['new', 'Les amis peuvent jouer sur tes playlists.'],
@@ -43,7 +78,7 @@ export const PATCH_NOTES = [
     ],
   },
   {
-    version: '2.0', date: '2026-11-21', title: 'Donner envie de revenir',
+    version: '2.0', date: '2026-11-21', time: '16:30', title: 'Donner envie de revenir',
     items: [
       ['new', 'Flammes 🔥 : une série de jours d’affilée.'],
       ['new', 'Badges par artiste : plus tu l’écoutes, plus le badge monte.'],
@@ -55,7 +90,7 @@ export const PATCH_NOTES = [
     ],
   },
   {
-    version: '1.4', date: '2026-11-21', title: 'Messagerie',
+    version: '1.4', date: '2026-11-21', time: '13:39', title: 'Messagerie',
     items: [
       ['new', 'Messagerie entre amis (discussions, non lus, « Vu »).'],
       ['new', 'Messages vocaux.'],
@@ -64,14 +99,14 @@ export const PATCH_NOTES = [
     ],
   },
   {
-    version: '1.3', date: '2026-11-21', title: 'Statistiques admin',
+    version: '1.3', date: '2026-11-21', time: '13:28', title: 'Statistiques admin',
     items: [
       ['new', 'Fenêtre Stats réservée à l’admin : comptes, recherches, visites, blind test.'],
       ['fix', 'Traduction « En blind test », icônes de l’appli.'],
     ],
   },
   {
-    version: '1.2', date: '2026-11-21', title: 'Battle royale et amis',
+    version: '1.2', date: '2026-11-21', time: '12:49', title: 'Battle royale et amis',
     items: [
       ['new', 'Mode battle royale (2 joueurs minimum) : celui qui se trompe est éliminé et peut regarder la fin.'],
       ['new', 'On voit quand un ami est en train de faire un blind test.'],
@@ -79,7 +114,7 @@ export const PATCH_NOTES = [
     ],
   },
   {
-    version: '1.1', date: '2026-11-21', title: 'Plus de sons',
+    version: '1.1', date: '2026-11-21', time: '11:08', title: 'Plus de sons',
     items: [
       ['new', 'Choix libre du nombre de manches, et mode infini tant que l’artiste a des sons.'],
       ['better', 'Au moins 60 sons par artiste quand c’est possible.'],
@@ -89,7 +124,7 @@ export const PATCH_NOTES = [
     ],
   },
   {
-    version: '1.0', date: '2026-11-21', title: 'Lancement de Star Song',
+    version: '1.0', date: '2026-11-20', time: '21:55', title: 'Lancement de Star Song',
     items: [
       ['new', 'Recherche de chanson par les paroles.'],
       ['new', 'Comptes, amis et profils.'],

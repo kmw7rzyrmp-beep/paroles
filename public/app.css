@@ -74,7 +74,8 @@ button:disabled { opacity: .45; cursor: not-allowed; transform: none; }
 
 /* la marque */
 .brand { display: flex; align-items: center; gap: .5rem; margin: 0 0 2.4rem; font: 700 1.05rem var(--texte); color: var(--blanc); text-decoration: none; }
-.brand .star-logo { display: grid; place-items: center; width: 1.9rem; height: 1.9rem; border-radius: 9px; background: var(--orange); color: #fff; font-size: 1rem; }
+.brand .star-logo { display: block; width: 2.1rem; height: 2.1rem; border-radius: 10px; transition: transform .5s cubic-bezier(.2, 1.3, .4, 1); }
+.brand:hover .star-logo { transform: rotate(-14deg) scale(1.06); }
 
 /* le menu de gauche */
 .nav-title { margin: 1.8rem 0 .7rem .3rem; font: 600 .82rem var(--texte); color: var(--blanc); }
@@ -193,7 +194,7 @@ dialog { width: min(27rem, calc(100vw - 1.5rem)); padding: 0; background: #14141
 dialog::backdrop { background: rgba(0, 0, 0, .65); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); }
 dialog[open] { animation: dlgIn .3s cubic-bezier(.2, .9, .3, 1.1); }
 @keyframes dlgIn { from { opacity: 0; transform: translateY(14px) scale(.98); } }
-body:has(dialog[open]) { overflow: hidden; }
+body:has(dialog[open]:modal) { overflow: hidden; } /* la page Amis (non modale) doit défiler */
 .auth { padding: 1.6rem; }
 .auth h2 { margin: 0 0 .6rem; font: 700 1.5rem var(--texte); }
 .auth p { margin: 0 0 1.2rem; color: var(--gris); }
@@ -342,7 +343,7 @@ dialog.friends-panel[open] { animation: panelIn .35s cubic-bezier(.2, .9, .3, 1)
   .rail { padding: 0 1rem calc(7.5rem + env(safe-area-inset-bottom, 0px)); grid-template-columns: 1fr; display: flex; }
   .side { display: none; }
   .tabbar {
-    position: fixed; left: 0; right: 0; bottom: 0; z-index: 40; display: grid; grid-template-columns: repeat(5, 1fr);
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 40; display: grid; grid-auto-flow: column; grid-auto-columns: 1fr;
     padding: .35rem .4rem calc(.35rem + env(safe-area-inset-bottom, 0px)); background: rgba(10, 10, 12, .92);
     backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border-top: 1px solid rgba(255,255,255,.06);
   }
@@ -362,7 +363,7 @@ dialog.friends-panel[open] { animation: panelIn .35s cubic-bezier(.2, .9, .3, 1)
   .fp-body { padding-bottom: calc(1.6rem + env(safe-area-inset-bottom, 0px)); }
 }
 .mobile-brand { display: none; align-items: center; gap: .5rem; font-weight: 700; color: var(--blanc); text-decoration: none; }
-.mobile-brand .star-logo { display: grid; place-items: center; width: 1.8rem; height: 1.8rem; border-radius: 8px; background: var(--orange); color: #fff; }
+.mobile-brand .star-logo { display: block; width: 1.9rem; height: 1.9rem; border-radius: 9px; }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
@@ -408,7 +409,8 @@ dialog.notif-dialog .notif-settings { margin: 0; padding: 0; border: 0; }
 body[data-page="amis"] .main, body[data-page="amis"] .rail,
 body[data-page="notifications"] .main, body[data-page="notifications"] .rail,
 body[data-page="classement"] .main, body[data-page="classement"] .rail,
-body[data-page="patch"] .main, body[data-page="patch"] .rail { display: none; }
+body[data-page="patch"] .main, body[data-page="patch"] .rail,
+body[data-page="admin"] .main, body[data-page="admin"] .rail { display: none; }
 .page { grid-column: 2 / -1; grid-row: 2 / -1; min-width: 0; padding: .4rem 1.8rem 6rem 1rem; }
 .page[hidden] { display: none; }
 .page-in { animation: pageIn .5s cubic-bezier(.2, .9, .3, 1) both; }
@@ -565,3 +567,38 @@ dialog.friends-panel.as-page .friends { display: grid; grid-template-columns: 23
   @keyframes backIn { from { opacity: 0; transform: translateY(12px) scale(.9); } }
 }
 @media (max-width: 860px) and (prefers-reduced-motion: reduce) { .m-back { animation: none !important; } }
+
+/* ---------- l'affiche « Active les notifications » (à chaque visite tant qu'elles sont coupées) ---------- */
+.np-card { position: fixed; right: 1.4rem; bottom: 1.4rem; z-index: 120; width: min(21rem, calc(100vw - 2rem)); padding: 1.3rem 1.3rem 1.1rem; border-radius: 24px;
+  background: radial-gradient(120% 100% at 100% 0%, rgba(242, 107, 58, .35), transparent 60%), #151517; border: 1px solid #2e2e33; box-shadow: 0 24px 60px rgba(0,0,0,.6);
+  animation: npIn .55s cubic-bezier(.2, 1.3, .4, 1) both; }
+.np-card.out { animation: npOut .3s ease forwards; }
+@keyframes npIn { from { opacity: 0; transform: translateY(30px) scale(.94); } }
+@keyframes npOut { to { opacity: 0; transform: translateY(20px) scale(.96); } }
+.np-bell { width: 3.2rem; height: 3.2rem; border-radius: 16px; display: grid; place-items: center; font-size: 1.7rem; background: var(--orange); margin-bottom: .8rem; animation: bellRing 1.4s .6s ease-in-out 2; transform-origin: 50% 10%; }
+.np-card h2 { margin: 0 0 .35rem; font: 800 1.15rem var(--texte); }
+.np-card p { margin: 0; color: var(--gris); font-size: .88rem; line-height: 1.45; }
+.np-card .np-status { margin-top: .5rem; min-height: 0; color: #ff8f8f; font-size: .82rem; }
+.np-card .np-status:empty { display: none; }
+.np-card .np-status.ok { color: #6fdc8c; }
+.np-row { display: flex; gap: .5rem; margin-top: 1rem; }
+.np-row button { flex: 1; min-height: 2.8rem; border-radius: 999px; font-weight: 700; }
+.np-later { background: #232327; color: var(--blanc); }
+.np-go { background: var(--orange); color: #fff; }
+.np-x { position: absolute; top: .7rem; right: .7rem; width: 2.2rem; height: 2.2rem; min-height: 0; padding: 0; border-radius: 50%; background: transparent; color: var(--gris); box-shadow: none; }
+@media (max-width: 860px) { .np-card { left: 1rem; right: 1rem; width: auto; bottom: calc(5.4rem + env(safe-area-inset-bottom, 0px)); } }
+@media (prefers-reduced-motion: reduce) { .np-card, .np-bell { animation: none !important; } }
+
+/* ---------- téléphone : le bouton « Plus » des onglets (Classement, Patch note, Admin, Profil…) ---------- */
+.more-sheet { position: fixed; inset: 0; z-index: 130; display: flex; align-items: flex-end; background: rgba(0,0,0,.55); backdrop-filter: blur(3px); animation: fadeIn .2s ease; }
+.more-sheet.out { animation: fadeOut .2s ease forwards; }
+@keyframes fadeIn { from { opacity: 0; } } @keyframes fadeOut { to { opacity: 0; } }
+.more-panel { width: 100%; padding: .6rem 1rem calc(1rem + env(safe-area-inset-bottom, 0px)); border-radius: 26px 26px 0 0; background: #141416; animation: sheetUp .3s cubic-bezier(.2, .9, .3, 1); }
+.more-sheet.out .more-panel { animation: sheetDown .2s ease forwards; }
+@keyframes sheetUp { from { transform: translateY(100%); } } @keyframes sheetDown { to { transform: translateY(100%); } }
+.more-panel .grab { width: 2.6rem; height: .3rem; margin: 0 auto .9rem; border-radius: 3px; background: #3a3a40; }
+.more-panel h2 { margin: 0 .3rem .7rem; font: 800 1.2rem var(--texte); }
+.more-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: .5rem; }
+.more-grid a, .more-grid button { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .35rem; min-height: 5.2rem; padding: .5rem; border-radius: 18px;
+  background: #1d1d21; color: var(--blanc); text-decoration: none; font: 600 .8rem var(--texte); text-align: center; animation: cardIn .35s ease both; }
+.more-grid span { font-size: 1.6rem; }

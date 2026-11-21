@@ -175,6 +175,53 @@
       sec.append(el('p', 'pp-empty', p.relation === 'me' ? 'Choisis jusqu’à 6 sons parmi tes favoris en modifiant ton profil.' : 'Pas encore de sons préférés.'));
     }
     body.append(sec);
+    // chez un ami : ses favoris et ses dernières recherches (avant, c'était le bouton « Voir » de la page Amis)
+    if (p.relation === 'friend') {
+      const holder = el('div');
+      body.append(holder);
+      api('/api/friends/data?username=' + encodeURIComponent(p.username)).then((d) => {
+        if (current !== p) return;
+        const fav = el('section', 'pp-section');
+        fav.append(el('h3', '', 'Ses favoris'));
+        if (d.favorites && d.favorites.length) {
+          const list = el('ul', 'pp-favs');
+          for (const f of d.favorites.slice(0, 30)) {
+            const li = el('li');
+            const b = el('button', 'pp-fav'); b.type = 'button';
+            const cover = el(f.image ? 'img' : 'span', 'pp-cover');
+            if (f.image) { cover.src = f.image; cover.alt = ''; cover.loading = 'lazy'; cover.referrerPolicy = 'no-referrer'; }
+            const txt = el('span', 'pp-song-txt'); txt.setAttribute('data-notranslate', '');
+            txt.append(el('strong', '', f.title), el('span', '', f.artist || ''));
+            b.append(cover, txt);
+            b.addEventListener('click', () => {
+              dlg.close();
+              if (window.ssShowFav) window.ssShowFav(f, p.username); else location.href = '/?q=' + encodeURIComponent(f.title + ' ' + (f.artist || ''));
+            });
+            li.append(b); list.append(li);
+          }
+          fav.append(list);
+        } else fav.append(el('p', 'pp-empty', 'Pas encore de favori.'));
+        const hist = el('section', 'pp-section');
+        hist.append(el('h3', '', 'Ses dernières recherches'));
+        if (d.history && d.history.length) {
+          const list = el('ul', 'pp-hist');
+          for (const x of d.history.slice(0, 15)) {
+            const li = el('li');
+            const b = el('button', 'pp-histi'); b.type = 'button';
+            const t = el('strong', '', x.title); t.setAttribute('data-notranslate', '');
+            const m = el('span', '', (x.artist ? x.artist + ' · ' : '') + '« ' + x.q + ' »'); m.setAttribute('data-notranslate', '');
+            b.append(t, m);
+            b.addEventListener('click', () => {
+              dlg.close();
+              if (window.ssSearch) window.ssSearch(x.q); else location.href = '/?q=' + encodeURIComponent(x.q);
+            });
+            li.append(b); list.append(li);
+          }
+          hist.append(list);
+        } else hist.append(el('p', 'pp-empty', 'Aucune recherche pour l’instant.'));
+        holder.replaceWith(fav, hist);
+      }).catch(() => holder.remove());
+    }
     dlg.scrollTop = 0;
     $('.pp-scroll', dlg).scrollTop = 0;
   }
@@ -375,7 +422,14 @@
   .pp-avatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
   .pp-avatar.letter { display: grid; place-items: center; font: 900 3.2rem/1 var(--texte, sans-serif); font-stretch: 62%; color: #1b1b22; background: linear-gradient(135deg, #f5c43a, #f28c1c 55%, #e2412b); }
   .pp-who { min-width: 0; padding-bottom: .4rem; }
-  .pp-name { margin: 0; font: 900 2.4rem/1 var(--texte, sans-serif); font-stretch: 62%; text-transform: uppercase; overflow-wrap: anywhere; }
+  .pp-name { margin: 0; font: 900 2.4rem/1 var(--texte, sans-serif); font-stretch: 62%; overflow-wrap: anywhere; }
+  .pp-favs, .pp-hist { list-style: none; margin: 0; padding: 0; display: grid; gap: .4rem; }
+  .pp-favs { grid-template-columns: repeat(auto-fill, minmax(13rem, 1fr)); }
+  .pp-fav, .pp-histi { width: 100%; display: flex; align-items: center; gap: .7rem; min-height: 3.2rem; padding: .45rem .6rem; border: 0; border-radius: 12px; background: rgba(255,255,255,.05); color: inherit; text-align: left; cursor: pointer; font: inherit; box-shadow: none; transition: background .2s, transform .2s; }
+  .pp-fav:hover, .pp-histi:hover { background: rgba(255,255,255,.1); transform: translateY(-1px); }
+  .pp-fav .pp-cover { flex: none; width: 2.6rem; height: 2.6rem; }
+  .pp-histi { flex-direction: column; align-items: flex-start; gap: .1rem; }
+  .pp-histi span { color: var(--gris, #a6a3ad); font-size: .82rem; }
   .pp-meta { display: flex; flex-wrap: wrap; align-items: center; gap: .3rem 1rem; margin: .4rem 0 0; color: var(--gris, #a6a3ad); font-size: .92rem; }
   .pp-meta .presence { margin: 0; display: inline-flex; align-items: center; gap: .4rem; }
   .pp-meta .presence::before { content: ""; width: .55rem; height: .55rem; border-radius: 50%; background: #5d5b63; }

@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Star Song">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#ff8a4c"/>
+      <stop offset=".55" stop-color="#f26b3a"/>
+      <stop offset="1" stop-color="#c8401f"/>
+    </linearGradient>
+    <radialGradient id="shine" cx=".3" cy=".25" r=".8">
+      <stop offset="0" stop-color="#fff" stop-opacity=".28"/>
+      <stop offset=".6" stop-color="#fff" stop-opacity="0"/>
+    </radialGradient>
+    <clipPath id="disc"><circle cx="256" cy="256" r="178"/></clipPath>
+  </defs>
+  <!-- fond orange Star Song -->
+  <rect width="512" height="512" rx="116" fill="url(#bg)"/>
+  <rect width="512" height="512" rx="116" fill="url(#shine)"/>
+  <!-- le vinyle noir et ses sillons -->
+  <circle cx="256" cy="256" r="178" fill="#0e0e10"/>
+  <g clip-path="url(#disc)" fill="none" stroke="#26262b" stroke-width="3">
+    <circle cx="256" cy="256" r="160"/><circle cx="256" cy="256" r="146"/><circle cx="256" cy="256" r="132"/>
+    <circle cx="256" cy="256" r="118"/><circle cx="256" cy="256" r="104"/>
+  </g>
+  <path d="M120 170 A 160 160 0 0 1 210 104" fill="none" stroke="#fff" stroke-opacity=".22" stroke-width="10" stroke-linecap="round"/>
+  <!-- l'étiquette orange avec l'étoile blanche -->
+  <circle cx="256" cy="256" r="84" fill="#f26b3a"/>
+  <path d="M256 186 L275.4 234.6 L327.6 237.6 L287.3 270.9 L300.4 321.5 L256 293.2 L211.6 321.5 L224.7 270.9 L184.4 237.6 L236.6 234.6 Z" fill="#fff8f0" stroke="#fff8f0" stroke-width="10" stroke-linejoin="round"/>
+</svg>

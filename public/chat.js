@@ -13,7 +13,7 @@
   @media (prefers-reduced-motion: reduce) { dialog.chat[open] { animation: none; } }
   @media (max-width: 34rem) { dialog.chat { width: 100vw; height: 100dvh; max-width: 100vw; border-radius: 0; margin: 0; } }
   .ch-head { display: flex; align-items: center; gap: .6rem; padding: .7rem .8rem; border-bottom: 1px solid var(--ligne); background: #18171c; }
-  .ch-head h2 { margin: 0; font: 900 1.45rem/1 var(--texte); font-stretch: 62%; text-transform: uppercase; }
+  .ch-head h2 { margin: 0; font: 800 1.35rem/1 var(--texte); letter-spacing: -.02em; }
   .ch-head .ch-close { margin-left: auto; }
   .ch-icon { min-height: 2.3rem; min-width: 2.3rem; padding: 0 .55rem; display: inline-flex; align-items: center; justify-content: center; gap: .3rem; font-size: .9rem; }
   .ch-icon svg { width: 1.1rem; height: 1.1rem; }
@@ -77,13 +77,40 @@
   .ch-msg.me .ch-play { background: #1b1b22; color: var(--orange); border-color: #1b1b22; box-shadow: none; }
   .ch-play svg { width: .95rem; height: .95rem; }
   .ch-wave { flex: 1; height: 1.6rem; display: flex; align-items: center; gap: 2px; cursor: pointer; }
-  .ch-wave i { flex: 1; min-width: 2px; border-radius: 1px; background: currentColor; opacity: .35; }
+  .ch-wave i { flex: 1; min-width: 2px; border-radius: 1px; background: currentColor; opacity: .35; transition: opacity .12s; }
   .ch-wave i.done { opacity: 1; }
   .ch-dur { flex: none; font-size: .78rem; font-variant-numeric: tabular-nums; opacity: .85; }
   @media (prefers-reduced-motion: reduce) { .ch-rec .dot { animation: none; } }
   .fb-msg { position: absolute; top: -.2rem; left: -.2rem; min-width: 1.35rem; height: 1.35rem; padding: 0 .3rem; border-radius: 999px; background: var(--orange); color: #1b1b22; font: 800 .78rem/1.35rem var(--texte); text-align: center; border: 2px solid var(--mur); }
   .fb-msg:empty { display: none; }
   .invite-toast[data-key^="msg:"] { border-left-color: var(--orange); }
+  .ch-row { box-sizing: border-box; overflow: hidden; }
+  .ch-row .ch-mid { overflow: hidden; }
+  /* ----- téléphone : plein écran, grosses zones à toucher, le clavier ne cache plus la zone d'écriture ----- */
+  @media (max-width: 34rem) {
+    dialog.chat { inset: 0 auto auto 0; width: 100vw; height: var(--ch-vh, 100dvh); max-height: none; border-radius: 0; background: #121214; }
+    dialog.chat[open] { animation: chatUp .3s cubic-bezier(.2, .9, .3, 1); }
+    @keyframes chatUp { from { transform: translateY(40px); opacity: 0; } }
+    .ch-head { padding: calc(.7rem + env(safe-area-inset-top, 0px)) .9rem .7rem; gap: .7rem; background: #121214; border-bottom-color: #232327; }
+    .ch-head h2 { font-size: 1.7rem; }
+    .ch-icon { min-height: 2.75rem; min-width: 2.75rem; border-radius: 50%; }
+    .ch-av { width: 2.6rem; height: 2.6rem; }
+    .ch-row { min-height: 4.6rem; padding: .7rem 1rem; gap: .85rem; }
+    .ch-row .ch-av { width: 3.2rem; height: 3.2rem; font-size: 1.15rem; }
+    .ch-row .ch-name { font-size: 1.02rem; }
+    .ch-row .ch-prev { font-size: .9rem; margin-top: .15rem; }
+    .ch-row + .ch-row { border-top: 1px solid #1d1d21; }
+    .ch-badge { min-width: 1.5rem; height: 1.5rem; line-height: 1.5rem; font-size: .8rem; }
+    .ch-sub { margin: 1.3rem 1rem .4rem; font-size: .85rem; }
+    .ch-msgs { padding: .8rem .75rem 1.2rem; gap: .25rem; }
+    .ch-msg { max-width: 84%; font-size: 1rem; padding: .55rem .8rem; border-radius: 18px; }
+    .ch-form { padding: .55rem .6rem calc(.55rem + env(safe-area-inset-bottom, 0px)); gap: .45rem; background: #121214; border-top-color: #232327; }
+    .ch-form textarea { font-size: 16px; min-height: 2.9rem; padding: .7rem 1rem; border-radius: 22px; } /* 16px : l'iPhone ne zoome plus */
+    .ch-form button { min-height: 2.9rem; min-width: 2.9rem; padding: 0; }
+    .ch-msg.voice { min-width: 13.5rem; }
+    .ch-play { width: 2.5rem; height: 2.5rem; }
+    .ch-rec { min-height: 2.9rem; }
+  }
   .invite-toast[data-key^="msg:"] small { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; max-width: 16rem; }
   `;
   const style = document.createElement('style');
@@ -400,7 +427,8 @@
     setNote('');
     let stream;
     try {
-      stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } });
+      // voix nette : micro en mono 48 kHz, réduction de bruit, écho et volume automatique
+      stream = await navigator.mediaDevices.getUserMedia({ audio: { channelCount: 1, sampleRate: 48000, sampleSize: 16, echoCancellation: true, noiseSuppression: true, autoGainControl: true } });
     } catch (err) {
       setNote(err && err.name === 'NotAllowedError'
         ? 'Autorise le micro dans ton navigateur pour envoyer des messages vocaux.'
@@ -409,7 +437,8 @@
     }
     // le format que le navigateur sait faire (Chrome/Firefox : webm, Safari : mp4)
     const type = ['audio/webm;codecs=opus', 'audio/webm', 'audio/ogg;codecs=opus', 'audio/mp4'].find((t) => MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(t)) || '';
-    const recorder = new MediaRecorder(stream, type ? { mimeType: type, audioBitsPerSecond: 32000 } : { audioBitsPerSecond: 32000 });
+    // 64 kbit/s en Opus : une voix claire (avant : 32 kbit/s, la voix sonnait comme au téléphone)
+    const recorder = new MediaRecorder(stream, type ? { mimeType: type, audioBitsPerSecond: 64000 } : { audioBitsPerSecond: 64000 });
     rec = { recorder, stream, chunks: [], start: Date.now(), send: false };
     recorder.ondataavailable = (e) => { if (e.data && e.data.size) rec && rec.chunks.push(e.data); };
     recorder.onstop = () => finishRecording();
@@ -488,7 +517,7 @@
 
   // --- messages vocaux : écouter ---
   const player = new Audio();
-  player.preload = 'none';
+  player.preload = 'auto';
   let playingId = '';
   function stopVoice() { player.pause(); playingId = ''; }
   const voiceSrc = (v) => v.local || '/api/messages/voice?id=' + encodeURIComponent(v.id);
@@ -541,7 +570,11 @@
     return el;
   }
   const repaint = () => body && body.querySelectorAll('.ch-msg.voice').forEach((el) => el._paint && el._paint());
-  for (const ev of ['timeupdate', 'play', 'pause', 'ended']) player.addEventListener(ev, repaint);
+  for (const ev of ['play', 'pause', 'ended', 'seeked']) player.addEventListener(ev, repaint);
+  // l'onde avance en douceur (60 images/s) au lieu de sauter 4 fois par seconde
+  let waveRaf = 0;
+  const smooth = () => { repaint(); if (!player.paused) waveRaf = requestAnimationFrame(smooth); };
+  player.addEventListener('playing', () => { cancelAnimationFrame(waveRaf); waveRaf = requestAnimationFrame(smooth); });
   player.addEventListener('ended', () => { playingId = ''; repaint(); });
 
   // --- pastille sur la bulle Amis + notification quand un message arrive ---
@@ -595,15 +628,30 @@
     catch (err) { if (err.status === 401) loggedIn = false; }
   }
 
+  // téléphone : quand le clavier s'ouvre, la fenêtre prend la hauteur visible (la zone d'écriture reste au-dessus du clavier)
+  if (window.visualViewport) {
+    const fit = () => {
+      if (!dialog || !dialog.open || innerWidth > 544) return;
+      dialog.style.setProperty('--ch-vh', visualViewport.height + 'px');
+      dialog.style.transform = `translateY(${visualViewport.offsetTop}px)`;
+    };
+    visualViewport.addEventListener('resize', fit);
+    visualViewport.addEventListener('scroll', fit);
+  }
+
   // --- ouvrir la messagerie depuis n'importe où ---
   window.openChat = async (name) => {
-    if (loggedIn === false) { alertLogin(); return; }
+    if (loggedIn !== true) { // on revérifie : on vient peut-être de se connecter
+      try { const d = await (await fetch('/api/me', { cache: 'no-store' })).json(); loggedIn = Boolean(d.user && d.user.username); } catch {}
+      if (!loggedIn) { alertLogin(); return; }
+    }
     if (!dialog) build();
     document.querySelectorAll('dialog[open]').forEach((d) => { if (d !== dialog && !d.classList.contains('as-page')) d.close(); });
     if (!dialog.open) dialog.showModal();
     if (name) showConv(name); else showList();
   };
   function alertLogin() {
+    if (window.needLogin) { window.needLogin('envoyer des messages à tes amis'); return; }
     const stack = document.querySelector('.toast-stack');
     if (!stack) return;
     const box = $('div', 'invite-toast');

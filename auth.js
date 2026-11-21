@@ -129,6 +129,18 @@ setInterval(() => {
   persist().catch((err) => { statsDirty = true; console.error('Stats : sauvegarde impossible :', err.message); });
 }, 60_000).unref();
 
+// Les « effets en direct » lancés par les admins : annonce en haut du site, confettis, couronnes
+const live = { announce: null, confetti: null, crowns: [], shake: null };
+export function liveState() {
+  const now = Date.now();
+  return {
+    announce: live.announce && live.announce.until > now ? live.announce : null,
+    confetti: live.confetti && now - live.confetti.at < 60_000 ? live.confetti : null,
+    shake: live.shake && now - live.shake.at < 60_000 ? live.shake : null,
+    crowns: live.crowns || [],
+  };
+}
+
 // L'admin : les identifiants listés dans ADMIN_USERNAME (sur Render), séparés par des virgules
 const ADMINS = new Set(String(process.env.ADMIN_USERNAME || '').split(',').map((x) => x.trim().replace(/^@+/, '').toLowerCase()).filter(Boolean));
 export const isAdmin = (u) => Boolean(u && u.username && ADMINS.has(u.username.toLowerCase()));
@@ -195,6 +207,7 @@ async function load() {
   if (db.stats) Object.assign(stats, db.stats);
   vapid = db.vapid || null;
   migrations = new Set(db.migrations || []);
+  if (db.live) Object.assign(live, db.live);
   if (!vapid) { vapid = newVapidKeys(); vapidIsNew = true; } // première fois : on crée les clés des notifications
   for (const u of db.users || []) {
     usersById.set(u.id, u);
@@ -216,6 +229,7 @@ function persist() {
     stats,
     vapid,
     migrations: [...migrations],
+    live,
   });
   const job = writing.then(() => writeStore(snapshot));
   writing = job.catch(() => {});
@@ -265,9 +279,16 @@ function currentUser(req) {
   const s = sessions.get(hashToken(token));
   if (!s || s.exp < Date.now()) return null;
   const u = usersById.get(s.userId) || null;
-  if (u) u.lastSeen = Date.now(); // présence : la page envoie un signe de vie toutes les 30 s
+  if (u) {
+    const now = Date.now();
+    // temps passé sur le site : on additionne les écarts entre deux signes de vie (s'ils sont proches)
+    if (u.lastSeen && now - u.lastSeen < 90_000) { u.timeMs = (u.timeMs || 0) + (now - u.lastSeen); timeDirty = true; }
+    u.lastSeen = now; // présence : la page envoie un signe de vie toutes les 30 s
+  }
   return u;
 }
+let timeDirty = false;
+setInterval(() => { if (timeDirty) { timeDirty = false; saveSoon(); } }, 120_000).unref();
 
 // Considéré « en ligne » si un signe de vie est arrivé il y a moins de 75 s
 const ONLINE_MS = 75_000;
@@ -470,6 +491,122 @@ export function adminNotify(fromUser, username, { title, body, url }) {
   return { username: target.username, devices };
 }
 
+// --- La console des admins : des commandes tapées dans l'onglet Admin ---
+// Chaque commande : { use, help, run(args, admin) -> texte }. « @pseudo » ou « pseudo », les deux marchent.
+const ADMIN_LOG = []; // les 50 dernières commandes (qui, quoi, quand)
+const who = (name) => {
+  const u = findByUsername(name);
+  if (!u || !u.username) throw new HttpError(404, `Personne ne s’appelle @${normUsername(name) || '?'}.`);
+  return u;
+};
+const intArg = (v, label) => { const n = Number(v); if (!Number.isInteger(n)) throw new HttpError(400, `${label} : écris un nombre entier.`); return n; };
+const fmtMin = (ms) => { const m = Math.round((ms || 0) / 60_000); return m < 60 ? `${m} min` : `${Math.floor(m / 60)} h ${String(m % 60).padStart(2, '0')}`; };
+function notifyAll(admin, title, body, url = '/') {
+  let people = 0, devices = 0;
+  for (const u of usersById.values()) {
+    if (!u.username) continue;
+    try { const r = adminNotify(admin, u.username, { title, body, url }); people++; devices += r.devices; } catch { /* compte sans pseudo */ }
+  }
+  return { people, devices };
+}
+export const ADMIN_COMMANDS = [
+  { name: 'aide', use: 'aide', help: 'Affiche toutes les commandes.', run: () => ADMIN_COMMANDS.map((c) => `${c.use.padEnd(34)} ${c.help}`).join('\n') },
+  { name: 'notif', use: 'notif @pseudo message', help: 'Envoie une notification à une personne.',
+    run: ([name, ...rest], admin) => { const r = adminNotify(admin, name, { title: 'Message de Star Song', body: rest.join(' ') }); return `Notification envoyée à @${r.username} (${r.devices} appareil${r.devices > 1 ? 's' : ''}).`; } },
+  { name: 'notif-tous', use: 'notif-tous message', help: 'Envoie une notification à TOUS les utilisateurs.',
+    run: (rest, admin) => { const text = rest.join(' ').trim(); if (!text) throw new HttpError(400, 'Écris le message.'); const r = notifyAll(admin, 'Star Song', text); return `Notification envoyée à ${r.people} comptes (${r.devices} téléphones/ordinateurs).`; } },
+  { name: 'annonce', use: 'annonce [minutes] message', help: 'Affiche une bannière en haut du site pour tout le monde (60 min par défaut).',
+    run: (rest, admin) => {
+      let min = 60; if (/^\d+$/.test(rest[0] || '')) min = Math.min(10080, Number(rest.shift()));
+      const text = rest.join(' ').trim().slice(0, 200); if (!text) throw new HttpError(400, 'Écris le texte de l’annonce.');
+      live.announce = { id: randomBytes(4).toString('hex'), text, by: admin.username, until: Date.now() + min * 60_000 }; saveSoon();
+      return `Annonce affichée pendant ${min} min : « ${text} »`;
+    } },
+  { name: 'annonce-stop', use: 'annonce-stop', help: 'Retire l’annonce en cours.', run: () => { live.announce = null; saveSoon(); return 'Annonce retirée.'; } },
+  { name: 'confettis', use: 'confettis [message]', help: 'Pluie de confettis chez tous ceux qui sont sur le site.',
+    run: (rest, admin) => { live.confetti = { id: randomBytes(4).toString('hex'), at: Date.now(), text: rest.join(' ').slice(0, 120), by: admin.username }; return '🎉 Confettis envoyés à tout le monde !'; } },
+  { name: 'secousse', use: 'secousse', help: 'Fait trembler l’écran de tout le monde (une fois).',
+    run: () => { live.shake = { id: randomBytes(4).toString('hex'), at: Date.now() }; return '📳 Ça tremble !'; } },
+  { name: 'couronne', use: 'couronne @pseudo', help: 'Donne (ou retire) une couronne 👑 à côté du pseudo.',
+    run: ([name]) => {
+      const u = who(name); live.crowns ||= [];
+      const had = live.crowns.includes(u.username);
+      live.crowns = had ? live.crowns.filter((x) => x !== u.username) : [...live.crowns, u.username]; saveSoon();
+      return had ? `Couronne retirée à @${u.username}.` : `👑 @${u.username} a maintenant une couronne.`;
+    } },
+  { name: 'flammes', use: 'flammes @pseudo nombre', help: 'Change la série de flammes 🔥 d’une personne.',
+    run: ([name, n]) => {
+      const u = who(name); const v = Math.max(0, intArg(n, 'Nombre de flammes'));
+      u.streak = { count: v, best: Math.max(u.streak?.best || 0, v), last: v ? parisDay() : '' }; saveSoon();
+      return `🔥 @${u.username} a maintenant ${v} flamme${v > 1 ? 's' : ''}.`;
+    } },
+  { name: 'points', use: 'points @pseudo +100 (ou -100)', help: 'Ajoute ou retire des points de blind test.',
+    run: ([name, n]) => {
+      const u = who(name); const v = intArg(n, 'Points');
+      const bt = u.bt || (u.bt = { points: 0, games: 0, wins: 0, best: 0 });
+      bt.points = Math.max(0, bt.points + v); saveSoon();
+      return `@${u.username} a maintenant ${bt.points} points.`;
+    } },
+  { name: 'badge', use: 'badge @pseudo artiste écoutes', help: 'Ajoute des écoutes d’un artiste (pour monter son badge).',
+    run: ([name, ...rest]) => {
+      const u = who(name); const n = intArg(rest.pop(), 'Écoutes'); const artist = rest.join(' ').trim();
+      if (!artist) throw new HttpError(400, 'Écris le nom de l’artiste.');
+      const up = recordListen(u.id, artist, Math.max(1, Math.min(1000, n)));
+      return `🏅 +${n} écoutes de ${artist} pour @${u.username}${up ? ` : nouveau badge ${up.tierName} !` : '.'}`;
+    } },
+  { name: 'muet', use: 'muet @pseudo minutes', help: 'Empêche une personne d’écrire (messages et chat) pendant X minutes. 0 = enlever.',
+    run: ([name, n]) => {
+      const u = who(name); const m = Math.max(0, Math.min(10080, intArg(n, 'Minutes')));
+      u.mutedUntil = m ? Date.now() + m * 60_000 : 0; saveSoon();
+      return m ? `🔇 @${u.username} ne peut plus écrire pendant ${m} min.` : `🔊 @${u.username} peut de nouveau écrire.`;
+    } },
+  { name: 'deconnecter', use: 'deconnecter @pseudo', help: 'Déconnecte une personne de tous ses appareils.',
+    run: ([name]) => {
+      const u = who(name); let n = 0;
+      for (const [h, x] of sessions) if (x.userId === u.id) { sessions.delete(h); n++; }
+      saveSoon(); return `@${u.username} est déconnecté (${n} session${n > 1 ? 's' : ''}).`;
+    } },
+  { name: 'renommer', use: 'renommer @ancien nouveau', help: 'Change le pseudo de quelqu’un.',
+    run: ([oldName, newName]) => {
+      const u = who(oldName); const next = normUsername(newName);
+      if (!validUsername(next)) throw new HttpError(400, 'Nouveau pseudo invalide (3 à 30 caractères : lettres, chiffres, points, tirets).');
+      const other = findByUsername(next); if (other && other.id !== u.id) throw new HttpError(409, `@${next} est déjà pris.`);
+      const before = u.username; unindexUser(u); u.username = next; indexUser(u); saveSoon();
+      return `@${before} s’appelle maintenant @${next}.`;
+    } },
+  { name: 'info', use: 'info @pseudo', help: 'Les infos d’un compte.',
+    run: ([name]) => {
+      const u = who(name); const pr = presence(u); const st = streakOf(u);
+      return [`@${u.username}${isAdmin(u) ? ' (admin)' : ''}`, `Créé le : ${new Date(u.createdAt || 0).toLocaleString('fr-FR', { timeZone: 'Europe/Paris' })}`,
+        `État : ${pr.inBlindtest ? 'en blind test' : pr.online ? 'en ligne' : 'hors ligne'}${u.lastSeen ? `, vu le ${new Date(u.lastSeen).toLocaleString('fr-FR', { timeZone: 'Europe/Paris' })}` : ''}`,
+        `Temps sur le site : ${fmtMin(u.timeMs)}`, `Blind test : ${u.bt?.points || 0} pts, ${u.bt?.games || 0} parties, ${u.bt?.wins || 0} victoires`,
+        `Flammes : ${st.count} (record ${st.best})`, `Amis : ${(u.friends || []).length}`, `Favoris : ${u.data?.favorites?.length || 0}`,
+        `Notifications : ${(u.push || []).length} appareil(s)`, u.mutedUntil > Date.now() ? `🔇 Muet jusqu’à ${new Date(u.mutedUntil).toLocaleTimeString('fr-FR', { timeZone: 'Europe/Paris' })}` : ''].filter(Boolean).join('\n');
+    } },
+  { name: 'en-ligne', use: 'en-ligne', help: 'Qui est sur le site en ce moment.',
+    run: () => { const list = [...usersById.values()].filter((u) => u.username && presence(u).online); return list.length ? `${list.length} en ligne : ` + list.map((u) => '@' + u.username + (presence(u).inBlindtest ? ' 🎮' : '')).join(', ') : 'Personne en ligne pour le moment.'; } },
+  { name: 'stats', use: 'stats', help: 'Les chiffres du site en bref.',
+    run: () => { const a = adminStats(); return `Comptes : ${a.accounts.total} (dont ${a.accounts.today} aujourd’hui) · En ligne : ${a.accounts.online} · Recherches : ${a.activity.searches.total} · Parties de blind test : ${a.blindtest.games.total}`; } },
+  { name: 'journal', use: 'journal', help: 'Les dernières commandes tapées par les admins.',
+    run: () => (ADMIN_LOG.length ? ADMIN_LOG.slice(-15).map((l) => `${new Date(l.at).toLocaleTimeString('fr-FR', { timeZone: 'Europe/Paris', hour: '2-digit', minute: '2-digit' })} @${l.by} : ${l.line}`).join('\n') : 'Rien pour l’instant.') },
+];
+// Les commandes du blind test (salons) sont ajoutées par server.js
+export function addAdminCommand(cmd) { ADMIN_COMMANDS.push(cmd); }
+export function runAdminCommand(admin, line) {
+  const raw = String(line || '').trim().slice(0, 600);
+  if (!raw) throw new HttpError(400, 'Tape une commande (ou « aide »).');
+  const parts = raw.replace(/^\//, '').split(/\s+/);
+  const name = parts.shift().toLowerCase();
+  const cmd = ADMIN_COMMANDS.find((c) => c.name === name);
+  if (!cmd) throw new HttpError(400, `Commande inconnue : « ${name} ». Tape « aide » pour voir la liste.`);
+  const out = cmd.run(parts, admin);
+  ADMIN_LOG.push({ at: Date.now(), by: admin.username, line: raw.slice(0, 120) });
+  if (ADMIN_LOG.length > 50) ADMIN_LOG.shift();
+  countStat('admin_cmds');
+  return out;
+}
+export const isMuted = (userId) => { const u = usersById.get(userId); return Boolean(u && u.mutedUntil && u.mutedUntil > Date.now()); };
+
 // Rappel du soir : « ta série va s'éteindre » (entre 19 h et 22 h, une fois par jour)
 setInterval(() => {
   const hour = Number(new Intl.DateTimeFormat('fr-FR', { timeZone: 'Europe/Paris', hour: '2-digit', hour12: false }).format(new Date()));
@@ -522,7 +659,7 @@ export function getPlaylist(id, userId, noCheck = false) {
   }
   return null;
 }
-const AS_MAX = 20, AS_ARTISTS = 60; // playlists d'artistes : 20 max, 60 artistes chacune
+const AS_MAX = 20, AS_ARTISTS = 120; // playlists d'artistes : 20 max, 60 artistes chacune
 async function handlePlaylists(req, res, url, me) {
   if (!me || !me.username) throw new HttpError(401, 'Connecte-toi pour créer tes playlists.');
   me.playlists ||= [];
@@ -850,6 +987,7 @@ export function rankings(viewerId) {
     username: u.username, avatarUrl: avatarOf(u), friend: friendIds.has(u.id) && u.id !== viewerId, me: u.id === viewerId,
     points: u.bt?.points || 0, games: u.bt?.games || 0, wins: u.bt?.wins || 0, best: u.bt?.best || 0,
     streak: streakOf(u).count, bestStreak: streakOf(u).best, badges: badgeCount(u), tier: topTier(u),
+    time: Math.round((u.timeMs || 0) / 60_000), // minutes passées sur le site
   });
   const all = users.map(base);
   const board = (key, filter) => {
@@ -863,6 +1001,7 @@ export function rankings(viewerId) {
     streak: board('streak', (x) => x.streak > 0),
     best: board('best', played),
     badges: board('badges', (x) => x.badges > 0),
+    time: board('time', (x) => x.time > 0),
   };
   const out = {};
   for (const [k, list] of Object.entries(boards)) {
@@ -875,6 +1014,7 @@ export function rankings(viewerId) {
       games: Math.round(all.reduce((n, x) => n + x.games, 0)),
       points: all.reduce((n, x) => n + x.points, 0),
       flames: all.reduce((n, x) => n + x.streak, 0),
+      minutes: all.reduce((n, x) => n + x.time, 0),
     },
     loggedIn: Boolean(viewer && viewer.username),
   };
@@ -1044,7 +1184,7 @@ async function saveChat(key, list) {
 
 // messages vocaux : rangés à part (« voice:<id> »), comme les photos de profil
 const VOICE_MAX_SEC = 120;
-const VOICE_MAX_BYTES = 1_500_000; // ~2 min en Opus
+const VOICE_MAX_BYTES = 2_600_000; // ~2 min en Opus 64 kbit/s (+ marge pour Safari)
 const voiceCache = new Map();
 const voiceFile = (id) => join(DATA_DIR, 'voice', id.replace(/[^a-z0-9:_-]/gi, '_') + '.json');
 async function saveVoice(id, v) {
@@ -1161,6 +1301,9 @@ async function handleMessages(req, res, url, me) {
     return at;
   };
 
+  if (req.method === 'POST' && (action === 'send' || action === 'voice') && isMuted(me.id)) {
+    throw new HttpError(403, `Un admin t’a mis en sourdine : tu pourras de nouveau écrire à ${new Date(me.mutedUntil).toLocaleTimeString('fr-FR', { timeZone: 'Europe/Paris', hour: '2-digit', minute: '2-digit' })}.`);
+  }
   if (req.method === 'POST' && action === 'send') {
     const body = await readJson(req, 5_000);
     const text = String(body.text || '').replace(/[\u0000-\u0008\u000b-\u001f\u007f]/g, '').replace(/\n{3,}/g, '\n\n').trim();
@@ -1313,7 +1456,7 @@ async function handleProfile(req, res, url) {
   throw new HttpError(404, 'Introuvable.');
 }
 
-const ROUTES = new Set(['/api/me', '/api/signup', '/api/login', '/api/logout', '/api/data', '/api/username', '/api/rankings']);
+const ROUTES = new Set(['/api/me', '/api/signup', '/api/login', '/api/logout', '/api/data', '/api/username', '/api/rankings', '/api/favorites']);
 
 // Renvoie true si la requête a été traitée ici
 export async function handleAuth(req, res, url) {
@@ -1375,6 +1518,23 @@ export async function handleAuth(req, res, url) {
 
     if (req.method !== 'POST') throw new HttpError(405, 'Méthode non autorisée.');
     if (!sameSiteJson(req)) throw new HttpError(400, 'Requête invalide.');
+
+    if (path === '/api/favorites') { // ajouter / retirer un favori sans renvoyer toutes les données (blind test)
+      const me = currentUser(req);
+      if (!me) throw new HttpError(401, 'Connecte-toi pour garder tes favoris.');
+      if (tooManyWrites(me.id)) throw new HttpError(429, 'Doucement ! Réessaie dans une minute.');
+      const body = await readJson(req, 4_000);
+      const title = str(body.title, 200).trim();
+      if (!title) throw new HttpError(400, 'Son invalide.');
+      const artist = str(body.artist, 200);
+      const key = (title + '|' + artist).toLowerCase().trim();
+      const data = me.data || cleanData({});
+      data.favorites = data.favorites.filter((f) => f.key !== key);
+      if (body.on !== false) data.favorites.unshift({ key, title, artist, image: httpsUrl(body.image), url: '', preview: httpsUrl(body.preview) });
+      me.data = cleanData(data);
+      await persist();
+      return send(res, 200, { ok: true, count: me.data.favorites.length });
+    }
 
     if (path === '/api/logout') {
       const token = readCookie(req, COOKIE);

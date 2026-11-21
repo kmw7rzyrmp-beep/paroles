@@ -4,6 +4,9 @@ import { randomBytes, randomInt } from 'node:crypto';
 import { CATEGORIES } from './categories.js';
 
 const ROUND_MS = 20_000;      // durée pour répondre
+// Battle royale : la « zone » se resserre, il y a 1 s de moins pour répondre à chaque son (8 s minimum)
+const BR_MIN_MS = 8_000, BR_STEP_MS = 1_000;
+const LIVES = [1, 2, 3];       // battle royale : nombre de vies au départ
 const REVEAL_MS = 6_000;      // affichage de la bonne réponse
 const COUNTDOWN_MS = 4_000;   // compte à rebours avant la 1re manche
 const MAX_ROOMS = 300;
@@ -68,6 +71,19 @@ function categoryArtists(id) {
   for (const s of songs) map.set(s.artiste, (map.get(s.artiste) || 0) + 1);
   return [...map].map(([nom, count]) => ({ nom, count }));
 }
+// Tous les artistes du site, avec leurs genres (pour les playlists d'artistes qui mélangent les genres)
+let allArtistsCache = null;
+function allArtists() {
+  if (allArtistsCache) return allArtistsCache;
+  const map = new Map();
+  for (const c of CATEGORIES) for (const s of c.chansons) {
+    const a = map.get(s.artiste) || { nom: s.artiste, count: 0, genres: [] };
+    a.count += 1;
+    if (!a.genres.includes(c.id)) a.genres.push(c.id);
+    map.set(s.artiste, a);
+  }
+  return (allArtistsCache = [...map.values()]);
+}
 // Garde seulement les artistes qui existent dans la catégorie.
 // null = tous les artistes ; [] = aucun (la partie ne pourra pas démarrer)
 function cleanArtists(id, list) {
@@ -95,7 +111,7 @@ const INVITE_TTL = 15 * 60_000; // une invitation reste valable 15 min
 const invites = new Map(); // identifiant invité (minuscules) -> Map(code -> { from, code, category, at })
 
 export function createBlindtest({ getJson, sameSong, clientIp, sessionUser, findFriend, recordBlindtest, blindtestLeaderboard, markInBlindtest = () => {}, countStat = () => {}, recordListen = () => null, streakOf = null, notifyUser = () => {},
-  getPlaylist = () => null, playlistsFor = () => [], demo }) {
+  getPlaylist = () => null, playlistsFor = () => [], isMuted = () => false, demo }) {
   // le contenu des playlists est lu sans vérifier les droits ici : on vérifie à la création du salon et aux réglages
   playlistLookup = (id) => getPlaylist(id, null, true);
   // --- Trouver l'extrait de 30 s (et la pochette) d'une chanson ---
@@ -251,7 +267,7 @@ export function createBlindtest({ getJson, sameSong, clientIp, sessionUser, find
       for (const nom of cat.artistesAuto || []) if (![...counts.keys()].some((k) => simple(k) === simple(nom))) counts.set(nom, 0);
       for (const [artiste, have] of counts) {
         if (have >= TARGET_PER_ARTIST) continue;
-        try { total += await fillArtist(cat, artiste, have); }
+        try { total += await fillArtist(cat, artiste, have); allArtistsCache = null; }
         catch (err) { console.error(`Blind test, sons de ${artiste} :`, err.message); }
       }
     }
@@ -374,14 +390,31 @@ export function createBlindtest({ getJson, sameSong, clientIp, sessionUser, find
   const alive = (room) => [...room.players.values()].filter((p) => p.out === null);
   // Après chaque son : ceux qui se sont trompés (ou n'ont pas répondu) sont éliminés.
   // Si TOUT LE MONDE s'est trompé, personne n'est éliminé (sinon il n'y aurait pas de gagnant).
+  // Avec des vies : une erreur = une vie en moins, plus de vie = éliminé.
+  // Un joueur qui ne répond pas 2 fois de suite est éliminé quoi qu'il arrive (sinon la partie ne finit jamais).
   function eliminate(room, round, index) {
     const inGame = alive(room);
+    for (const p of inGame) p.missed = round.answers.has(p.id) ? 0 : (p.missed || 0) + 1;
     const losers = inGame.filter((p) => round.answers.get(p.id)?.choice !== round.correct);
-    round.survivedAll = losers.length === inGame.length;
+    const afk = inGame.filter((p) => p.missed >= 2);
+    round.survivedAll = losers.length === inGame.length && !afk.length;
+    round.hit = [];
+    round.eliminated = [];
+    const out = (p) => { p.lives = 0; p.out = index; round.eliminated.push(p.id); };
     if (round.survivedAll) return;
-    for (const p of losers) p.out = index;
-    round.eliminated = losers.map((p) => p.id);
+    for (const p of afk) out(p);
+    for (const p of losers) {
+      if (p.out !== null) continue;
+      p.lives = Math.max(0, (p.lives ?? 1) - 1);
+      if (p.lives <= 0) out(p); else round.hit.push(p.id);
+    }
+    // personne ne doit être éliminé « en même temps que tout le monde » : s'il ne reste plus personne, les derniers restent
+    if (!alive(room).length) for (const id of round.eliminated) { const p = room.players.get(id); if (p && p.missed < 2) { p.out = null; p.lives = 1; } }
+    if (!alive(room).length) for (const id of round.eliminated) { const p = room.players.get(id); if (p) { p.out = null; p.lives = 1; } }
+    round.eliminated = round.eliminated.filter((id) => room.players.get(id)?.out !== null);
   }
+  // durée d'un son : fixe en normal, de plus en plus court en battle royale
+  const roundMs = (room, index) => (room.mode === 'br' ? Math.max(BR_MIN_MS, ROUND_MS - index * BR_STEP_MS) : ROUND_MS);
 
   function endGame(room) {
     room.phase = 'end';
@@ -399,7 +432,7 @@ export function createBlindtest({ getJson, sameSong, clientIp, sessionUser, find
         if (now < g.phaseEnd) return;
         room.phase = 'playing';
         g.roundStart = g.phaseEnd;
-        g.phaseEnd = g.roundStart + ROUND_MS;
+        g.phaseEnd = g.roundStart + roundMs(room, g.index);
       } else if (room.phase === 'playing') {
         const inGame = [...room.players.values()].filter((p) => p.out === null);
         const everyone = inGame.length > 0 && inGame.every((p) => round.answers.has(p.id));
@@ -426,7 +459,7 @@ export function createBlindtest({ getJson, sameSong, clientIp, sessionUser, find
         g.index += 1;
         room.phase = 'playing';
         g.roundStart = Math.max(g.phaseEnd, now - 1000);
-        g.phaseEnd = g.roundStart + ROUND_MS;
+        g.phaseEnd = g.roundStart + roundMs(room, g.index);
         topUp(g);
       } else return;
     }
@@ -484,7 +517,7 @@ export function createBlindtest({ getJson, sameSong, clientIp, sessionUser, find
     if (!base) throw new BtError(400, 'Choisis un pseudo.');
     let n = base;
     for (let i = 2; [...room.players.values()].some((p) => p.name.toLowerCase() === n.toLowerCase()); i++) n = `${base.slice(0, 17)} ${i}`;
-    const p = { id: newToken().slice(0, 10), name: n, token: newToken(), score: 0, out: null, userId: user ? user.id : null };
+    const p = { id: newToken().slice(0, 10), name: n, token: newToken(), score: 0, out: null, lives: 1, ready: false, userId: user ? user.id : null };
     room.players.set(p.id, p);
     return p;
   }
@@ -514,7 +547,9 @@ export function createBlindtest({ getJson, sameSong, clientIp, sessionUser, find
       serverNow: Date.now(),
       mode: room.mode,
       modeName: MODES.find((m) => m.id === room.mode).nom,
-      players: ranking(room).map((p) => ({ id: p.id, name: p.name, score: p.score, out: room.mode === 'br' && p.out !== null })),
+      players: ranking(room).map((p) => ({ id: p.id, name: p.name, score: p.score, out: room.mode === 'br' && p.out !== null, ready: Boolean(p.ready), lives: p.lives ?? 1 })),
+      lives: room.lives || 1,
+      allReady: [...room.players.values()].every((p) => p.ready),
       meOut: room.mode === 'br' && me.out !== null && room.phase !== 'lobby',
     };
     if (!g || room.phase === 'lobby' || room.phase === 'loading') return out;
@@ -525,7 +560,7 @@ export function createBlindtest({ getJson, sameSong, clientIp, sessionUser, find
     if (room.phase === 'countdown') return out;
     const round = g.rounds[g.index];
     out.roundStart = g.roundStart;
-    out.roundMs = ROUND_MS;
+    out.roundMs = roundMs(room, g.index);
     out.preview = round.preview;
     // pendant la manche, on ne montre que les titres : les artistes apparaissent avec la réponse
     out.options = room.phase === 'playing' ? round.options.map((o) => ({ titre: o.titre })) : round.options;
@@ -540,7 +575,9 @@ export function createBlindtest({ getJson, sameSong, clientIp, sessionUser, find
     }
     if (room.mode === 'br') {
       out.alive = alive(room).length;
+      out.nextMs = roundMs(room, g.index + 1);
       if (room.phase === 'reveal' || room.phase === 'end') {
+        out.hit = (round.hit || []).map((id) => room.players.get(id)?.name).filter(Boolean);
         out.eliminated = (round.eliminated || []).map((id) => room.players.get(id)?.name).filter(Boolean);
         out.survivedAll = Boolean(round.survivedAll);
       }
@@ -557,7 +594,7 @@ export function createBlindtest({ getJson, sameSong, clientIp, sessionUser, find
   async function start(room) {
     room.phase = 'loading';
     room.error = '';
-    for (const p of room.players.values()) { p.score = 0; p.out = null; p.newBadges = []; }
+    for (const p of room.players.values()) { p.score = 0; p.out = null; p.newBadges = []; p.lives = room.mode === 'br' ? room.lives || 1 : 1; p.missed = 0; p.ready = false; }
     try {
       const deck = await makeDeck(room.category, room.level, room.artists);
       if (room.mode === 'br' && room.players.size < 2) throw new BtError(400, 'Il faut être au moins 2 pour jouer en battle royale. Invite un pote !');
@@ -626,6 +663,14 @@ export function createBlindtest({ getJson, sameSong, clientIp, sessionUser, find
   }
 
   // Pour la page de stats de l'admin : ce qui se passe en ce moment
+  // pour la console des admins : la liste des salons, et fermer un salon
+  handleBlindtest.rooms = () => [...rooms.values()].map((r) => ({ code: r.code, phase: r.phase, mode: r.mode, category: categoryName(r.category), players: [...r.players.values()].map((p) => p.name) }));
+  handleBlindtest.closeRoom = (code) => {
+    const r = rooms.get(String(code || '').toUpperCase());
+    if (!r) return false;
+    rooms.delete(r.code);
+    return true;
+  };
   handleBlindtest.stats = () => {
     const list = [...rooms.values()];
     return {
@@ -650,12 +695,13 @@ export function createBlindtest({ getJson, sameSong, clientIp, sessionUser, find
         })) : [];
         return send(res, 200, {
           categories: [...CATEGORIES.map((c) => ({ id: c.id, nom: c.nom, count: c.chansons.length, artists: categoryArtists(c.id) })),
-            { id: ALL, nom: 'Tout mélangé', count: CATEGORIES.reduce((n, c) => n + c.chansons.length, 0) }, ...pls],
+            { id: ALL, nom: 'Tout mélangé', count: CATEGORIES.reduce((n, c) => n + c.chansons.length, 0), artists: allArtists() }, ...pls],
           rounds: ROUND_CHOICES,
           maxRounds: MAX_ROUNDS,
           levels: LEVELS,
           reactions: REACTIONS,
           modes: MODES,
+          lives: LIVES,
         });
       }
 
@@ -722,7 +768,8 @@ export function createBlindtest({ getJson, sameSong, clientIp, sessionUser, find
         const artists = cleanArtists(category, body.artists);
         let code;
         do code = newCode(); while (rooms.has(code));
-        const room = { code, phase: 'lobby', category, roundCount, level, mode, artists, players: new Map(), hostId: '', game: null, seen: Date.now(), error: '', chat: [], reacts: [], seq: 0 };
+        const lives = LIVES.includes(Number(body.lives)) ? Number(body.lives) : 1;
+        const room = { code, phase: 'lobby', category, roundCount, level, mode, lives, artists, players: new Map(), hostId: '', game: null, seen: Date.now(), error: '', chat: [], reacts: [], seq: 0 };
         const host = addPlayer(room, body.name, sessionUser(req));
         room.hostId = host.id;
         rooms.set(code, room);
@@ -771,6 +818,7 @@ export function createBlindtest({ getJson, sameSong, clientIp, sessionUser, find
         if ('rounds' in body && parseRounds(body.rounds) !== null) room.roundCount = parseRounds(body.rounds);
         if (LEVEL_IDS.includes(body.level)) room.level = body.level;
         if (MODE_IDS.includes(body.mode)) room.mode = body.mode;
+        if (LIVES.includes(Number(body.lives))) room.lives = Number(body.lives);
         if (room.phase === 'end') room.phase = 'lobby';
         return send(res, 200, view(room, me));
       }
@@ -779,8 +827,35 @@ export function createBlindtest({ getJson, sameSong, clientIp, sessionUser, find
         if (me.id !== room.hostId) throw new BtError(403, 'Seul l’hôte peut lancer la partie.');
         if (room.phase !== 'lobby' && room.phase !== 'end') throw new BtError(409, 'La partie est déjà lancée.');
         if (room.mode === 'br' && room.players.size < 2) throw new BtError(400, 'Il faut être au moins 2 pour jouer en battle royale. Invite un pote !');
+        // tout le monde doit avoir cliqué sur « Je suis prêt »
+        const waiting = [...room.players.values()].filter((p) => !p.ready);
+        if (waiting.length) throw new BtError(409, waiting.length === 1 && waiting[0].id === me.id ? 'Clique d’abord sur « Je suis prêt ».'
+          : `Tout le monde doit être prêt. Pas encore prêt${waiting.length > 1 ? 's' : ''} : ${waiting.map((p) => p.name).join(', ')}.`);
         start(room); // continue en arrière-plan : les joueurs voient « chargement »
         return send(res, 202, view(room, me));
+      }
+
+      if (action === 'ready') { // « Je suis prêt » (ou plus prêt)
+        if (room.phase !== 'lobby' && room.phase !== 'end') throw new BtError(409, 'La partie est déjà lancée.');
+        if (room.phase === 'end') room.phase = 'lobby';
+        me.ready = body.ready !== false;
+        return send(res, 200, view(room, me));
+      }
+
+      if (action === 'forfeit') { // « Terminer la partie » : on quitte la partie en cours, ses points sont annulés
+        tick(room);
+        me.score = 0;
+        for (const r of room.game ? room.game.rounds : []) { const a = r.answers.get(me.id); if (a) a.points = 0; }
+        room.players.delete(me.id);
+        room.typing?.delete(me.id);
+        if (!room.players.size) { rooms.delete(room.code); return send(res, 200, { ok: true }); }
+        if (room.hostId === me.id) room.hostId = room.players.keys().next().value;
+        // en battle royale, s'il ne reste qu'un survivant, il gagne tout de suite
+        if (room.mode === 'br' && ['countdown', 'playing', 'reveal'].includes(room.phase) && alive(room).length <= 1) endGame(room);
+        if (['countdown', 'playing', 'reveal'].includes(room.phase) && room.players.size) {
+          room.chat.push({ id: ++room.seq, pid: '', name: '🏳️', text: `${me.name} a quitté la partie.`, at: Date.now() });
+        }
+        return send(res, 200, { ok: true });
       }
 
       if (action === 'stop') { // l'hôte arrête la partie (utile en mode infini)
@@ -795,6 +870,7 @@ export function createBlindtest({ getJson, sameSong, clientIp, sessionUser, find
       if (action === 'chat') { // message dans le chat du salon
         const text = String(body.text || '').replace(/[\u0000-\u001f\u007f]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, CHAT_MAX);
         if (!text) throw new BtError(400, 'Écris un message.');
+        if (me.userId && isMuted(me.userId)) throw new BtError(403, 'Un admin t’a mis en sourdine : tu ne peux pas écrire pour le moment.');
         if (limited('chat:' + me.id, 20)) throw new BtError(429, 'Doucement sur le chat !');
         tick(room);
         // pas de spoil : pendant une manche, on refuse un message qui contient la réponse
@@ -839,7 +915,7 @@ export function createBlindtest({ getJson, sameSong, clientIp, sessionUser, find
         if (!Number.isInteger(choice) || choice < 0 || choice >= round.options.length) throw new BtError(400, 'Réponse invalide.');
         const elapsed = Math.max(0, Date.now() - g.roundStart);
         // bonne réponse : 500 points + jusqu'à 500 de bonus selon la rapidité
-        const points = choice === round.correct ? 500 + Math.round(500 * Math.max(0, 1 - elapsed / ROUND_MS)) : 0;
+        const points = choice === round.correct ? 500 + Math.round(500 * Math.max(0, 1 - elapsed / roundMs(room, g.index))) : 0;
         round.answers.set(me.id, { choice, at: elapsed, points });
         me.score += points;
         return send(res, 200, view(room, me));

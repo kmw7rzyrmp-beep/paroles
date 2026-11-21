@@ -111,7 +111,18 @@
     { id: 'streak', e: '🔥', label: 'Flammes', unit: 'jours', hint: 'La série en cours : un blind test ou une recherche par jour.' },
     { id: 'best', e: '⚡', label: 'Record', unit: 'pts en 1 partie', hint: 'Le meilleur score fait en une seule partie.' },
     { id: 'badges', e: '🏅', label: 'Badges', unit: 'badges', hint: 'Le nombre d’artistes avec au moins le badge Bronze.' },
+    { id: 'time', e: '⏱️', label: 'Temps sur le site', unit: '', hint: 'Le temps passé sur Star Song, pages ouvertes (paroles, blind test, messages…).', fmt: (m) => dur(m) },
   ];
+  // 125 minutes -> « 2 h 05 »
+  function dur(m) {
+    m = Math.max(0, Math.round(m));
+    if (m < 60) return `${m} min`;
+    const h = Math.floor(m / 60), r = m % 60;
+    if (h < 24) return `${h} h ${String(r).padStart(2, '0')}`;
+    const d = Math.floor(h / 24);
+    return `${d} j ${h % 24} h`;
+  }
+  const show = (def, v) => (def.fmt ? def.fmt(v) : `${nf.format(v)} ${def.unit}`);
   let data = null, board = 'points', scope = 'monde', query = '';
   const at = (u) => (String(u).startsWith('@') ? u : '@' + u);
   const initial = (u) => String(u).replace(/^@/, '').slice(0, 1).toUpperCase();
@@ -191,7 +202,7 @@
       const spot = el('div', `rk-spot p${place}` + (r ? '' : ' empty'));
       spot.append(avatar(r, 'rk-av'));
       const nm = el('span', 'rk-name', r ? at(r.username) : '—'); nm.setAttribute('data-notranslate', '');
-      spot.append(nm, el('span', 'rk-val', r ? `${nf.format(r.value)} ${def.unit}` : 'Place libre'), el('div', 'rk-step', String(place)));
+      spot.append(nm, el('span', 'rk-val', r ? show(def, r.value) : 'Place libre'), el('div', 'rk-step', String(place)));
       if (r) { spot.tabIndex = 0; spot.setAttribute('role', 'button'); spot.onclick = () => openProfile(r); spot.onkeydown = (e) => { if (e.key === 'Enter') openProfile(r); }; }
       podium.append(spot);
     });
@@ -235,12 +246,13 @@
       if (board !== 'points' && r.points) extra.push(`${nf.format(r.points)} pts`);
       if (board !== 'wins' && r.wins) extra.push(`${r.wins} victoire${r.wins > 1 ? 's' : ''}`);
       if (board !== 'badges' && r.badges) extra.push(`🏅 ${r.badges}`);
+      if (board === 'time' && r.time) extra.unshift(`⏱️ ${dur(r.time)} au total`);
       w.append(b, el('span', '', extra.slice(0, 3).join(' · ') || `${r.games} partie${r.games > 1 ? 's' : ''}`));
-      const v = el('span', 'v', nf.format(r.value)); v.append(el('small', '', def.unit));
+      const v = el('span', 'v', def.fmt ? def.fmt(r.value) : nf.format(r.value)); v.append(el('small', '', def.fmt ? 'sur le site' : def.unit));
       li.append(bar, n, avatar(r, 'a'), w, v);
       li.tabIndex = 0;
       li.setAttribute('role', 'button');
-      li.setAttribute('aria-label', `${r.rank}, ${at(r.username)}, ${r.value} ${def.unit}`);
+      li.setAttribute('aria-label', `${r.rank}, ${at(r.username)}, ${show(def, r.value)}`);
       li.onclick = () => openProfile(r);
       li.onkeydown = (e) => { if (e.key === 'Enter') openProfile(r); };
       requestAnimationFrame(() => requestAnimationFrame(() => { bar.style.width = `${Math.max(4, (r.value / max) * 100)}%`; }));
@@ -273,7 +285,7 @@
         requestAnimationFrame(() => { fill.style.width = '100%'; });
       } else if (above) {
         const gap = above.value - me.value + 1;
-        goal.append('Encore ', el('b', '', `${nf.format(gap)} ${def.unit}`), ' pour dépasser ');
+        goal.append('Encore ', el('b', '', show(def, gap)), ' pour dépasser ');
         const who = el('b', '', at(above.username)); who.setAttribute('data-notranslate', ''); goal.append(who, '.');
         requestAnimationFrame(() => { fill.style.width = `${Math.min(100, (me.value / Math.max(1, above.value)) * 100)}%`; });
       }

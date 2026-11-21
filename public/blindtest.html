@@ -13,16 +13,18 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <script src="/i18n.js"></script>
+<script src="/ui.js"></script>
 <script src="/profile.js" defer></script>
 <script src="/chat.js" defer></script>
 <script src="/playlists.js" defer></script>
 <script src="/artistsets.js" defer></script>
 <script src="/engage.js" defer></script>
 <script src="/app.js" defer></script>
+<script src="/live.js" defer></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/app.css?v=9">
+<link rel="stylesheet" href="/app.css?v=10">
 <style>
   /* Blind test : même interface que l'accueil (cadre noir, cartes arrondies, accent orange) */
   :root { --encre: #0b0b0c; --enfonce: var(--orange); }
@@ -132,7 +134,7 @@
   .options button:disabled:not(.on):not(.good):not(.bad) { opacity: .45; }
   .state { min-height: 1.5rem; margin: 1rem 0 0; color: var(--gris); font-size: .92rem; }
 
-  .reveal { display: grid; grid-template-columns: 5.5rem 1fr; gap: 1rem; align-items: center; margin: 1.4rem 0 .4rem; padding: .9rem; border-radius: 18px; background: var(--coque); }
+  .reveal { display: grid; grid-template-columns: 5.5rem minmax(0, 1fr) auto; gap: 1rem; align-items: center; margin: 1.4rem 0 .4rem; padding: .9rem; border-radius: 18px; background: var(--coque); }
   .reveal img, .reveal .vinyl { width: 5.5rem; height: 5.5rem; border-radius: 12px; object-fit: cover; }
   .reveal .vinyl { border-radius: 50%; background: radial-gradient(circle, var(--orange) 0 .7rem, #111 .75rem .9rem, transparent .95rem), repeating-radial-gradient(circle, #141416 0 2px, #1f1f22 2px 3px); }
   .reveal .t { font: 700 1.3rem/1.15 var(--texte); }
@@ -221,7 +223,7 @@
   @media (min-width: 1100px) {
     body.chat-docked .chat-panel { top: 1.2rem; bottom: 1.2rem; right: 1.2rem; height: auto; width: 21rem; }
     body.chat-docked .chat-toggle { display: none; }
-    body.chat-docked .main { padding-right: 22.5rem; }
+    body.chat-docked .frame.no-rail .main, body.chat-docked .main { padding-right: 23.5rem; }
     body.chat-docked .react-bar { left: calc(50% - 10.5rem); }
   }
   /* les messages s'affichent en grand par-dessus le jeu, pour tout le monde */
@@ -291,6 +293,36 @@
   .podium .winner { font: 900 clamp(2.4rem, 9vw, 4rem)/1 var(--texte); font-stretch: 62%; color: var(--jaune); }
   .tracklist { list-style: none; padding: 0; margin: 1.6rem 0 0; color: var(--gris); counter-reset: piste; }
   .tracklist li { counter-increment: piste; padding: .2rem 0; }
+  .tracklist li { display: flex; align-items: center; gap: .6rem; }
+  .tl-fav { margin-left: auto; min-height: 2.2rem; min-width: 2.2rem; padding: 0; border-radius: 50%; background: transparent; color: var(--gris); font-size: 1.1rem; box-shadow: none; transition: transform .2s, color .2s; }
+  .tl-fav[aria-pressed="true"] { color: #ff4d6d; animation: heartPop .4s ease; }
+  .ready-box { max-width: 46rem; display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; margin: 0 0 1.6rem; padding: 1rem 1.1rem; border-radius: 18px; background: #18181b; border: 2px dashed #3a3a40; transition: border-color .3s, background .3s; }
+  .ready-box.on { border-style: solid; border-color: #3fbf6a; background: rgba(63, 191, 106, .08); }
+  .ready-txt { flex: 1 1 16rem; display: grid; gap: .25rem; }
+  .ready-txt b { font-size: 1.05rem; }
+  .ready-txt span { color: var(--gris); font-size: .86rem; line-height: 1.4; }
+  .ready-btn { min-height: 3rem; padding: 0 1.4rem; border-radius: 999px; background: #3fbf6a; color: #06210f; font-weight: 800; justify-content: center; }
+  .ready-btn[aria-pressed="true"] { background: #232327; color: #6fdc8c; }
+  .players li { display: flex; align-items: center; gap: .6rem; }
+  .players li .rdy { margin-left: auto; font-size: .75rem; font-weight: 700; color: var(--gris); padding: .15rem .55rem; border-radius: 999px; background: #232327; }
+  .players li .rdy.on { color: #06210f; background: #3fbf6a; animation: heartPop .35s ease; }
+  .hearts { margin-left: .4rem; font-size: .72rem; letter-spacing: -.1em; }
+  .br-banner { margin: 0 0 .8rem; padding: .55rem .9rem; border-radius: 12px; background: rgba(242, 107, 58, .12); color: var(--orange); font-weight: 700; text-align: center; }
+  .br-banner.duel { background: linear-gradient(90deg, #e2412b, #f28c1c); color: #fff; }
+  .br-banner.flash { animation: brFlash .6s ease; }
+  @keyframes brFlash { 0% { transform: scale(.94); opacity: .4; } 60% { transform: scale(1.03); } }
+  .elim-line.boom { animation: boom .6s cubic-bezier(.2, 1.4, .4, 1); }
+  @keyframes boom { 0% { transform: scale(.6); opacity: 0; } 60% { transform: scale(1.08); } }
+  .reveal { position: relative; }
+  .reveal-txt { flex: 1; min-width: 0; }
+  .fav-btn { flex: none; display: inline-flex; align-items: center; gap: .4rem; min-height: 2.6rem; padding: 0 1rem; border-radius: 999px; background: #232327; color: var(--blanc); font-size: .88rem; font-weight: 700; }
+  .fav-btn svg { width: 1.1rem; height: 1.1rem; fill: none; stroke: currentColor; stroke-width: 2; transition: fill .2s; }
+  .fav-btn[aria-pressed="true"] { background: rgba(255, 77, 109, .16); color: #ff4d6d; }
+  .fav-btn[aria-pressed="true"] svg { fill: currentColor; }
+  .fav-btn.pop svg { animation: heartPop .45s cubic-bezier(.2, 1.6, .4, 1); }
+  @keyframes heartPop { 40% { transform: scale(1.45); } }
+  .game-exit { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: 1.4rem; }
+  .game-exit .stop-game { margin: 0; }
   .tracklist li::before { content: counter(piste, decimal-leading-zero) "  "; color: var(--orange); font-weight: 800; }
   .actions { display: flex; flex-wrap: wrap; gap: .7rem; margin-top: 1.6rem; }
 
@@ -436,7 +468,7 @@
   @media (max-width: 520px) {
     .options { grid-template-columns: 1fr; }
     .options button { min-height: 4rem; }
-    .reveal { grid-template-columns: 4.5rem 1fr; }
+    .reveal { grid-template-columns: 4.5rem minmax(0, 1fr) auto; } .fav-btn span { display: none; } .fav-btn { padding: 0; width: 2.8rem; justify-content: center; }
     .reveal img, .reveal .vinyl { width: 4.5rem; height: 4.5rem; }
   }
 </style>
@@ -445,7 +477,7 @@
 <div class="frame no-rail">
   <!-- Menu de gauche -->
   <aside class="side" aria-label="Menu principal">
-    <a class="brand" href="/"><span class="star-logo" aria-hidden="true">★</span>Star Song</a>
+    <a class="brand" href="/"><img class="star-logo" src="/logo.svg" alt="" width="30" height="30">Star Song</a>
     <p class="nav-title">Parcourir</p>
     <ul class="nav">
       <li><a href="/"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 11l8-7 8 7v9h-5v-6H9v6H4z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>Accueil</a></li>
@@ -463,7 +495,7 @@
   </aside>
 
   <header class="top topbar">
-    <a class="mobile-brand" href="/"><span class="star-logo" aria-hidden="true">★</span>Star Song</a>
+    <a class="mobile-brand" href="/"><img class="star-logo" src="/logo.svg" alt="" width="30" height="30">Star Song</a>
     <nav class="crumbs" aria-label="Fil d’Ariane"><a href="/">Star Song</a><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><b>Blind test</b></nav>
     <nav class="top-tabs" aria-label="Rubriques">
       <a href="/">Paroles</a>
@@ -498,10 +530,17 @@
       </div>
     </div>
 
-    <section id="playlistsBox" class="block pl-box" aria-labelledby="plTitle">
-      <div class="pl-head"><h2 id="plTitle">Mes playlists</h2><span class="pl-sub">Tes sons à toi, pour un blind test sur mesure</span></div>
-      <div id="plGrid" class="pl-grid"></div>
-    </section>
+    <div class="pl-duo">
+      <section id="playlistsBox" class="block pl-box" aria-labelledby="plTitle">
+        <div class="pl-head"><h2 id="plTitle">Mes playlists de sons</h2><span class="pl-sub">Tes sons à toi, pour un blind test sur mesure</span></div>
+        <div id="plGrid" class="pl-grid"></div>
+      </section>
+      <section id="artistSetsBox" class="block pl-box" aria-labelledby="asTitleBox">
+        <div class="pl-head"><h2 id="asTitleBox">Mes playlists d’artistes</h2><span class="pl-sub">Tes artistes préférés, tous genres mélangés</span></div>
+        <div id="asGrid" class="pl-grid"></div>
+        <p id="asHomeMsg" class="as-msg" role="status"></p>
+      </section>
+    </div>
 
     <div class="or">ou</div>
 
@@ -527,6 +566,8 @@
       <p class="lbl">Mode de jeu</p>
       <div id="homeModes" class="chips block modes" role="radiogroup" aria-label="Mode de jeu" style="width: fit-content"></div>
       <p id="homeModeHint" class="mode-hint"></p>
+      <div id="homeLivesBox" hidden><p class="lbl">Vies par joueur</p>
+      <div id="homeLives" class="chips block" role="radiogroup" aria-label="Vies par joueur" style="width: fit-content"></div></div>
       <div id="homeRoundsBox"><p class="lbl">Nombre de sons</p>
       <div id="roundChips" class="chips block" role="radiogroup" aria-label="Nombre de sons" style="width: fit-content"></div></div>
       <p class="lbl">Difficulté</p>
@@ -553,6 +594,13 @@
     </div>
     <h2>Joueurs</h2>
     <ul id="lobbyPlayers" class="players"></ul>
+    <div id="readyBox" class="ready-box">
+      <div class="ready-txt">
+        <b id="readyTitle">Tu es prêt ?</b>
+        <span id="readyHelp">La partie ne peut commencer que quand <strong>tous les joueurs</strong> ont cliqué sur « Je suis prêt ». Tu peux changer d’avis tant qu’elle n’a pas commencé.</span>
+      </div>
+      <button id="readyBtn" class="ready-btn" type="button" aria-pressed="false">Je suis prêt</button>
+    </div>
     <div id="inviteBox" class="block">
       <h2>Inviter mes amis du site</h2>
       <ul id="inviteList" class="invite-list"></ul>
@@ -579,6 +627,8 @@
       <p class="lbl">Mode de jeu</p>
       <div id="lobbyModes" class="chips block modes" role="radiogroup" aria-label="Mode de jeu" style="width: fit-content"></div>
       <p id="lobbyModeHint" class="mode-hint"></p>
+      <div id="lobbyLivesBox" hidden><p class="lbl">Vies par joueur</p>
+      <div id="lobbyLives" class="chips block" role="radiogroup" aria-label="Vies par joueur" style="width: fit-content"></div></div>
       <div id="lobbyRoundsBox"><p class="lbl">Nombre de sons</p>
       <div id="lobbyRounds" class="chips block" role="radiogroup" aria-label="Nombre de sons" style="width: fit-content"></div></div>
       <p class="lbl">Difficulté</p>
@@ -607,17 +657,22 @@
 
     <div id="play" hidden>
       <div class="timer"><i id="timerBar"></i></div>
+      <p id="brBanner" class="br-banner" hidden></p>
       <p id="outBanner" class="out-banner" hidden>Tu es éliminé. Tu peux regarder les autres finir la partie.</p>
       <div id="options" class="options"></div>
       <p id="playState" class="state" role="status" aria-live="polite"></p>
       <div id="reveal" hidden>
-        <div class="reveal"><span id="revealCover"></span><div><div id="revealTitle" class="t"></div><div id="revealArtist" class="a"></div></div></div>
+        <div class="reveal"><span id="revealCover"></span><div class="reveal-txt"><div id="revealTitle" class="t"></div><div id="revealArtist" class="a"></div></div>
+          <button id="favBtn" class="fav-btn" type="button" aria-pressed="false" aria-label="Ajouter ce son à mes favoris"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20.5s-7.5-4.6-9.3-9.2C1.4 8 3.3 4.5 6.8 4.5c2.1 0 3.6 1.2 5.2 3 1.6-1.8 3.1-3 5.2-3 3.5 0 5.4 3.5 4.1 6.8-1.8 4.6-9.3 9.2-9.3 9.2z"/></svg><span>Favori</span></button></div>
         <p id="elimLine" class="elim-line" role="status"></p>
         <ul id="gains" class="gains"></ul>
       </div>
     </div>
     <ul id="gameScores" class="scores"></ul>
-    <button id="stopBtn" class="ghost stop-game" type="button" hidden>Terminer la partie</button>
+    <div class="game-exit">
+      <button id="forfeitBtn" class="ghost stop-game" type="button">Terminer la partie</button>
+      <button id="stopBtn" class="ghost stop-game" type="button" hidden>Arrêter pour tout le monde</button>
+    </div>
   </section>
 
   <!-- Icône son : couper / remettre (et débloquer le son si le navigateur l'a bloqué) -->
@@ -693,16 +748,20 @@
   let modes = [{ id: 'classique', nom: 'Normal' }, { id: 'br', nom: 'Battle royale' }];
   const MODE_HINTS = {
     classique: '',
-    br: 'Une erreur et tu es éliminé. Le dernier encore en vie gagne. Il faut être au moins 2.',
+    br: 'Une erreur = une vie en moins, plus de vie = éliminé. Le temps pour répondre baisse à chaque son (de 20 s à 8 s). Pas de réponse 2 fois de suite = éliminé. Le dernier en vie gagne. Il faut être au moins 2.',
   };
   // affiche les boutons de mode + l'explication, et cache le nombre de sons en battle royale
   function modePicker(pre, current, onPick) {
     chips($(pre + 'Modes'), modes.map((m) => [m.id, m.nom]), current, onPick);
     $(pre + 'ModeHint').textContent = MODE_HINTS[current] || '';
     $(pre + 'RoundsBox').hidden = current === 'br';
+    $(pre + 'LivesBox').hidden = current !== 'br';
   }
+  let livesChoices = [1, 2, 3];
+  const livesLabel = (n) => (n === 1 ? '❤️ 1 (mort subite)' : '❤️'.repeat(n) + ` ${n}`);
+  function livesPicker(box, current, onPick) { chips(box, livesChoices.map((n) => [n, livesLabel(n)]), current, (v) => onPick(Number(v))); }
   let levels = [{ id: 'facile', nom: 'Facile' }, { id: 'intermediaire', nom: 'Intermédiaire' }, { id: 'hard', nom: 'HARRR MODE' }];
-  let pick = { category: 'rap-fr', rounds: 10, level: 'intermediaire', mode: 'classique', artists: null }; // artists : null = tous
+  let pick = { category: 'rap-fr', rounds: 10, level: 'intermediaire', mode: 'classique', artists: null, lives: 1 }; // artists : null = tous
   let session = null; // { code, token }
   let state = null, clockOffset = 0, pollTimer = null;
   let playingKey = '', answering = false;
@@ -850,6 +909,7 @@
     artistPicker($('homeArtists'), pick.category, pick.artists, (list) => { pick.artists = list; drawHomeChips(); }, false);
     roundPicker($('roundChips'), pick.rounds, (v) => { pick.rounds = v; drawHomeChips(); });
     modePicker('home', pick.mode, (v) => { pick.mode = v; drawHomeChips(); });
+    livesPicker($('homeLives'), pick.lives, (v) => { pick.lives = v; drawHomeChips(); });
     chips($('levelChips'), levels.map((l) => [l.id, l.nom]), pick.level, (v) => { pick.level = v; drawHomeChips(); });
     markLevels($('levelChips'));
   }
@@ -995,7 +1055,7 @@
     }
     try {
       const d = await api('/categories');
-      cats = d.categories; roundsChoices = d.rounds; if (d.reactions) reactions = d.reactions; if (d.maxRounds) maxRounds = d.maxRounds; if (d.levels) levels = d.levels; if (d.modes) modes = d.modes;
+      cats = d.categories; roundsChoices = d.rounds; if (d.reactions) reactions = d.reactions; if (d.maxRounds) maxRounds = d.maxRounds; if (d.levels) levels = d.levels; if (d.modes) modes = d.modes; if (d.lives) livesChoices = d.lives;
     } catch (err) { $('homeMsg').textContent = err.message; }
     drawHomeChips();
     // passerelle pour les playlists (playlists.js) : recharger les catégories, choisir une playlist
@@ -1054,7 +1114,7 @@
     if (Array.isArray(pick.artists) && !pick.artists.length) { $('homeMsg').textContent = 'Coche au moins un artiste.'; return; }
     rememberName();
     try {
-      const d = await api('/rooms', { name: myName(), category: pick.category, rounds: pick.rounds, level: pick.level, mode: pick.mode, artists: pick.artists });
+      const d = await api('/rooms', { name: myName(), category: pick.category, rounds: pick.rounds, level: pick.level, mode: pick.mode, artists: pick.artists, lives: pick.lives });
       session = { code: d.code, token: d.token };
       saveSession();
       history.replaceState(null, '', '/blindtest?room=' + d.code);
@@ -1113,9 +1173,21 @@
       li.classList.toggle('host', !withScore && p.id === state.hostId);
       if (withScore) {
         const n = document.createElement('span'); n.className = 'name'; n.textContent = p.name;
+        // battle royale avec des vies : des cœurs à côté du nom
+        if (state.mode === 'br' && (state.lives || 1) > 1 && !p.out) {
+          const h = document.createElement('span'); h.className = 'hearts'; h.setAttribute('aria-label', `${p.lives} vie${p.lives > 1 ? 's' : ''}`);
+          h.textContent = '❤️'.repeat(Math.max(0, p.lives)) + '🖤'.repeat(Math.max(0, (state.lives || 1) - p.lives));
+          n.append(h);
+        }
         const s = document.createElement('span'); s.className = 'pts'; s.textContent = p.score;
         li.append(n, s);
-      } else li.textContent = p.name;
+      } else {
+        const n = document.createElement('span'); n.className = 'name'; n.textContent = p.name;
+        const r = document.createElement('span'); r.className = 'rdy' + (p.ready ? ' on' : '');
+        r.textContent = p.ready ? 'Prêt ✓' : 'Pas prêt';
+        li.classList.toggle('is-ready', Boolean(p.ready));
+        li.append(n, r);
+      }
       return li;
     }));
   }
@@ -1295,12 +1367,25 @@
       roundPicker($('lobbyRounds'), state.rounds, (v) => set({ rounds: v }));
       chips($('lobbyLevels'), levels.map((l) => [l.id, l.nom]), state.level, (v) => set({ level: v }));
       modePicker('lobby', state.mode, (v) => set({ mode: v }));
+      livesPicker($('lobbyLives'), state.lives || 1, (v) => set({ lives: v }));
       artistPicker($('lobbyArtists'), state.category, state.artists, (list) => set({ artists: list }), false);
       markLevels($('lobbyLevels'));
       const tooFew = state.mode === 'br' && state.players.length < 2;
-      $('startBtn').disabled = loading || tooFew;
-      $('startBtn').textContent = loading ? 'Chargement…' : tooFew ? 'En attente d’un 2e joueur' : 'Lancer la partie';
+      const notReady = state.players.filter((p) => !p.ready).length;
+      $('startBtn').disabled = loading || tooFew || notReady > 0;
+      $('startBtn').textContent = loading ? 'Chargement…' : tooFew ? 'En attente d’un 2e joueur'
+        : notReady ? `En attente : ${notReady} joueur${notReady > 1 ? 's' : ''} pas prêt${notReady > 1 ? 's' : ''}` : 'Lancer la partie';
     }
+    // « Je suis prêt »
+    const meP = state.players.find((p) => p.id === state.me);
+    const ready = Boolean(meP && meP.ready);
+    const nReady = state.players.filter((p) => p.ready).length;
+    $('readyBtn').setAttribute('aria-pressed', String(ready));
+    $('readyBtn').textContent = ready ? 'Prêt ✓ (annuler)' : 'Je suis prêt';
+    $('readyBtn').disabled = loading;
+    $('readyBox').classList.toggle('on', ready);
+    $('readyTitle').textContent = state.allReady ? (isHost() ? 'Tout le monde est prêt ! Lance la partie 🚀' : 'Tout le monde est prêt ! L’hôte peut lancer 🚀')
+      : `${nReady} / ${state.players.length} joueur${state.players.length > 1 ? 's' : ''} prêt${nReady > 1 ? 's' : ''}`;
     $('lobbyMsg').textContent = state.error || '';
     refreshInviteBox();
   }
@@ -1440,8 +1525,17 @@
     $('gameRound').textContent = s.phase === 'countdown' ? '' : s.mode === 'br' ? `Son ${s.index + 1} · ${s.alive} en vie`
       : `Son ${s.index + 1} / ${s.total == null ? '∞' : s.total}`;
     $('gameCat').textContent = s.mode === 'br' ? `Battle royale, ${s.categoryName}` : `${s.categoryName}, ${s.levelName}`;
-    $('stopBtn').hidden = !isHost();
+    $('stopBtn').hidden = !isHost() || s.players.length < 2;
     playersList($('gameScores'), s.players, true);
+    // battle royale : temps qui se resserre, duel final
+    const brb = $('brBanner');
+    if (s.mode === 'br' && s.phase !== 'countdown') {
+      const sec = Math.round((s.phase === 'reveal' ? s.nextMs : s.roundMs) / 1000);
+      const txt = s.alive === 2 ? `⚔️ Duel final ! ${sec} s pour répondre` : `🔥 ${s.alive} en vie · ⏱ ${sec} s pour répondre${s.phase === 'reveal' ? ' au prochain son' : ''}`;
+      if (brb.textContent !== txt) { brb.textContent = txt; brb.classList.remove('flash'); void brb.offsetWidth; brb.classList.add('flash'); }
+      brb.classList.toggle('duel', s.alive === 2);
+      brb.hidden = false;
+    } else brb.hidden = true;
 
     if (s.phase === 'countdown') {
       $('countdown').hidden = false; $('play').hidden = true;
@@ -1489,7 +1583,12 @@
       elim.classList.toggle('safe', Boolean(s.survivedAll));
       elim.textContent = s.mode !== 'br' ? ''
         : s.survivedAll ? 'Tout le monde s’est trompé : personne n’est éliminé, on continue !'
-        : (s.eliminated || []).length ? `Éliminé${s.eliminated.length > 1 ? 's' : ''} : ${s.eliminated.join(', ')}` : '';
+        : [(s.eliminated || []).length ? `💀 Éliminé${s.eliminated.length > 1 ? 's' : ''} : ${s.eliminated.join(', ')}` : '',
+          (s.hit || []).length ? `💔 Une vie en moins : ${s.hit.join(', ')}` : ''].filter(Boolean).join(' · ');
+      elim.classList.toggle('boom', Boolean((s.eliminated || []).length));
+      // le bouton ❤️ favori du son révélé
+      const fk = (s.song.titre + '|' + (s.song.artiste || '')).toLowerCase().trim();
+      $('favBtn').setAttribute('aria-pressed', String(favKeys.has(fk)));
       $('playState').textContent = mine;
       const cover = $('revealCover');
       if (cover.dataset.src !== (s.song.cover || '-')) {
@@ -1577,41 +1676,97 @@
       $('rewards').hidden = !rewards.length;
     }
     $('tracklist').replaceChildren(...(s.history || []).map((x) => {
-      const li = document.createElement('li'); li.textContent = `${x.titre}, ${x.artiste}`; return li;
+      const li = document.createElement('li');
+      const t = document.createElement('span'); t.textContent = `${x.titre}, ${x.artiste}`;
+      const key = (x.titre + '|' + (x.artiste || '')).toLowerCase().trim();
+      const b = document.createElement('button'); b.type = 'button'; b.className = 'tl-fav';
+      b.setAttribute('aria-pressed', String(favKeys.has(key))); b.setAttribute('aria-label', `Favori : ${x.titre}`);
+      b.textContent = '♥';
+      b.onclick = async () => {
+        const on = b.getAttribute('aria-pressed') !== 'true';
+        b.setAttribute('aria-pressed', String(on));
+        try { await toggleFav({ title: x.titre, artist: x.artiste, image: x.cover || '', preview: '' }, on); $('endWait').textContent = on ? `❤️ ${x.titre} ajouté à tes favoris.` : `${x.titre} retiré de tes favoris.`; }
+        catch (err) { b.setAttribute('aria-pressed', String(!on)); $('endWait').textContent = err.message; }
+      };
+      li.append(t, b);
+      return li;
     }));
-    $('againBtn').hidden = !isHost();
+    $('againBtn').hidden = false;
+    $('againBtn').textContent = 'Rejouer (je suis prêt)';
     $('settingsBtn').hidden = !isHost();
-    $('endWait').textContent = isHost() ? '' : 'L’hôte peut relancer une partie.';
+    $('endWait').textContent = isHost() ? 'Quand tout le monde a cliqué sur « Rejouer », tu pourras relancer.' : 'Clique sur « Rejouer » : l’hôte relancera quand tout le monde sera prêt.';
   }
   $('againBtn').addEventListener('click', async () => {
     unlockAudio();
-    try { state = await api(`/rooms/${state.code}/start`, { token: session.token }); render(); } catch (err) { $('endWait').textContent = err.message; }
+    try { state = await api(`/rooms/${state.code}/ready`, { token: session.token, ready: true }); render(); } catch (err) { $('endWait').textContent = err.message; }
   });
-  // Terminer la partie (hôte) : un 2e clic pour confirmer, pour éviter les accidents
+  // Arrêter pour tout le monde (hôte) : on demande confirmation
   let stopArmed = 0;
   $('stopBtn').addEventListener('click', async () => {
-    const btn = $('stopBtn');
-    if (Date.now() - stopArmed > 3000) {
-      stopArmed = Date.now();
-      btn.textContent = 'Sûr ? Clique encore pour terminer';
-      setTimeout(() => { if (Date.now() - stopArmed >= 3000) btn.textContent = 'Terminer la partie'; }, 3100);
-      return;
-    }
-    stopArmed = 0; btn.textContent = 'Terminer la partie';
+    const ok = await window.ssConfirm({ icon: '⏹️', title: 'Arrêter la partie pour tout le monde ?', text: 'La partie s’arrête maintenant pour tous les joueurs. Les points déjà gagnés sont gardés.', ok: 'Arrêter', danger: true });
+    if (!ok || !state) return;
     try { state = await api(`/rooms/${state.code}/stop`, { token: session.token }); render(); } catch (err) { $('playState').textContent = err.message; }
+  });
+  $('readyBtn').addEventListener('click', async () => {
+    unlockAudio();
+    const meP = state && state.players.find((p) => p.id === state.me);
+    try { state = await api(`/rooms/${state.code}/ready`, { token: session.token, ready: !(meP && meP.ready) }); render(); }
+    catch (err) { $('lobbyMsg').textContent = err.message; }
+  });
+  // « Terminer la partie » : on demande confirmation, les points de la partie sont annulés
+  $('forfeitBtn').addEventListener('click', async () => {
+    const ok = await window.ssConfirm({ icon: '🏳️', title: 'Êtes-vous sûr de vouloir terminer la partie ?', text: 'Vous ne gagnerez aucun point : tous les points de cette partie seront annulés.', ok: 'Terminer la partie', cancel: 'Continuer à jouer', danger: true });
+    if (!ok || !state || !session) return;
+    try { await api(`/rooms/${state.code}/forfeit`, { token: session.token }); } catch {}
+    leaveRoom();
+    $('homeMsg').textContent = 'Tu as quitté la partie : tes points de cette partie ont été annulés.';
+  });
+  // ❤️ favoris : les mêmes que sur la page Paroles (compte + ce navigateur)
+  const favKeys = new Set();
+  try { for (const f of JSON.parse(localStorage.getItem('favorites') || '[]')) if (f && f.key) favKeys.add(f.key); } catch {}
+  fetch('/api/data', { cache: 'no-store' }).then((r) => (r.ok ? r.json() : null)).then((d) => { for (const f of d?.data?.favorites || []) favKeys.add(f.key); }).catch(() => {});
+  async function toggleFav(song, on) {
+    const key = (song.title + '|' + (song.artist || '')).toLowerCase().trim();
+    // ce navigateur
+    try {
+      let list = JSON.parse(localStorage.getItem('favorites') || '[]');
+      if (!Array.isArray(list)) list = [];
+      list = list.filter((f) => f && f.key !== key);
+      if (on) list.unshift({ key, title: song.title, artist: song.artist, image: song.image, url: '', preview: song.preview });
+      localStorage.setItem('favorites', JSON.stringify(list.slice(0, 500)));
+    } catch {}
+    if (on) favKeys.add(key); else favKeys.delete(key);
+    // le compte (si connecté)
+    const r = await fetch('/api/favorites', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...song, on }) });
+    if (!r.ok && r.status !== 401) throw new Error((await r.json().catch(() => ({}))).error || 'Favori non enregistré, réessaie.');
+    $('playState').textContent = on ? '❤️ Ajouté à tes favoris !' : 'Retiré de tes favoris.';
+  }
+  // ❤️ ajouter le son de la manche à ses favoris
+  $('favBtn').addEventListener('click', async () => {
+    if (!state || !state.song) return;
+    const btn = $('favBtn');
+    const on = btn.getAttribute('aria-pressed') !== 'true';
+    const song = { title: state.song.titre, artist: state.song.artiste, image: state.song.cover || '', preview: state.preview || '' };
+    btn.setAttribute('aria-pressed', String(on));
+    btn.classList.remove('pop'); void btn.offsetWidth; if (on) btn.classList.add('pop');
+    try { await toggleFav(song, on); } catch (err) { btn.setAttribute('aria-pressed', String(!on)); $('playState').textContent = err.message; }
   });
   $('settingsBtn').addEventListener('click', async () => {
     try { state = await api(`/rooms/${state.code}/settings`, { token: session.token }); render(); } catch (err) { $('endWait').textContent = err.message; }
   });
   $('quitBtn').addEventListener('click', async () => {
     try { await api(`/rooms/${state.code}/leave`, { token: session.token }); } catch {}
+    leaveRoom();
+  });
+  function leaveRoom() {
     clearInterval(pollTimer);
     session = null; state = null;
     try { localStorage.removeItem('bt-session'); } catch {}
     history.replaceState(null, '', '/blindtest');
     $('createBox').hidden = false; document.querySelector('.or').hidden = false;
+    stopAudio();
     show('home');
-  });
+  }
 
 // --- Notifications en haut de l'écran : invitations au blind test et demandes d'amis ---
 (() => {

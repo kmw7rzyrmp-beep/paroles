@@ -289,6 +289,7 @@
     timer = setInterval(() => { if (document.visibilityState === 'visible' && !document.activeElement?.closest('.adm-nf')) load(); }, 30_000);
   }
 
+  window.openAdminStats = open;
   // Le bouton n'apparaît que si le serveur dit que tu es l'admin
   fetch('/api/me').then((r) => r.json()).then((d) => {
     if (!d.user || !d.user.admin) return;

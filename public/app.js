@@ -31,6 +31,13 @@
     }
   }
   crownIn(document.body);
+  // les couronnes données par les admins (commande « couronne @pseudo ») arrivent par live.js
+  window.setCrowns = (list) => {
+    const next = new Set(['kylrom', ...list.map((x) => String(x).replace(/^@/, '').toLowerCase())]);
+    if ([...next].join() === [...CROWNED].join()) return;
+    CROWNED.clear(); for (const x of next) CROWNED.add(x);
+    crownIn(document.body);
+  };
   new MutationObserver((list) => {
     for (const m of list) {
       for (const n of m.addedNodes) if (n.nodeType === 1 && !n.classList.contains('crown')) crownIn(n);
@@ -41,10 +48,13 @@
   // ---------- les entrées du menu ----------
   const login = () => { const b = $('#loginBtn'); if (b && !b.hidden) b.click(); else location.href = '/'; };
   function open(what) {
+    if (what === 'friends' && meKnown && !me) { if (window.needLogin) window.needLogin('voir tes amis'); return; }
+    if (what === 'profile' && meKnown && !me) { if (window.needLogin) window.needLogin('voir ton profil'); return; }
     if (what === 'friends') { if (location.pathname !== '/') location.href = '/#amis'; else go('amis'); }
     else if (what === 'messages') { if (window.openChat) window.openChat(); }
     else if (what === 'profile') { if (me && window.openProfile) window.openProfile(me.username); }
     else if (what === 'notifs') openNotifs();
+    else if (what === 'admin') { if (location.pathname !== '/') location.href = '/#admin'; else go('admin'); }
     else if (what === 'patch') { if (location.pathname !== '/') location.href = '/#patch'; else go('patch'); }
     else if (what === 'ranking') { if (location.pathname !== '/') location.href = '/#classement'; else go('classement'); }
   }
@@ -52,14 +62,14 @@
   // ---------- les « grandes pages » (Amis, Notifications, Classement) ----------
   // Elles prennent toute la place du contenu, le menu de gauche reste là. L'adresse change (#amis…),
   // donc le bouton « retour » du téléphone ou du navigateur ramène à l'accueil.
-  const PAGES = { amis: 'friendsDialog', notifications: 'pageNotifs', classement: 'pageRanking', patch: 'pagePatch' };
+  const PAGES = { amis: 'friendsDialog', notifications: 'pageNotifs', classement: 'pageRanking', patch: 'pagePatch', admin: 'pageAdmin' };
   const frame = $('.frame');
   let current = '';
   function go(name) { if (location.hash !== '#' + name) location.hash = name; else route(); }
   function pageEl(name) { return document.getElementById(PAGES[name]); }
   function setNav(name) {
     $$('.nav a, .top-tabs a, .tabbar a, .tabbar button').forEach((a) => {
-      const target = a.dataset.pageLink || (a.dataset.open === 'friends' ? 'amis' : a.dataset.open === 'notifs' ? 'notifications' : a.dataset.open === 'ranking' ? 'classement' : a.dataset.open === 'patch' ? 'patch' : '');
+      const target = a.dataset.pageLink || (a.dataset.open === 'friends' ? 'amis' : a.dataset.open === 'notifs' ? 'notifications' : a.dataset.open === 'ranking' ? 'classement' : a.dataset.open === 'patch' ? 'patch' : a.dataset.open === 'admin' ? 'admin' : '');
       const isHome = !target && (a.getAttribute('href') === '/' || a.textContent.trim() === 'Paroles');
       const on = name ? target === name : isHome;
       if (on) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current');
@@ -73,7 +83,14 @@
     if (!frame || location.pathname !== '/') return;
     const name = location.hash.slice(1);
     const want = PAGES[name] ? name : '';
-    if (want === 'amis' && !me) { const lb = $('#loginBtn'); if (meKnown) { window.history.replaceState(null, '', '/'); if (lb && !lb.hidden) lb.click(); return route(); } }
+    if (want === 'admin' && meKnown && !(me && me.admin)) { window.history.replaceState(null, '', '/'); return route(); }
+    if (want === 'admin' && !meKnown) return;
+    if (want === 'amis' && !me) {
+      if (!meKnown) return; // on attend de savoir qui est connecté
+      window.history.replaceState(null, '', '/');
+      if (window.needLogin) window.needLogin('voir tes amis');
+      return route();
+    }
     if (want === current) return;
     // on ferme l'ancienne page
     if (current) {
@@ -94,6 +111,7 @@
     if (want === 'notifications') { window.dispatchEvent(new Event('notif-open')); drawHistory(); }
     if (want === 'classement') window.dispatchEvent(new Event('ranking-open'));
     if (want === 'patch') drawPatch();
+    if (want === 'admin') window.dispatchEvent(new Event('admin-open'));
   }
   function closePage() {
     if (!current) return;
@@ -290,28 +308,42 @@
   window.addEventListener('notif-changed', refreshNotifBadge);
 
   // un petit message pour montrer comment activer les notifications (une seule fois)
+  // L'affiche « Active les notifications » : à chaque visite (une fois par session), tant qu'elles ne sont pas activées
   async function announce() {
     let seen = false;
-    try { seen = localStorage.getItem('notif-announce') === '1'; } catch {}
+    try { seen = sessionStorage.getItem('np-seen') === '1'; } catch {}
     const st = await refreshNotifBadge();
-    if (seen || st !== 'off') return;
-    try { localStorage.setItem('notif-announce', '1'); } catch {}
-    let stack = $('.toast-stack');
-    if (!stack) { stack = el('div', 'toast-stack'); document.body.append(stack); }
-    const box = el('div', 'invite-toast');
-    box.setAttribute('role', 'status');
-    const dot = el('span', 'it-dot'); dot.setAttribute('aria-hidden', 'true');
-    const txt = el('div');
-    const p = el('p'); p.append(el('b', '', '🔔 Nouveau : les notifications'));
-    txt.append(p, el('small', '', 'Reçois tes messages, tes invitations et le rappel de ta flamme directement sur ton téléphone. Ça prend 10 secondes.'));
-    const row = el('div', 'it-actions');
-    const close = () => { box.classList.add('out'); setTimeout(() => box.remove(), 250); };
-    const go = el('button', 'it-main', 'Activer'); go.type = 'button'; go.onclick = () => { close(); openNotifs(); };
-    const later = el('button', '', 'Plus tard'); later.type = 'button'; later.onclick = close;
-    row.append(go, later);
-    box.append(dot, txt, row);
-    stack.append(box);
-    setTimeout(() => box.isConnected && close(), 25_000);
+    const help = window.notifHelp ? window.notifHelp() : {};
+    if (seen || !(st === 'off' || (st === 'unsupported' && help.ios))) return;
+    try { sessionStorage.setItem('np-seen', '1'); } catch {}
+    document.querySelector('.np-card')?.remove();
+    const card = el('aside', 'np-card');
+    card.setAttribute('role', 'dialog'); card.setAttribute('aria-labelledby', 'npT');
+    const bell = el('div', 'np-bell', '🔔'); bell.setAttribute('aria-hidden', 'true');
+    const h = el('h2', '', 'Active les notifications'); h.id = 'npT';
+    const p = el('p', '', help.ios ? 'Sur iPhone : touche Partager puis « Sur l’écran d’accueil », ouvre Star Song depuis l’icône, et reviens ici pour les activer.'
+      : help.denied ? 'Tu les as bloquées : autorise les notifications pour ce site dans les réglages de ton navigateur, puis reviens ici.'
+      : 'Messages de tes amis, invitations au blind test, rappel de ta flamme 🔥 : reçois-les même quand Star Song est fermé.');
+    const status = el('p', 'np-status'); status.setAttribute('role', 'status');
+    const row = el('div', 'np-row');
+    const close = () => { card.classList.add('out'); setTimeout(() => card.remove(), 300); };
+    const later = el('button', 'np-later', 'Plus tard'); later.type = 'button'; later.onclick = close;
+    if (!help.ios && !help.denied) {
+      const go = el('button', 'np-go', 'Activer'); go.type = 'button';
+      go.onclick = async () => {
+        go.disabled = true;
+        const ok = window.enablePushNow ? await window.enablePushNow(status) : false;
+        go.disabled = false;
+        if (ok) { status.className = 'np-status ok'; status.textContent = 'C’est activé ! 🎉'; refreshNotifBadge(); setTimeout(close, 1400); }
+      };
+      row.append(later, go);
+    } else {
+      const more = el('button', 'np-go', 'Voir comment'); more.type = 'button'; more.onclick = () => { close(); openNotifs(); };
+      row.append(later, more);
+    }
+    const x = el('button', 'np-x', '✕'); x.type = 'button'; x.setAttribute('aria-label', 'Fermer'); x.onclick = close;
+    card.append(x, bell, h, p, status, row);
+    document.body.append(card);
   }
 
   // ---------- messages envoyés par un admin ----------
@@ -372,8 +404,53 @@
     if (v !== i.value) { const p = i.selectionStart; i.value = v; try { i.setSelectionRange(p, p); } catch {} }
   });
 
+  // ---------- téléphone : onglet « Plus » (ce qui n'a pas de place dans la barre du bas) ----------
+  const tabbar = $('.tabbar');
+  if (tabbar && !$('[data-more]', tabbar)) {
+    const b = el('button'); b.type = 'button'; b.dataset.more = '';
+    b.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1.8" fill="currentColor"/><circle cx="12" cy="12" r="1.8" fill="currentColor"/><circle cx="19" cy="12" r="1.8" fill="currentColor"/></svg>Plus';
+    b.onclick = openMore;
+    tabbar.append(b);
+  }
+  function openMore() {
+    const sheet = el('div', 'more-sheet'); sheet.setAttribute('role', 'dialog'); sheet.setAttribute('aria-label', 'Plus');
+    const panel = el('div', 'more-panel');
+    const grid = el('div', 'more-grid');
+    const close = () => { sheet.classList.add('out'); setTimeout(() => sheet.remove(), 200); };
+    const item = (emoji, label, fn) => { const x2 = el('button'); x2.type = 'button'; x2.append(el('span', '', emoji), document.createTextNode(label)); x2.onclick = () => { close(); fn(); }; grid.append(x2); };
+    item('🏆', 'Classement', () => open('ranking'));
+    item('📋', 'Patch note', () => open('patch'));
+    if (me) item('👤', 'Mon profil', () => open('profile'));
+    item('🎵', 'Playlists', () => { location.href = '/blindtest#playlistsBox'; });
+    if (me && me.admin) item('🛡️', 'Admin', () => open('admin'));
+    if (me && me.admin && window.openAdminStats) item('📊', 'Stats', () => window.openAdminStats());
+    panel.append(el('div', 'grab'), el('h2', '', 'Plus'), grid);
+    sheet.append(panel);
+    sheet.addEventListener('click', (e) => { if (e.target === sheet) close(); });
+    document.addEventListener('keydown', function esc(e) { if (e.key === 'Escape') { close(); document.removeEventListener('keydown', esc); } });
+    document.body.append(sheet);
+  }
+
   // ---------- le patch note (visible par tout le monde) ----------
   const PN_TAGS = { new: ['Nouveau', 'pn-new'], better: ['Amélioré', 'pn-better'], fix: ['Corrigé', 'pn-fix'], removed: ['Retiré', 'pn-removed'] };
+  // l'onglet « Admin » : seulement pour les admins
+  function setupAdmin() {
+    const admin = Boolean(me && me.admin);
+    $$('[data-open="admin"]').forEach((b) => { (b.closest('li') || b).hidden = !admin; });
+    if (!admin) return;
+    const navs = $$('.side .nav');
+    const social = navs[navs.length - 1];
+    if (social && !$('[data-open="admin"]', social)) {
+      const li = el('li');
+      const b = el('button'); b.type = 'button'; b.dataset.open = 'admin';
+      b.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l7 3v5c0 4.5-3 8.3-7 10-4-1.7-7-5.5-7-10V6z M9 12l2 2 4-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"/></svg><span>Admin</span>';
+      li.append(b); social.append(li);
+    }
+    if (frame && location.pathname === '/' && !$('#pageAdmin')) {
+      const sec = el('section', 'page'); sec.id = 'pageAdmin'; sec.hidden = true; sec.setAttribute('aria-labelledby', 'admTitle2');
+      frame.append(sec);
+    }
+  }
   function setupPatch() {
     const navs = $$('.side .nav');
     const social = navs[navs.length - 1];
@@ -412,7 +489,8 @@
       const t = el('h2', '', v.title);
       top.append(t);
       if (i === 0) top.append(el('span', 'pn-latest', 'Dernière version'));
-      const d = el('time', 'pn-date', new Date(v.date + 'T12:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })); d.dateTime = v.date;
+      const when = new Date(v.date + 'T12:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }) + (v.time ? ` à ${v.time.replace(':', ' h ')}` : '');
+      const d = el('time', 'pn-date', when); d.dateTime = v.date + (v.time ? 'T' + v.time : '');
       top.append(d);
       const ul = el('ul', 'pn-items');
       for (const [tag, text] of v.items) {
@@ -433,11 +511,12 @@
     meKnown = true;
     $$('[data-open="profile"]').forEach((b) => { b.hidden = !me; });
     setupPatch();
+    setupAdmin();
     if (me && me.inbox) showInbox(me.inbox);
     refreshUnread(me ? me.notifUnread || 0 : 0);
     route();
     drawRailFriends();
-    if (me) setTimeout(announce, 2500); else refreshNotifBadge();
+    if (me) setTimeout(announce, 1800); else refreshNotifBadge();
   }
   setupPatch();
   refreshMe();

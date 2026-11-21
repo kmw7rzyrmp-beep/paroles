@@ -215,6 +215,14 @@
     return sub && Notification.permission === 'granted' ? 'on' : 'off';
   };
 
+  // pour l'affiche « Active les notifications » (app.js) : active directement, depuis un clic
+  window.enablePushNow = async (statusEl) => {
+    const ok = await enablePush(statusEl || document.createElement('span'));
+    if (ok) { drawPushBox(); window.dispatchEvent(new Event('notif-changed')); }
+    return ok;
+  };
+  window.notifHelp = () => ({ ios: isIos && !standalone, denied: supported && Notification.permission === 'denied' });
+
   // anciens liens des notifications : /?amis=1 et /?notifs=1 deviennent /#amis et /#notifications
   const q = new URLSearchParams(location.search);
   if (location.pathname === '/' && (q.get('amis') || q.get('notifs'))) window.history.replaceState(null, '', '/#' + (q.get('amis') ? 'amis' : 'notifications'));
