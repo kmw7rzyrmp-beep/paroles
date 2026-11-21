@@ -527,6 +527,16 @@
   .friend-item { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .5rem; padding: .65rem 0; border-top: 1px solid var(--ligne); }
   .friend-item:last-child { border-bottom: 1px solid var(--ligne); }
   .friend-name { font: 800 1.1rem var(--texte); font-stretch: 78%; overflow-wrap: anywhere; }
+  .friend-who { display: flex; align-items: center; gap: .7rem; min-width: 0; }
+  .friend-av {
+    flex: none; width: 2.8rem; height: 2.8rem; min-height: 0; padding: 0; border-radius: 50% !important; overflow: hidden;
+    display: grid; place-items: center; border: 2px solid var(--ligne) !important; box-shadow: none !important;
+    background: linear-gradient(135deg, var(--jaune), var(--orange) 55%, var(--rouge)) !important; color: #1b1b22;
+    font: 900 1.25rem/1 var(--texte); font-stretch: 62%; cursor: pointer; transition: transform .15s, border-color .15s;
+  }
+  .friend-av img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .friend-av:hover { transform: scale(1.06); border-color: var(--orange) !important; filter: none; }
+  .friend-av:active { transform: scale(.95); border-bottom-width: 2px; }
   /* statut en ligne : point vert qui pulse doucement, sinon « vu il y a… » */
   .presence { display: inline-flex; align-items: center; gap: .4rem; margin-left: .7rem; font: 500 .85rem var(--texte); font-stretch: 90%; color: var(--gris); vertical-align: middle; }
   .presence::before { content: ""; width: .55rem; height: .55rem; border-radius: 50%; background: #5d5b63; }
@@ -1828,9 +1838,27 @@
     return d === 1 ? 'Vu hier' : `Vu il y a ${d} jours`;
   }
 
-  function friendRow(name, buttons, label, presence) {
+  // petite photo ronde (ou l'initiale) : un clic ouvre le profil
+  function friendAvatar(name, url) {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'friend-av';
+    b.title = 'Afficher le profil';
+    b.setAttribute('aria-label', 'Afficher le profil');
+    if (url) {
+      const img = document.createElement('img');
+      img.src = url; img.alt = ''; img.loading = 'lazy';
+      b.append(img);
+    } else b.textContent = name.slice(0, 1).toUpperCase();
+    b.addEventListener('click', () => window.openProfile && window.openProfile(name));
+    return b;
+  }
+
+  function friendRow(name, buttons, label, presence, avatarUrl) {
     const li = document.createElement('li');
     li.className = 'friend-item';
+    const who = document.createElement('div');
+    who.className = 'friend-who';
     const n = document.createElement('span');
     n.className = 'friend-name';
     n.textContent = label ? label + name : name;
@@ -1843,7 +1871,8 @@
     const actions = document.createElement('div');
     actions.className = 'friend-actions';
     actions.append(...buttons);
-    li.append(n, actions);
+    who.append(friendAvatar(name, avatarUrl), n);
+    li.append(who, actions);
     return li;
   }
 
@@ -1869,10 +1898,10 @@
     friendSection(friendIncoming, 'Demandes reçues', friends.incoming.map((f) => friendRow(f.username, [
       mkBtn('Accepter', () => friendAction('accept', f.username)),
       mkBtn('Refuser', () => friendAction('decline', f.username), true),
-    ])));
+    ], '', null, f.avatarUrl)));
     friendSection(friendOutgoing, 'Demandes envoyées', friends.outgoing.map((f) => friendRow(f.username, [
       mkBtn('Annuler', () => friendAction('cancel', f.username), true),
-    ], 'En attente : ')));
+    ], 'En attente : ', null, f.avatarUrl)));
 
     friendList.replaceChildren();
     if (!friends.friends.length) {
@@ -1886,7 +1915,7 @@
         mkBtn('Afficher le profil', () => window.openProfile && window.openProfile(f.username)),
         mkBtn(selectedFriend === f.username ? 'Fermer' : 'Voir', () => (selectedFriend === f.username ? (closeFriend(), renderFriends()) : openFriend(f.username))),
         mkBtn('Retirer', () => { if (confirm('Retirer ' + f.username + ' de tes amis ?')) friendAction('remove', f.username); }, true),
-      ], '', f));
+      ], '', f, f.avatarUrl));
     }
   }
 
