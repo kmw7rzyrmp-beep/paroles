@@ -357,6 +357,18 @@ function listFriends(me) {
   return { friends, incoming: names(me.incoming), outgoing: names(me.outgoing) };
 }
 
+// Pour le blind test : qui est connecté, et est-ce que telle personne est son ami ?
+export function sessionUser(req) {
+  const u = currentUser(req);
+  return u && u.username ? { id: u.id, username: u.username } : null;
+}
+export function findFriend(userId, username) {
+  const me = usersById.get(userId);
+  const target = findByUsername(username);
+  if (!me || !target || !(me.friends || []).includes(target.id)) return null;
+  return { id: target.id, username: target.username };
+}
+
 const FRIEND_ACTIONS = new Set(['request', 'accept', 'decline', 'cancel', 'remove']);
 
 async function handleFriends(req, res, url, me) {
