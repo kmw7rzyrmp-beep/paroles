@@ -174,7 +174,7 @@ export function adminStats(extra = {}) {
     recent: users.sort((a, b) => created(b) - created(a)).slice(0, 10).map((u) => ({ username: u.username, createdAt: u.createdAt || '' })),
     activity: {
       searches: counter('searches'), lyrics: counter('lyrics'), visits: counter('visits'), visitors: counter('visitors'),
-      spotify: counter('clicks_spotify'), deezer: counter('clicks_deezer'), logins: counter('logins'),
+      spotify: counter('clicks_spotify'), deezer: counter('clicks_deezer'), logins: counter('logins'), messages: counter('messages'),
     },
     blindtest: {
       games: counter('bt_games'),
@@ -450,7 +450,7 @@ function listFriends(me) {
     .sort((a, b) => a.username.localeCompare(b.username));
   // Seuls les amis voient si tu es en ligne (pas les demandes en attente)
   const friends = users(me.friends)
-    .map((u) => ({ username: u.username, avatarUrl: avatar(u), ...presence(u) }))
+    .map((u) => ({ username: u.username, avatarUrl: avatar(u), ...presence(u), unread: (me.chats && me.chats[u.id]?.unread) || 0 }))
     .sort((a, b) => b.inBlindtest - a.inBlindtest || b.online - a.online || a.username.localeCompare(b.username));
   return { friends, incoming: names(me.incoming), outgoing: names(me.outgoing) };
 }
@@ -612,6 +612,133 @@ async function loadImage(key) {
   return img;
 }
 
+// --- Messagerie entre amis ---
+// Les messages d'une conversation sont rangés à part (une ligne Supabase « chat:<id1>:<id2> »),
+// et chaque compte garde un résumé de ses conversations (dernier message, non lus, lu jusqu'à) dans u.chats.
+const CHAT_KEEP = 300;          // messages gardés par conversation
+const CHAT_MAX_LEN = 500;       // caractères par message
+const chatCache = new Map();    // clé -> tableau de messages
+const chatKey = (a, b) => [a, b].sort().join(':');
+
+async function loadChat(key) {
+  if (chatCache.has(key)) return chatCache.get(key);
+  let list = [];
+  try {
+    if (REMOTE) {
+      const rows = await (await supabase('GET', `?id=eq.${encodeURIComponent('chat:' + key)}&select=data`)).json();
+      list = rows[0]?.data?.m || [];
+    } else {
+      list = JSON.parse(await readFile(join(DATA_DIR, 'chat', key.replace(/[^a-z0-9:_-]/gi, '_') + '.json'), 'utf8')).m || [];
+    }
+  } catch (err) {
+    if (err.code !== 'ENOENT') { console.error('Messagerie, lecture :', err.message); throw new HttpError(503, 'Messages indisponibles, réessaie dans un instant.'); }
+  }
+  if (chatCache.size > 300) chatCache.delete(chatCache.keys().next().value);
+  chatCache.set(key, list);
+  return list;
+}
+
+async function saveChat(key, list) {
+  const data = { m: list.slice(-CHAT_KEEP) };
+  if (REMOTE) {
+    await supabase('POST', '?on_conflict=id', { id: 'chat:' + key, data, updated_at: new Date().toISOString() },
+      { Prefer: 'resolution=merge-duplicates,return=minimal' });
+  } else {
+    await mkdir(join(DATA_DIR, 'chat'), { recursive: true });
+    await writeFile(join(DATA_DIR, 'chat', key.replace(/[^a-z0-9:_-]/gi, '_') + '.json'), JSON.stringify(data));
+  }
+  chatCache.set(key, data.m);
+}
+
+// les résumés (non lus…) sont sauvegardés quelques secondes plus tard, en une seule fois
+let chatSaveTimer = null;
+function saveChatsSoon() {
+  if (chatSaveTimer) return;
+  chatSaveTimer = setTimeout(() => {
+    chatSaveTimer = null;
+    persist().catch((err) => console.error('Messagerie, sauvegarde :', err.message));
+  }, 4000);
+}
+
+const chatSends = new Map(); // anti-spam : userId -> [heures d'envoi]
+function chatSummary(me) {
+  const chats = me.chats || {};
+  const avatar = (u) => { const v = profileOf(u).avatarV; return v ? `/api/profile/image?u=${encodeURIComponent(u.username)}&k=avatar&v=${v}` : ''; };
+  const list = Object.entries(chats)
+    .map(([id, c]) => ({ u: usersById.get(id), c }))
+    .filter((x) => x.u && x.u.username)
+    .map(({ u, c }) => ({
+      username: u.username, avatarUrl: avatar(u), ...presence(u), friend: (me.friends || []).includes(u.id),
+      at: c.at, text: c.text, fromMe: c.from === me.id, unread: c.unread || 0,
+    }))
+    .sort((a, b) => b.at - a.at);
+  return { conversations: list, unread: list.reduce((n, c) => n + c.unread, 0) };
+}
+
+async function handleMessages(req, res, url, me) {
+  ensureFriendFields(me);
+  me.chats ||= {};
+  const action = url.pathname.slice('/api/messages'.length).replace(/^\//, '');
+
+  if (req.method === 'GET' && action === '') return send(res, 200, chatSummary(me));
+
+  // une conversation (et on la marque comme lue)
+  if (req.method === 'GET' && action === 'with') {
+    const other = findByUsername(url.searchParams.get('username'));
+    if (!other || other.id === me.id) throw new HttpError(404, 'Cette personne n’existe pas.');
+    const isFriend = me.friends.includes(other.id);
+    if (!isFriend && !me.chats[other.id]) throw new HttpError(403, 'Tu ne peux écrire qu’à tes amis.');
+    const list = await loadChat(chatKey(me.id, other.id));
+    const after = Number(url.searchParams.get('after')) || 0;
+    const mine = me.chats[other.id];
+    if (mine && (mine.unread || (list.length && (mine.readAt || 0) < list[list.length - 1].at))) {
+      mine.unread = 0;
+      mine.readAt = Date.now();
+      saveChatsSoon();
+    }
+    const theirs = other.chats && other.chats[me.id];
+    const avatarV = profileOf(other).avatarV;
+    return send(res, 200, {
+      username: other.username,
+      avatarUrl: avatarV ? `/api/profile/image?u=${encodeURIComponent(other.username)}&k=avatar&v=${avatarV}` : '',
+      friend: isFriend,
+      ...presence(other),
+      seenAt: (theirs && theirs.readAt) || 0, // jusqu'où l'autre a lu
+      messages: list.filter((m) => m.at > after).slice(-100).map((m) => ({ fromMe: m.f === me.id, text: m.t, at: m.at })),
+    });
+  }
+
+  if (req.method === 'POST' && action === 'send') {
+    const body = await readJson(req, 5_000);
+    const other = findByUsername(body.username);
+    if (!other || other.id === me.id) throw new HttpError(404, 'Cette personne n’existe pas.');
+    if (!me.friends.includes(other.id)) throw new HttpError(403, 'Tu ne peux écrire qu’à tes amis.');
+    const text = String(body.text || '').replace(/[\u0000-\u0008\u000b-\u001f\u007f]/g, '').replace(/\n{3,}/g, '\n\n').trim();
+    if (!text) throw new HttpError(400, 'Écris un message.');
+    if (text.length > CHAT_MAX_LEN) throw new HttpError(400, `Message trop long (${CHAT_MAX_LEN} caractères maximum).`);
+    const now = Date.now();
+    const recent = (chatSends.get(me.id) || []).filter((t) => now - t < 60_000);
+    if (recent.length >= 30) throw new HttpError(429, 'Doucement ! Attends un peu avant d’envoyer d’autres messages.');
+    recent.push(now);
+    chatSends.set(me.id, recent);
+    const key = chatKey(me.id, other.id);
+    const list = [...(await loadChat(key))];
+    const at = Math.max(now, (list[list.length - 1]?.at || 0) + 1); // jamais deux messages à la même milliseconde
+    list.push({ f: me.id, t: text, at });
+    await saveChat(key, list);
+    const preview = text.replace(/\s+/g, ' ').slice(0, 80);
+    me.chats[other.id] = { ...(me.chats[other.id] || {}), at, text: preview, from: me.id, unread: 0, readAt: at };
+    other.chats ||= {};
+    const theirs = other.chats[me.id] || {};
+    other.chats[me.id] = { ...theirs, at, text: preview, from: me.id, unread: Math.min(99, (theirs.unread || 0) + 1) };
+    countStat('messages');
+    saveChatsSoon();
+    return send(res, 201, { message: { fromMe: true, text, at } });
+  }
+
+  throw new HttpError(404, 'Introuvable.');
+}
+
 // Ce que tout le monde voit d'un profil (les favoris et l'historique restent réservés aux amis)
 function publicProfile(u, viewer) {
   const p = profileOf(u);
@@ -713,7 +840,8 @@ export async function handleAuth(req, res, url) {
   const path = url.pathname;
   const isFriends = path === '/api/friends' || path.startsWith('/api/friends/');
   const isProfile = path === '/api/profile' || path === '/api/profile/image';
-  if (!ROUTES.has(path) && !isFriends && !isProfile) return false;
+  const isMessages = path === '/api/messages' || path.startsWith('/api/messages/');
+  if (!ROUTES.has(path) && !isFriends && !isProfile && !isMessages) return false;
 
   try {
     if (isProfile) return await handleProfile(req, res, url);
@@ -721,6 +849,12 @@ export async function handleAuth(req, res, url) {
     if (path === '/api/me') {
       if (req.method !== 'GET') throw new HttpError(405, 'Méthode non autorisée.');
       return send(res, 200, { user: publicUser(currentUser(req)) });
+    }
+
+    if (isMessages) {
+      const me = currentUser(req);
+      if (!me || !me.username) throw new HttpError(401, 'Connecte-toi pour envoyer des messages.');
+      return await handleMessages(req, res, url, me);
     }
 
     if (isFriends) {

@@ -204,7 +204,7 @@
     const l2 = $('div'), r2 = $('div');
     l2.append(h3('Activité'), table([['Quoi'], ['Total', 1], ['Aujourd’hui', 1], ['7 jours', 1]], [
       ['Recherches', act.searches], ['Paroles ouvertes', act.lyrics], ['Pages vues', act.visits], ['Visiteurs uniques', act.visitors],
-      ['Clics Spotify', act.spotify], ['Clics Deezer', act.deezer], ['Connexions', act.logins], ['Parties de blind test', bt.games], ['Joueurs (toutes parties)', bt.players],
+      ['Clics Spotify', act.spotify], ['Clics Deezer', act.deezer], ['Connexions', act.logins], ['Messages envoyés', act.messages || { total: 0, today: 0, week: 0 }], ['Parties de blind test', bt.games], ['Joueurs (toutes parties)', bt.players],
     ].map(([k, c]) => [k, n(c.total), n(c.today), n(c.week)])));
     r2.append(h3('Comptes et amis'), table([['Quoi'], ['Nombre', 1]], [
       ['Comptes au total', n(a.total)], ['Créés ces 30 jours', n(a.month)], ['Avec une photo de profil', n(a.withAvatar)], ['Avec une bio', n(a.withBio)],

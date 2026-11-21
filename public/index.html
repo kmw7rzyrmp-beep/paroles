@@ -17,6 +17,7 @@
 <script src="/i18n.js"></script>
 <script src="/profile.js" defer></script>
 <script src="/admin.js" defer></script>
+<script src="/chat.js" defer></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..900&family=Permanent+Marker&display=swap" rel="stylesheet">
@@ -365,6 +366,12 @@
     border-bottom-width: 1px; box-shadow: 0 6px 18px rgba(0,0,0,.55), inset 0 1px 0 rgba(255,255,255,.8);
   }
   .friends-bubble[hidden] { display: none; }
+  /* messagerie : bouton « Mes messages » et nombre de non lus */
+  .open-messages { display: flex; align-items: center; gap: .55rem; width: 100%; margin: 1rem 0 .4rem; justify-content: flex-start; }
+  .open-messages svg { width: 1.2rem; height: 1.2rem; }
+  .open-messages b:empty { display: none; }
+  .open-messages b, .msg-count { margin-left: auto; min-width: 1.3rem; height: 1.3rem; padding: 0 .35rem; border-radius: 999px; background: var(--orange); color: #1b1b22; font: 800 .75rem/1.3rem var(--texte); text-align: center; }
+  .msg-count { margin-left: .4rem; display: inline-block; }
   .friends-bubble:active { transform: scale(.94); border-bottom-width: 1px; }
   .fb-ico { width: 1.55rem; height: 1.55rem; fill: var(--feutre-encre); }
   .fb-lbl { font: 800 .68rem/1 var(--texte); font-stretch: 75%; margin-top: .1rem; }
@@ -661,6 +668,10 @@
         </div>
         <p class="hint">Vos favoris et vos historiques de recherche sont visibles entre amis, une fois la demande acceptée.</p>
       </form>
+      <button id="openMessages" class="open-messages" type="button">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v11H9l-5 4z" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"/></svg>
+        <span>Mes messages</span><b id="openMessagesCount"></b>
+      </button>
       <p id="friendMsg" class="friend-msg" role="status" aria-live="polite"></p>
       <div id="friendIncoming"></div>
       <div id="friendOutgoing"></div>
@@ -678,6 +689,7 @@
         <label class="switch"><input type="checkbox" data-notif="online" checked><span></span>Quand un ami se connecte</label>
         <label class="switch"><input type="checkbox" data-notif="req" checked><span></span>Demandes d’amis</label>
         <label class="switch"><input type="checkbox" data-notif="inv" checked><span></span>Invitations au blind test</label>
+        <label class="switch"><input type="checkbox" data-notif="msg" checked><span></span>Nouveaux messages</label>
       </details>
     </section>
   </div>
@@ -1917,7 +1929,10 @@
       friendList.append(p);
     }
     for (const f of friends.friends) {
+      const msg = mkBtn('Message', () => window.openChat && window.openChat(f.username));
+      if (f.unread) { const c = document.createElement('b'); c.className = 'msg-count'; c.textContent = String(f.unread); msg.append(c); msg.setAttribute('aria-label', `Message (${f.unread} non lu${f.unread > 1 ? 's' : ''})`); }
       friendList.append(friendRow(f.username, [
+        msg,
         mkBtn('Afficher le profil', () => window.openProfile && window.openProfile(f.username)),
         mkBtn(selectedFriend === f.username ? 'Fermer' : 'Voir', () => (selectedFriend === f.username ? (closeFriend(), renderFriends()) : openFriend(f.username))),
         mkBtn('Retirer', () => { if (confirm('Retirer ' + f.username + ' de tes amis ?')) friendAction('remove', f.username); }, true),
@@ -2046,6 +2061,11 @@
     loadFriends();
   });
   document.getElementById('friendsClose').addEventListener('click', () => friendsDialog.close());
+  document.getElementById('openMessages').addEventListener('click', () => window.openChat && window.openChat());
+  window.addEventListener('chat-unread', (e) => {
+    const n = e.detail.unread || 0;
+    document.getElementById('openMessagesCount').textContent = n ? String(Math.min(99, n)) : '';
+  });
   // clic à côté de la couche : on la ferme
   friendsDialog.addEventListener('click', (e) => { if (e.target === friendsDialog) friendsDialog.close(); });
   friendsDialog.addEventListener('close', () => { closeFriend(); tabFriends.focus({ preventScroll: true }); });

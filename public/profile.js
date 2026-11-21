@@ -75,7 +75,8 @@
     const btn = (label, fn, cls) => { const b = el('button', cls || '', label); b.type = 'button'; b.addEventListener('click', fn); actions.append(b); return b; };
     if (p.relation === 'me') btn('Modifier le profil', () => edit(p), 'pp-main');
     else if (p.relation === 'friend') {
-      const a = el('a', 'pp-main pp-link', 'Inviter au blind test'); a.href = '/blindtest'; actions.append(a);
+      if (window.openChat) btn('Envoyer un message', () => window.openChat(p.username), 'pp-main');
+      const a = el('a', 'pp-link', 'Inviter au blind test'); a.href = '/blindtest'; actions.append(a);
       actions.append(el('span', 'pp-tag', 'Vous êtes amis'));
     } else if (p.relation === 'incoming') btn('Accepter sa demande d’ami', () => friend('accept', p), 'pp-main');
     else if (p.relation === 'outgoing') actions.append(el('span', 'pp-tag', 'Demande d’ami envoyée'));
@@ -339,6 +340,7 @@
   .pp-actions button, .pp-link { min-height: 2.7rem; }
   .pp-main { background: linear-gradient(180deg, #ffd27a, #f28c1c) !important; border-color: #a65a0a !important; }
   .pp-link { display: inline-flex; align-items: center; padding: .55rem 1.2rem; border-radius: 4px; border: 1px solid #a65a0a; border-bottom: 4px solid #a65a0a; color: #1b1b22; text-decoration: none; font: 800 1rem var(--texte, sans-serif); font-stretch: 78%; }
+  .pp-link:not(.pp-main) { background: var(--chrome, linear-gradient(180deg, #f3f3f5, #c9c9cf)); border-color: #6d6c72; }
   .pp-tag { color: var(--gris, #a6a3ad); font-weight: 600; }
   .pp-msg { min-height: 1.3rem; margin: .7rem 0 0; color: var(--jaune, #f5c43a); font-weight: 600; }
   .pp-msg:empty { min-height: 0; margin: 0; }
