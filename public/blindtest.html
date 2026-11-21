@@ -610,6 +610,9 @@
     show('home');
   });
 
+  // présence : tes amis te voient « en ligne » pendant que tu joues
+  setInterval(() => { if (document.visibilityState === 'visible') fetch('/api/me').catch(() => {}); }, 30_000);
+
   init();
 })();
 </script>
