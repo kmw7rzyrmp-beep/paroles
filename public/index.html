@@ -207,6 +207,12 @@
   #status.error { color: var(--danger); font-weight: 700; }
   .demo { background: rgba(245, 196, 58, .12); border-left: 4px solid var(--jaune); padding: .75rem 1rem; margin: 0 0 1rem; font-size: .95rem; }
 
+  /* lien vers le blind test */
+  .bt-link { display: inline-grid; grid-template-columns: auto 1fr; column-gap: .7rem; align-items: center; margin: 1.6rem 0 0; padding: .7rem 1.1rem; background: var(--coque); border: 1px solid var(--ligne); border-left: 5px solid var(--rouge); border-radius: 6px; color: var(--blanc); text-decoration: none; font: 900 1.25rem/1.1 var(--texte); font-stretch: 65%; }
+  .bt-link small { grid-column: 2; font: 500 .9rem var(--texte); color: var(--gris); }
+  .bt-dot { grid-row: span 2; width: .85rem; height: .85rem; border-radius: 50%; background: var(--rouge); box-shadow: 0 0 0 4px rgba(226, 65, 43, .25); }
+  .bt-link:hover { background: var(--coque-hi); }
+
   /* ---------- Onglets = touches du lecteur ---------- */
   .tabs { display: flex; flex-wrap: wrap; gap: .4rem; margin: 2.4rem 0 0; padding: .45rem; background: #0d0c0f; border-radius: 6px; width: fit-content; box-shadow: inset 0 2px 5px rgba(0,0,0,.6); }
   .tab { font-size: .98rem; padding: .45rem 1rem; min-height: 2.6rem; }
@@ -419,6 +425,7 @@
     <div class="tape-foot" aria-hidden="true"></div>
   </form>
   <p class="hint">Tu peux trouver tout ce que tu désires grâce à Kyky</p>
+  <a class="bt-link" href="/blindtest"><span class="bt-dot" aria-hidden="true"></span>Blind test entre potes<small>Rap FR, rap US, classique, pop…</small></a>
 
   <div class="tabs" role="tablist" aria-label="Affichage">
     <button id="tabSearch" class="tab" type="button" role="tab" aria-selected="true">Résultats</button>
@@ -1121,9 +1128,10 @@
       render(data.results, data.yt);
       countSearch(q);
       if (data.results.length) addHistory(q, data.results[0]);
-      setStatus(data.results.length
+      setStatus((data.results.length
         ? (data.results.length === 1 ? '1 chanson trouvée' : `${data.results.length} chansons trouvées`)
-        : 'Aucune chanson trouvée. Essaie avec d’autres mots de la phrase.');
+        : 'Aucune chanson trouvée. Essaie avec d’autres mots de la phrase.')
+        + (data.byTitle ? ' (La recherche dans les paroles est indisponible pour le moment : seuls les sons confirmés par leurs paroles sont affichés.)' : ''));
     } catch (err) {
       if (err.name === 'AbortError') return;
       list.replaceChildren();
