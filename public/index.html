@@ -208,10 +208,50 @@
   .demo { background: rgba(245, 196, 58, .12); border-left: 4px solid var(--jaune); padding: .75rem 1rem; margin: 0 0 1rem; font-size: .95rem; }
 
   /* lien vers le blind test */
-  .bt-link { display: inline-grid; grid-template-columns: auto 1fr; column-gap: .7rem; align-items: center; margin: 1.6rem 0 0; padding: .7rem 1.1rem; background: var(--coque); border: 1px solid var(--ligne); border-left: 5px solid var(--rouge); border-radius: 6px; color: var(--blanc); text-decoration: none; font: 900 1.25rem/1.1 var(--texte); font-stretch: 65%; }
-  .bt-link small { grid-column: 2; font: 500 .9rem var(--texte); color: var(--gris); }
-  .bt-dot { grid-row: span 2; width: .85rem; height: .85rem; border-radius: 50%; background: var(--rouge); box-shadow: 0 0 0 4px rgba(226, 65, 43, .25); }
-  .bt-link:hover { background: var(--coque-hi); }
+  /* lien vers le blind test : un vinyle qui tourne, un égaliseur qui danse, un cadre aux couleurs de la cassette */
+  .bt-link {
+    --tilt: 0deg;
+    position: relative; display: inline-flex; align-items: center; gap: .9rem;
+    margin: 1.8rem 0 0; padding: .55rem 1.3rem .55rem .55rem;
+    border-radius: 999px; color: var(--blanc); text-decoration: none;
+    background:
+      linear-gradient(var(--coque), var(--coque)) padding-box,
+      linear-gradient(90deg, var(--rouge), var(--orange), var(--jaune), var(--orange), var(--rouge)) border-box;
+    background-size: 100% 100%, 300% 100%;
+    border: 2px solid transparent;
+    box-shadow: 0 8px 22px rgba(0,0,0,.45);
+    transition: transform .35s cubic-bezier(.2, .9, .3, 1.3), box-shadow .35s ease, background-position 1.2s ease;
+  }
+  .bt-link:hover, .bt-link:focus-visible {
+    transform: translateY(-3px) scale(1.03);
+    box-shadow: 0 14px 30px rgba(0,0,0,.5), 0 0 0 6px rgba(242, 140, 28, .12);
+    background-position: 0 0, 100% 0;
+  }
+  .bt-link:active { transform: translateY(0) scale(.97); transition-duration: .12s; }
+  .bt-label { font: 900 1.7rem/1 var(--texte); font-stretch: 62%; letter-spacing: .01em; text-transform: uppercase; }
+
+  /* le vinyle */
+  .bt-disc {
+    position: relative; width: 3rem; height: 3rem; border-radius: 50%; flex: none;
+    background:
+      radial-gradient(circle, #111 0 .16rem, var(--orange) .18rem .62rem, #111 .64rem .7rem, transparent .72rem),
+      repeating-radial-gradient(circle, #19181c 0 2px, #2a2930 2px 3px);
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,.06), 0 2px 6px rgba(0,0,0,.5);
+    animation: btSpin 4s linear infinite;
+  }
+  /* reflet de lumière sur le vinyle */
+  .bt-disc::after { content: ""; position: absolute; inset: 0; border-radius: 50%; background: conic-gradient(from 20deg, transparent 0 12%, rgba(255,255,255,.14) 16%, transparent 22% 62%, rgba(255,255,255,.1) 66%, transparent 72%); }
+  .bt-link:hover .bt-disc, .bt-link:focus-visible .bt-disc { animation-duration: .9s; }
+  @keyframes btSpin { to { transform: rotate(360deg); } }
+
+  /* l'égaliseur */
+  .bt-eq { display: inline-flex; align-items: flex-end; gap: 3px; height: 1.35rem; }
+  .bt-eq i { width: 4px; height: 100%; border-radius: 2px; background: linear-gradient(var(--jaune), var(--rouge)); transform-origin: bottom; transform: scaleY(.35); animation: btEq 1.1s ease-in-out infinite alternate; }
+  .bt-eq i:nth-child(2) { animation-delay: -.35s; animation-duration: .9s; }
+  .bt-eq i:nth-child(3) { animation-delay: -.7s; animation-duration: 1.3s; }
+  .bt-eq i:nth-child(4) { animation-delay: -.15s; animation-duration: 1s; }
+  .bt-link:hover .bt-eq i, .bt-link:focus-visible .bt-eq i { animation-duration: .45s; }
+  @keyframes btEq { to { transform: scaleY(1); } }
 
   /* ---------- Onglets = touches du lecteur ---------- */
   .tabs { display: flex; flex-wrap: wrap; gap: .4rem; margin: 2.4rem 0 0; padding: .45rem; background: #0d0c0f; border-radius: 6px; width: fit-content; box-shadow: inset 0 2px 5px rgba(0,0,0,.6); }
@@ -378,19 +418,6 @@
   .invite-toast .it-actions a { background: var(--chrome); color: #1b1b22; border: 1px solid #6f6f78; border-bottom: 4px solid #5b5b63; }
   .invite-toast .it-actions button { background: transparent; color: var(--blanc); border: 1px solid var(--ligne); box-shadow: none; }
 
-  /* ---------- « CLIQUE VITE » ---------- */
-  .bait {
-    position: fixed; left: 1rem; bottom: calc(1rem + env(safe-area-inset-bottom, 0px)); z-index: 20;
-    display: inline-flex; align-items: center; min-height: 2.75rem; padding: .5rem 1.15rem;
-    background: var(--rouge); color: #fff; border: 2px solid #fff; border-radius: 4px;
-    font: 900 1.05rem var(--texte); font-stretch: 65%; letter-spacing: .03em; text-decoration: none;
-    animation: bait 1.2s ease-in-out infinite;
-  }
-  .bait:hover { background: #f0553f; }
-  @keyframes bait {
-    0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(226, 65, 43, .7); }
-    50% { transform: scale(1.07); box-shadow: 0 0 0 12px rgba(226, 65, 43, 0); }
-  }
 
   /* ---------- Compte ---------- */
   .account { display: flex; flex-wrap: wrap; align-items: center; gap: .55rem; }
@@ -496,7 +523,7 @@
     <div class="tape-foot" aria-hidden="true"></div>
   </form>
   <p class="hint">Tu peux trouver tout ce que tu désires grâce à Kyky</p>
-  <a class="bt-link" href="/blindtest"><span class="bt-dot" aria-hidden="true"></span>Blind test entre potes<small>Rap FR, rap US, classique, pop…</small></a>
+  <a class="bt-link" href="/blindtest"><span class="bt-disc" aria-hidden="true"></span><span class="bt-label">Blind test</span><span class="bt-eq" aria-hidden="true"><i></i><i></i><i></i><i></i></span></a>
 
   <div class="tabs" role="tablist" aria-label="Affichage">
     <button id="tabSearch" class="tab" type="button" role="tab" aria-selected="true">Résultats</button>
@@ -595,7 +622,6 @@
   </form>
 </dialog>
 
-<a class="bait" href="https://www.youtube.com/watch?v=dQw4w9WgXcQ" target="_blank" rel="noopener noreferrer">CLIQUE VITE</a>
 
 <script>
   // --- Grande phrase d'accroche : une différente à chaque visite (100 au choix, thème rap) ---
