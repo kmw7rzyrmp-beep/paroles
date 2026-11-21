@@ -458,15 +458,168 @@ async function handleFriends(req, res, url, me) {
   return send(res, 200, listFriends(me));
 }
 
+// ===================== Profils =====================
+// Chaque compte peut avoir : une photo, une bannière (image ou couleurs prêtes), une bio et ses sons préférés.
+// Les images sont rangées à part (pas dans la fiche du compte) pour que les sauvegardes restent légères.
+const BANNER_PRESETS = ['cassette', 'nuit', 'neon', 'or', 'bitume'];
+const IMG_LIMITS = { avatar: 150_000, banner: 400_000 }; // octets, après décodage
+const imgCache = new Map(); // "userId:kind" -> { buf, type }
+
+function profileOf(u) {
+  const p = u.profile || {};
+  return {
+    bio: typeof p.bio === 'string' ? p.bio : '',
+    banner: BANNER_PRESETS.includes(p.banner) || p.banner === 'image' ? p.banner : 'cassette',
+    bannerV: Number(p.bannerV) || 0,
+    avatarV: Number(p.avatarV) || 0,
+    top: Array.isArray(p.top) ? p.top : [],
+  };
+}
+
+function parseImage(dataUrl, kind) {
+  const m = /^data:(image\/(?:jpeg|png|webp));base64,([A-Za-z0-9+/=]+)$/.exec(String(dataUrl || ''));
+  if (!m) throw new HttpError(400, 'Image invalide : utilise une photo JPEG, PNG ou WebP.');
+  const buf = Buffer.from(m[2], 'base64');
+  if (buf.length > IMG_LIMITS[kind]) throw new HttpError(413, 'Image trop lourde.');
+  return { buf, type: m[1] };
+}
+
+async function saveImage(key, img) {
+  if (REMOTE) {
+    await supabase('POST', '?on_conflict=id', { id: 'img:' + key, data: img ? { type: img.type, b64: img.buf.toString('base64') } : {}, updated_at: new Date().toISOString() },
+      { Prefer: 'resolution=merge-duplicates,return=minimal' });
+  } else {
+    await mkdir(join(DATA_DIR, 'img'), { recursive: true });
+    await writeFile(join(DATA_DIR, 'img', key.replace(/[^a-z0-9:_-]/gi, '_') + '.json'),
+      JSON.stringify(img ? { type: img.type, b64: img.buf.toString('base64') } : {}));
+  }
+  if (imgCache.size > 300) imgCache.delete(imgCache.keys().next().value);
+  imgCache.set(key, img);
+}
+
+async function loadImage(key) {
+  if (imgCache.has(key)) return imgCache.get(key);
+  let raw = null;
+  try {
+    if (REMOTE) {
+      const rows = await (await supabase('GET', `?id=eq.${encodeURIComponent('img:' + key)}&select=data`)).json();
+      raw = rows[0]?.data || null;
+    } else {
+      raw = JSON.parse(await readFile(join(DATA_DIR, 'img', key.replace(/[^a-z0-9:_-]/gi, '_') + '.json'), 'utf8'));
+    }
+  } catch { raw = null; }
+  const img = raw && raw.b64 ? { type: raw.type, buf: Buffer.from(raw.b64, 'base64') } : null;
+  if (imgCache.size > 300) imgCache.delete(imgCache.keys().next().value);
+  imgCache.set(key, img);
+  return img;
+}
+
+// Ce que tout le monde voit d'un profil (les favoris et l'historique restent réservés aux amis)
+function publicProfile(u, viewer) {
+  const p = profileOf(u);
+  const isMe = Boolean(viewer && viewer.id === u.id);
+  const isFriend = Boolean(viewer && (viewer.friends || []).includes(u.id));
+  const bt = blindtestLeaderboard(u.id, 0).me;
+  return {
+    username: u.username,
+    bio: p.bio,
+    banner: p.banner,
+    bannerUrl: p.banner === 'image' && p.bannerV ? `/api/profile/image?u=${encodeURIComponent(u.username)}&k=banner&v=${p.bannerV}` : '',
+    avatarUrl: p.avatarV ? `/api/profile/image?u=${encodeURIComponent(u.username)}&k=avatar&v=${p.avatarV}` : '',
+    top: p.top,
+    since: u.createdAt || '',
+    blindtest: bt ? { rank: bt.rank, points: bt.points, games: bt.games, wins: bt.wins, best: bt.best } : null,
+    friends: (u.friends || []).length,
+    isMe,
+    relation: isMe ? 'me' : isFriend ? 'friend'
+      : viewer && (viewer.outgoing || []).includes(u.id) ? 'outgoing'
+      : viewer && (viewer.incoming || []).includes(u.id) ? 'incoming' : viewer ? 'none' : 'guest',
+    ...(isMe || isFriend ? presence(u) : {}),
+    banners: BANNER_PRESETS,
+  };
+}
+
+async function handleProfile(req, res, url) {
+  const viewer = currentUser(req);
+
+  // l'image elle-même (photo ou bannière)
+  if (url.pathname === '/api/profile/image' && req.method === 'GET') {
+    const u = findByUsername(url.searchParams.get('u') || '');
+    const kind = url.searchParams.get('k');
+    if (!u || !IMG_LIMITS[kind]) throw new HttpError(404, 'Introuvable.');
+    const img = await loadImage(`${u.id}:${kind}`);
+    if (!img) throw new HttpError(404, 'Introuvable.');
+    res.writeHead(200, { 'Content-Type': img.type, 'Content-Length': img.buf.length, 'Cache-Control': 'public, max-age=31536000, immutable', 'X-Content-Type-Options': 'nosniff' });
+    res.end(img.buf);
+    return true;
+  }
+
+  if (url.pathname === '/api/profile' && req.method === 'GET') {
+    const name = url.searchParams.get('username') || (viewer && viewer.username) || '';
+    const u = findByUsername(name);
+    if (!u || !u.username) throw new HttpError(404, 'Ce profil n’existe pas.');
+    return send(res, 200, { profile: publicProfile(u, viewer) });
+  }
+
+  if (req.method !== 'POST') throw new HttpError(405, 'Méthode non autorisée.');
+  if (!sameSiteJson(req)) throw new HttpError(400, 'Requête invalide.');
+  if (!viewer) throw new HttpError(401, 'Connecte-toi pour modifier ton profil.');
+  if (!viewer.username) throw new HttpError(403, 'Choisis d’abord un identifiant.');
+  if (tooManyWrites(viewer.id)) throw new HttpError(429, 'Trop de sauvegardes, réessaie dans une minute.');
+  const p = profileOf(viewer);
+
+  // nouvelle photo ou nouvelle bannière (null = l'enlever)
+  if (url.pathname === '/api/profile/image') {
+    const body = await readJson(req, 600_000);
+    const kind = body.kind;
+    if (!IMG_LIMITS[kind]) throw new HttpError(400, 'Requête invalide.');
+    const img = body.image ? parseImage(body.image, kind) : null;
+    try {
+      await saveImage(`${viewer.id}:${kind}`, img);
+    } catch (err) {
+      console.error('Image de profil :', err.message);
+      throw new HttpError(500, 'Sauvegarde impossible pour le moment.');
+    }
+    if (kind === 'avatar') p.avatarV = img ? Date.now() : 0;
+    else { p.bannerV = img ? Date.now() : 0; p.banner = img ? 'image' : 'cassette'; }
+    viewer.profile = p;
+    await persist();
+    return send(res, 200, { profile: publicProfile(viewer, viewer) });
+  }
+
+  // bio, bannière de couleur, sons préférés
+  if (url.pathname === '/api/profile') {
+    const body = await readJson(req, 20_000);
+    if (typeof body.bio === 'string') p.bio = body.bio.replace(/\r/g, '').replace(/\n{3,}/g, '\n\n').trim().slice(0, 300);
+    if (BANNER_PRESETS.includes(body.banner)) p.banner = body.banner;
+    if (Array.isArray(body.top)) {
+      const seen = new Set();
+      p.top = body.top.filter((x) => x && typeof x === 'object').map((x) => ({
+        title: str(x.title, 200).trim(), artist: str(x.artist, 200).trim(), image: httpsUrl(x.image),
+      })).filter((x) => x.title && !seen.has((x.title + '|' + x.artist).toLowerCase()) && seen.add((x.title + '|' + x.artist).toLowerCase())).slice(0, 6);
+    }
+    viewer.profile = p;
+    try { await persist(); } catch (err) {
+      console.error('Profil :', err.message);
+      throw new HttpError(500, 'Sauvegarde impossible pour le moment.');
+    }
+    return send(res, 200, { profile: publicProfile(viewer, viewer) });
+  }
+  throw new HttpError(404, 'Introuvable.');
+}
+
 const ROUTES = new Set(['/api/me', '/api/signup', '/api/login', '/api/logout', '/api/data', '/api/username']);
 
 // Renvoie true si la requête a été traitée ici
 export async function handleAuth(req, res, url) {
   const path = url.pathname;
   const isFriends = path === '/api/friends' || path.startsWith('/api/friends/');
-  if (!ROUTES.has(path) && !isFriends) return false;
+  const isProfile = path === '/api/profile' || path === '/api/profile/image';
+  if (!ROUTES.has(path) && !isFriends && !isProfile) return false;
 
   try {
+    if (isProfile) return await handleProfile(req, res, url);
+
     if (path === '/api/me') {
       if (req.method !== 'GET') throw new HttpError(405, 'Méthode non autorisée.');
       return send(res, 200, { user: publicUser(currentUser(req)) });
