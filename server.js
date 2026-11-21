@@ -3,7 +3,7 @@ import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
 import { join, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { handleAuth, clientIp, sessionUser, findFriend, recordBlindtest, blindtestLeaderboard } from './auth.js';
+import { handleAuth, clientIp, sessionUser, findFriend, recordBlindtest, blindtestLeaderboard, markInBlindtest } from './auth.js';
 import { createBlindtest } from './blindtest.js';
 
 // Charge le fichier .env s'il existe (le jeton Genius y est facultatif, voir README).
@@ -367,7 +367,7 @@ function sendJson(res, code, body) {
   res.end(JSON.stringify(body));
 }
 
-const handleBlindtest = createBlindtest({ getJson, sameSong, clientIp, sessionUser, findFriend, recordBlindtest, blindtestLeaderboard, demo: DEMO });
+const handleBlindtest = createBlindtest({ getJson, sameSong, clientIp, sessionUser, findFriend, recordBlindtest, blindtestLeaderboard, markInBlindtest, demo: DEMO });
 
 const server = createServer(async (req, res) => {
   const url = new URL(req.url, 'http://localhost');
