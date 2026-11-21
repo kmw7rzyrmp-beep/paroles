@@ -256,23 +256,42 @@
   .artists-inner { overflow: hidden; min-height: 0; }
   .artists:not(.open) .artists-inner { visibility: hidden; transition: visibility 0s .35s; }
   .artists-count { color: var(--gris); font-weight: 500; }
-  .artists-tools { display: flex; gap: 1rem; margin: .7rem 0 .4rem; }
+  /* barre : recherche + tout cocher / décocher sur une seule ligne */
+  .artists-bar { display: flex; align-items: center; gap: .4rem 1rem; flex-wrap: wrap; margin: .6rem 0 .5rem; }
+  .artists-tools { display: flex; gap: .9rem; margin-left: auto; }
   .artists-tools[hidden] { display: none; }
-  .artists-tools button { min-height: 2.2rem; padding: 0; background: none; border: 0; box-shadow: none; color: var(--jaune); font: 700 .92rem var(--texte); text-decoration: underline; text-underline-offset: 3px; }
+  .artists-tools button { min-height: 2rem; padding: 0; background: none; border: 0; box-shadow: none; color: var(--gris); font: 600 .82rem var(--texte); }
+  .artists-tools button:hover { color: var(--jaune); }
   .artists-tools button:active { transform: none; background: none; }
-  .artists-search { width: 100%; min-height: 2.6rem; margin: 0 0 .6rem; padding: .4rem .8rem; border: 1px solid var(--ligne); border-radius: 999px; background: #0d0c0f; color: var(--blanc); font: 500 1rem var(--texte); }
-  .artists-search:focus { outline: none; border-color: var(--orange); }
-  .artist-chips { display: flex; flex-wrap: wrap; gap: .45rem; max-height: 17rem; overflow-y: auto; padding: .2rem .1rem; overscroll-behavior: contain; }
-  .artist-chip {
-    min-height: 2.4rem; padding: .3rem .85rem .3rem .7rem; border-radius: 999px; gap: .45rem;
-    background: transparent; color: var(--gris); border: 1px solid var(--ligne); border-bottom-width: 1px; box-shadow: none;
-    font: 700 .95rem var(--texte); font-stretch: 85%; transition: background .18s, color .18s, border-color .18s, transform .12s;
+  .artists-search { flex: 1 1 10rem; min-width: 0; min-height: 2rem; padding: .2rem .1rem; border: 0; border-bottom: 1px solid var(--ligne); border-radius: 0;
+    background: transparent; color: var(--blanc); font: 500 .9rem var(--texte); }
+  .artists-search::placeholder { color: var(--gris); opacity: .7; }
+  .artists-search:focus { outline: none; border-bottom-color: var(--orange); }
+
+  /* la liste : comme le dos d'une cassette, en colonnes, une ligne par artiste */
+  .artist-chips {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(9.5rem, 1fr)); column-gap: 1.4rem; align-content: start; max-height: 14.5rem; overflow-y: auto; padding: .1rem .2rem .6rem 0; overscroll-behavior: contain;
+    -webkit-mask-image: linear-gradient(180deg, #000 calc(100% - 1.6rem), transparent); mask-image: linear-gradient(180deg, #000 calc(100% - 1.6rem), transparent);
+    scrollbar-width: thin; scrollbar-color: var(--ligne) transparent;
   }
-  .artist-chip::before { content: ""; width: .9rem; height: .9rem; border-radius: 50%; border: 2px solid currentColor; box-sizing: border-box; transition: background .18s; }
-  .artist-chip small { font-weight: 500; font-size: .78rem; opacity: .75; }
-  .artist-chip[aria-pressed="true"] { background: rgba(242, 140, 28, .16); color: var(--blanc); border-color: var(--orange); }
-  .artist-chip[aria-pressed="true"]::before { background: var(--orange) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M2.5 6.2l2.3 2.3 4.7-5' fill='none' stroke='%231b1b22' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center / 80% no-repeat; border-color: var(--orange); }
-  .artist-chip:active:not(:disabled) { transform: scale(.95); border-bottom-width: 1px; background: rgba(242, 140, 28, .25); box-shadow: none; }
+  .artist-chip {
+    display: flex; align-items: baseline; gap: .45rem; width: 100%; min-height: 1.9rem; padding: .2rem .1rem; margin: 0; break-inside: avoid;
+    background: none; border: 0; border-radius: 0; box-shadow: none; color: var(--gris); text-align: left;
+    font: 500 .88rem/1.2 var(--texte); font-stretch: 88%; letter-spacing: 0; transition: color .15s;
+  }
+  .artist-chip::before {
+    content: ""; flex: none; width: .62rem; height: .62rem; align-self: center; border: 1.5px solid var(--ligne); border-radius: 2px;
+    transition: background .15s, border-color .15s;
+  }
+  .artist-chip span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  /* pointillés entre le nom et le nombre de sons */
+  .artist-chip::after { content: ""; order: 2; flex: 1; min-width: .6rem; border-bottom: 1px dotted var(--ligne); transform: translateY(-.2em); }
+  .artist-chip small { order: 3; font-size: .75rem; font-variant-numeric: tabular-nums; opacity: .7; }
+  .artist-chip:hover:not(:disabled) { color: var(--blanc); }
+  .artist-chip[aria-pressed="true"] { color: var(--blanc); }
+  .artist-chip[aria-pressed="true"]::before { background: var(--orange); border-color: var(--orange); }
+  .artist-chip:active:not(:disabled) { transform: none; background: none; box-shadow: none; border: 0; color: var(--orange); }
+  .artist-chip:focus-visible { outline-offset: 0; }
   .artist-chip:disabled { opacity: 1; cursor: default; }
   .artist-chip:disabled[aria-pressed="false"] { display: none; }
 
@@ -357,8 +376,10 @@
         </button>
         <div class="artists-body">
           <div class="artists-inner">
-            <span class="artists-tools"><button type="button" data-all>Tout cocher</button><button type="button" data-none>Tout décocher</button></span>
-            <input class="artists-search" type="search" placeholder="Chercher un artiste" aria-label="Chercher un artiste" hidden>
+            <div class="artists-bar">
+              <input class="artists-search" type="search" placeholder="Chercher un artiste" aria-label="Chercher un artiste" hidden>
+              <span class="artists-tools"><button type="button" data-all>Tout cocher</button><button type="button" data-none>Tout décocher</button></span>
+            </div>
             <div class="artist-chips" role="group" aria-label="Artistes à entendre"></div>
           </div>
         </div>
@@ -404,8 +425,10 @@
         </button>
         <div class="artists-body">
           <div class="artists-inner">
-            <span class="artists-tools"><button type="button" data-all>Tout cocher</button><button type="button" data-none>Tout décocher</button></span>
-            <input class="artists-search" type="search" placeholder="Chercher un artiste" aria-label="Chercher un artiste" hidden>
+            <div class="artists-bar">
+              <input class="artists-search" type="search" placeholder="Chercher un artiste" aria-label="Chercher un artiste" hidden>
+              <span class="artists-tools"><button type="button" data-all>Tout cocher</button><button type="button" data-none>Tout décocher</button></span>
+            </div>
             <div class="artist-chips" role="group" aria-label="Artistes à entendre"></div>
           </div>
         </div>
@@ -587,7 +610,8 @@
     const sig = catId + '|' + [...chosen].join(',') + '|' + q + '|' + readOnly;
     if (wrap.dataset.sig === sig) return;
     wrap.dataset.sig = sig;
-    wrap.replaceChildren(...list.filter((a) => !q || a.nom.toLowerCase().includes(q)).map((a) => {
+    const byName = (x, y) => x.nom.localeCompare(y.nom, 'fr', { sensitivity: 'base', numeric: true });
+    wrap.replaceChildren(...list.filter((a) => !q || a.nom.toLowerCase().includes(q)).sort(byName).map((a) => {
       const b = document.createElement('button');
       b.type = 'button';
       b.className = 'artist-chip';
