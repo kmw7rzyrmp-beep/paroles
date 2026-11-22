@@ -250,6 +250,29 @@ export function createBlindtest({ getJson, sameSong, clientIp, sessionUser, find
       popularity.set(songKey(song), Number(t.rank) || 0);
       added++;
     }
+    // artiste avec un grand objectif (> 100) : le « top » de Deezer s'arrête à 100, alors on va chercher aussi ses albums
+    if (target > 100 && have + added < target) {
+      try {
+        const albums = await deezer(`https://api.deezer.com/artist/${match.id}/albums?limit=100`);
+        for (const al of albums.data || []) {
+          if (have + added >= target) break;
+          const tr = await deezer(`https://api.deezer.com/album/${al.id}/tracks?limit=100`);
+          for (const t of tr.data || []) {
+            if (have + added >= target) break;
+            if (!t.preview || t.artist?.id !== match.id) continue;
+            const titre = String(t.title_short || t.title || '').trim();
+            if (!titre || titre.length > 60 || NOT_A_REAL_SONG.test(t.title || titre)) continue;
+            const key = baseTitle(titre);
+            if (!key || seen.has(key)) continue;
+            seen.add(key);
+            const song = { titre, artiste, auto: true };
+            cat.chansons.push(song);
+            popularity.set(songKey(song), Number(t.rank) || 0);
+            added++;
+          }
+        }
+      } catch (err) { console.error(`Blind test, albums de ${artiste} :`, err.message); }
+    }
     return added;
   }
 

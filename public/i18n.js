@@ -720,10 +720,14 @@
     return null;
   }
 
+  // version DZ (parodie algérienne, voir dz.js) : seulement les textes listés, le reste reste en français
+  const trDz = (s) => { const d = window.DZ && window.DZ.dict; const k = norm(s); return d && Object.prototype.hasOwnProperty.call(d, k) ? d[k] : null; };
+  const trLang = (s) => (lang === 'en' ? tr(s) : lang === 'dz' ? trDz(s) : null);
+
   // langue choisie avant, sinon celle du navigateur (français si le navigateur est en français, anglais sinon)
   let lang = null;
   try { lang = localStorage.getItem('lang'); } catch {}
-  if (lang !== 'fr' && lang !== 'en') lang = (navigator.language || 'fr').slice(0, 2) === 'fr' ? 'fr' : 'en';
+  if (lang !== 'fr' && lang !== 'en' && lang !== 'dz') lang = (navigator.language || 'fr').slice(0, 2) === 'fr' ? 'fr' : 'en';
 
   // texte d'origine (français) et dernière version écrite, pour pouvoir revenir en arrière
   const origText = new WeakMap(), lastText = new WeakMap();
@@ -735,8 +739,8 @@
     if (!origText.has(node) || node.data !== lastText.get(node)) origText.set(node, node.data); // le site a changé le texte
     const o = origText.get(node);
     let out = o;
-    if (lang === 'en') {
-      const en = p.dataset.en && p.childNodes.length === 1 ? p.dataset.en : tr(o);
+    if (lang !== 'fr') {
+      const en = lang === 'en' && p.dataset.en && p.childNodes.length === 1 ? p.dataset.en : trLang(o);
       if (en != null) out = o.match(/^\s*/)[0] + en + o.match(/\s*$/)[0];
     }
     lastText.set(node, out);
@@ -748,7 +752,7 @@
     const o0 = origAttr.get(el) || {}, l0 = lastAttr.get(el) || {};
     if (!(name in o0) || cur !== l0[name]) o0[name] = cur;
     const o = o0[name];
-    const out = lang === 'en' ? (tr(o) ?? o) : o;
+    const out = lang !== 'fr' ? (trLang(o) ?? o) : o;
     l0[name] = out;
     origAttr.set(el, o0); lastAttr.set(el, l0);
     if (cur !== out) el.setAttribute(name, out);
@@ -766,10 +770,12 @@
 
   let docTitle = null;
   function applyAll() {
-    document.documentElement.lang = lang;
+    document.documentElement.lang = lang === 'dz' ? 'fr' : lang; // « dz » n'est pas une vraie langue du navigateur : le site DZ reste en français
+    document.documentElement.dataset.site = lang;
     if (docTitle === null) docTitle = document.title;
-    document.title = lang === 'en' ? (tr(docTitle) ?? docTitle) : docTitle;
+    document.title = lang !== 'fr' ? (trLang(docTitle) ?? (lang === 'dz' ? docTitle + ' DZ 🇩🇿' : docTitle)) : docTitle;
     walk(document.documentElement);
+    window.dispatchEvent(new CustomEvent('ss-lang', { detail: { lang } }));
   }
 
   // tout ce qui s'affiche ensuite est traduit au fur et à mesure
@@ -783,8 +789,8 @@
 
   // fenêtres de confirmation du navigateur
   const nativeConfirm = window.confirm.bind(window), nativeAlert = window.alert.bind(window);
-  window.confirm = (m) => nativeConfirm(lang === 'en' ? (tr(String(m)) ?? m) : m);
-  window.alert = (m) => nativeAlert(lang === 'en' ? (tr(String(m)) ?? m) : m);
+  window.confirm = (m) => nativeConfirm(lang !== 'fr' ? (trLang(String(m)) ?? m) : m);
+  window.alert = (m) => nativeAlert(lang !== 'fr' ? (trLang(String(m)) ?? m) : m);
   window.siteLang = () => lang;
 
   // --- Les petits drapeaux ---
@@ -792,6 +798,7 @@
     fr: '<svg viewBox="0 0 30 20" aria-hidden="true"><rect width="10" height="20" fill="#0055A4"/><rect x="10" width="10" height="20" fill="#fff"/><rect x="20" width="10" height="20" fill="#EF4135"/></svg>',
     en: '<svg viewBox="0 0 60 40" aria-hidden="true"><rect width="60" height="40" fill="#012169"/><path d="M0 0l60 40M60 0L0 40" stroke="#fff" stroke-width="8"/><path d="M0 0l60 40M60 0L0 40" stroke="#C8102E" stroke-width="3"/><path d="M30 0v40M0 20h60" stroke="#fff" stroke-width="12"/><path d="M30 0v40M0 20h60" stroke="#C8102E" stroke-width="7"/></svg>',
   };
+  FLAGS.dz = '<svg viewBox="0 0 30 20" aria-hidden="true"><defs><mask id="dzCres"><rect width="30" height="20" fill="#000"/><circle cx="15" cy="10" r="5.6" fill="#fff"/><circle cx="16.7" cy="10" r="4.5" fill="#000"/></mask></defs><rect width="15" height="20" fill="#006233"/><rect x="15" width="15" height="20" fill="#fff"/><rect width="30" height="20" fill="#D21034" mask="url(#dzCres)"/><polygon points="18.6,10 16.3,9.2 16.3,6.9 17.7,8.8 20,8.1 18.6,10 20,11.9 17.7,11.2 16.3,13.1 16.3,10.8" fill="#D21034"/></svg>';
   function mountSwitch() {
     const bar = document.querySelector('.topbar');
     if (!bar || bar.querySelector('.lang-switch')) return;
@@ -803,7 +810,8 @@
     box.dataset.lang = lang;
     box.innerHTML = '<span class="lang-thumb" aria-hidden="true"></span>'
       + `<button type="button" data-l="fr" aria-label="Français" title="Français">${FLAGS.fr}</button>`
-      + `<button type="button" data-l="en" aria-label="English" title="English">${FLAGS.en}</button>`;
+      + `<button type="button" data-l="en" aria-label="English" title="English">${FLAGS.en}</button>`
+      + `<button type="button" data-l="dz" aria-label="Algérie (version humour)" title="Version DZ 🇩🇿 (humour)">${FLAGS.dz}</button>`;
     // la pastille glisse tout de suite vers le drapeau choisi (le texte change juste après)
     const sync = (l = lang) => { box.dataset.lang = l; box.querySelectorAll('button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.l === l))); };
     box.addEventListener('click', (e) => {
@@ -811,6 +819,7 @@
       if (!b || b.dataset.l === box.dataset.lang) return;
       sync(b.dataset.l);
       setLang(b.dataset.l);
+      if (b.dataset.l === 'dz' && window.ssDzParty) setTimeout(window.ssDzParty, 350);
     });
     sync();
     bar.append(box);
@@ -834,15 +843,16 @@
   // style du sélecteur et de la transition
   const css = document.createElement('style');
   css.textContent = `
-    .lang-switch { position: relative; display: inline-grid; grid-template-columns: 1fr 1fr; gap: 0; padding: 3px; border-radius: 999px; background: rgba(0,0,0,.45); box-shadow: inset 0 0 0 1px rgba(255,255,255,.12); }
+    .lang-switch { position: relative; display: inline-grid; grid-template-columns: 1fr 1fr 1fr; gap: 0; padding: 3px; border-radius: 999px; background: rgba(0,0,0,.45); box-shadow: inset 0 0 0 1px rgba(255,255,255,.12); }
     .lang-switch button { position: relative; z-index: 1; display: grid; place-items: center; width: 2.4rem; height: 1.9rem; min-height: 0; padding: 0; margin: 0; border: 0; border-radius: 999px; background: transparent; box-shadow: none; cursor: pointer; opacity: .55; filter: saturate(.4); transition: opacity .25s, filter .25s, transform .2s; }
     .lang-switch button:hover { opacity: .9; filter: none; transform: none; background: transparent; }
     .lang-switch button:active { transform: scale(.9); background: transparent; border: 0; box-shadow: none; }
     .lang-switch button[aria-pressed="true"] { opacity: 1; filter: none; }
     .lang-switch svg { width: 1.45rem; height: auto; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,.4); }
     .lang-switch button[aria-pressed="true"] svg { animation: flagPop .45s cubic-bezier(.2, .9, .3, 1.5); }
-    .lang-thumb { position: absolute; top: 3px; left: 3px; width: calc(50% - 3px); height: calc(100% - 6px); border-radius: 999px; background: rgba(255,255,255,.16); box-shadow: 0 0 0 1px rgba(242, 140, 28, .7); transition: transform .35s cubic-bezier(.3, .9, .3, 1.2); }
+    .lang-thumb { position: absolute; top: 3px; left: 3px; width: calc(33.333% - 2px); height: calc(100% - 6px); border-radius: 999px; background: rgba(255,255,255,.16); box-shadow: 0 0 0 1px rgba(242, 140, 28, .7); transition: transform .35s cubic-bezier(.3, .9, .3, 1.2); }
     .lang-switch[data-lang="en"] .lang-thumb { transform: translateX(100%); }
+    .lang-switch[data-lang="dz"] .lang-thumb { transform: translateX(200%); }
     @keyframes flagPop { 0% { transform: scale(.6) rotate(-12deg); } 60% { transform: scale(1.15) rotate(4deg); } 100% { transform: none; } }
     body.lang-out main, body.lang-out dialog[open] { opacity: 0; filter: blur(3px); transform: translateY(4px); transition: opacity .17s ease, filter .17s ease, transform .17s ease; }
     body.lang-in main, body.lang-in dialog[open] { animation: langIn .38s ease; }

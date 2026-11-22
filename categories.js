@@ -19,7 +19,7 @@ export const CATEGORIES = [
     // Artistes dont TOUS les sons viennent automatiquement de Deezer (leurs 60 sons les plus écoutés)
     artistesAuto: ['Bedry', '63KLUF', 'Inocasablanca', 'Faygee', 'DJUNO', 'Supremenova', 'Khali', 'Josman', 'Jolagreen23', 'Esdeekid'],
     // Nombre de sons voulu pour certains artistes (sinon 60)
-    maxParArtiste: { Esdeekid: 40 },
+    maxParArtiste: { Esdeekid: 40, Faygee: 300 }, // Faygee : le plus de sons possible (top + albums de Deezer)
     chansons: [
       // --- PNL ---
       { titre: 'Au DD', artiste: 'PNL' },

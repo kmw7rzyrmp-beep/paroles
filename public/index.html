@@ -14,6 +14,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Star Song">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<script src="/dz.js"></script>
 <script src="/i18n.js"></script>
 <script src="/ui.js"></script>
 <script src="/profile.js" defer></script>
@@ -28,7 +29,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/app.css?v=14">
+<link rel="stylesheet" href="/app.css?v=15">
 <style>
   /* ---------- Accueil : le grand bandeau orange avec la recherche ---------- */
   .hero {
@@ -620,14 +621,19 @@
     "Qui a dit qu’il fallait retenir tous les titres ? Pas nous.",
     "On a tous un son qu’on cherche. Voici le tien."
 ];
-  (function () {
+  const showPhrase = () => {
+    const nb = (t) => t.replace(/ ([?!:;»])/g, '\u00a0$1').replace(/« /g, '«\u00a0'); // espaces insécables : jamais de « ? » seul en début de ligne
+    if (window.siteLang && window.siteLang() === 'dz' && window.ssDzPhrase) { document.getElementById('titre').textContent = nb(window.ssDzPhrase()); return; }
     let last = -1;
     try { last = Number(localStorage.getItem('phraseIdx')); } catch { /* pas grave */ }
     let i;
     do { i = Math.floor(Math.random() * PHRASES.length); } while (i === last && PHRASES.length > 1);
-    document.getElementById('titre').textContent = PHRASES[i].replace(/ ([?!:;»])/g, '\u00a0$1').replace(/« /g, '«\u00a0'); // espaces insécables : jamais de « ? » seul en début de ligne
+    document.getElementById('titre').textContent = nb(PHRASES[i]);
     try { localStorage.setItem('phraseIdx', String(i)); } catch { /* pas grave */ }
-  })();
+  };
+  showPhrase();
+  let lastSite = window.siteLang && window.siteLang();
+  window.addEventListener('ss-lang', (e) => { const dz = e.detail.lang === 'dz' || lastSite === 'dz'; lastSite = e.detail.lang; if (dz) showPhrase(); });
 
   const form = document.getElementById('form');
   const input = document.getElementById('q');
