@@ -105,35 +105,7 @@
       lastCount = s.count;
       if (s.today && s.count) celebrateFlame(s.count);
       if (me.gift === 'flame-1') showGift(s);
-      if (me.newTrophies && me.newTrophies.length) showTrophies(me.newTrophies);
     } catch { /* hors ligne */ }
-  }
-  // trophées gagnés : un toast, puis on prévient le serveur que c'est vu
-  let trophyBusy = false;
-  function showTrophies(list) {
-    if (trophyBusy) return;
-    trophyBusy = true;
-    api('/api/push/trophy-seen', {}).catch(() => {});
-    let stack = document.querySelector('.toast-stack');
-    if (!stack) { stack = $('div', 'toast-stack'); document.body.append(stack); }
-    list.slice(0, 3).forEach((t, i) => setTimeout(() => {
-      const box = $('div', 'invite-toast gift-toast trophy-toast');
-      box.setAttribute('role', 'alert');
-      const ic = $('span', 'gift-ic', t.icon); ic.setAttribute('aria-hidden', 'true');
-      const txt = $('div');
-      const p = $('p'); p.append($('b', '', 'Trophée gagné : ' + t.name));
-      txt.append(p, $('small', '', t.desc));
-      const row = $('div', 'it-actions');
-      const close = () => { box.classList.add('out'); setTimeout(() => box.remove(), 250); };
-      const see = $('button', 'it-main', 'Voir mes trophées'); see.type = 'button';
-      see.onclick = () => { close(); window.openProfile && window.openProfile(); };
-      const ok = $('button', '', 'OK'); ok.type = 'button'; ok.onclick = close;
-      row.append(see, ok);
-      box.append(ic, txt, row);
-      stack.append(box);
-      setTimeout(() => box.isConnected && close(), 12_000);
-    }, i * 1200));
-    setTimeout(() => { trophyBusy = false; me && (me.newTrophies = []); }, 6000);
   }
   // le cadeau de lancement : une flamme offerte, expliquée une seule fois
   let giftShown = false;

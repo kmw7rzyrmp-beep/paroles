@@ -54,7 +54,6 @@ const STYLE = {
   streak: { vibrate: [200, 100, 200],     action: 'Garder ma flamme' },
   patch:  { vibrate: [100, 50, 100, 50, 300], action: 'Lire le patch note' },
   idea:   { vibrate: [90, 50, 90],        action: 'Voir l\'idée' },
-  trophy: { vibrate: [100, 40, 100, 40, 300], action: 'Voir mes trophées' },
   admin:  { vibrate: [150, 60, 150],      action: 'Ouvrir' },
 };
 self.addEventListener('push', (event) => {

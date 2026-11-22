@@ -429,8 +429,8 @@ export function badgesOf(u, limit = 60) {
 }
 
 // --- Notifications sur le téléphone / l'ordinateur (Web Push) ---
-const NOTIF_TYPES = ['req', 'inv', 'msg', 'streak', 'idea', 'trophy'];
-const prefsOf = (u) => ({ req: true, inv: true, msg: true, streak: true, idea: true, trophy: true, ...(u.notif || {}) });
+const NOTIF_TYPES = ['req', 'inv', 'msg', 'streak', 'idea'];
+const prefsOf = (u) => ({ req: true, inv: true, msg: true, streak: true, idea: true, ...(u.notif || {}) });
 // on prévient seulement si la personne n'est pas déjà sur le site (sinon elle voit la notification dans la page)
 // --- Historique des notifications (visible dans l'onglet « Notifications ») ---
 // On garde les 100 dernières. Plusieurs messages d'une même personne se regroupent en une seule ligne.
@@ -481,7 +481,7 @@ const NOTIF_WORDS = {
   acc: ['Vous pouvez vous écrire et jouer ensemble.', 'C’est le moment de lancer un blind test 🎯', 'Dis-lui bonjour, il est dans ta liste d’amis !'],
   inv: ['Rejoins la partie avant qu’elle commence !', 'Le salon t’attend, dépêche-toi 🎯', 'Vite, la partie va bientôt démarrer !'],
 };
-const NOTIF_STYLE = { req: { emoji: '🤝' }, acc: { emoji: '✅' }, inv: { emoji: '🎯' }, msg: { emoji: '💬' }, streak: { emoji: '🔥' }, patch: { emoji: '🆕' }, idea: { emoji: '💡' }, trophy: { emoji: '🏆' } };
+const NOTIF_STYLE = { req: { emoji: '🤝' }, acc: { emoji: '✅' }, inv: { emoji: '🎯' }, msg: { emoji: '💬' }, streak: { emoji: '🔥' }, patch: { emoji: '🆕' }, idea: { emoji: '💡' } };
 function buildPayload(type, data, image) {
   const kind = data.kind || type; // « acc » = demande acceptée (même réglage que « req »)
   const emoji = (NOTIF_STYLE[kind] || {}).emoji || '';
@@ -609,11 +609,6 @@ async function handlePush(req, res, url, me) {
   }
   if (action === 'inbox-seen') { // la personne a vu le message de l'admin
     me.inbox = (me.inbox || []).filter((x) => x.id !== body.id);
-    saveSoon();
-    return send(res, 200, { ok: true });
-  }
-  if (action === 'trophy-seen') {
-    me.trophyNew = [];
     saveSoon();
     return send(res, 200, { ok: true });
   }
@@ -1016,7 +1011,7 @@ function sameSiteJson(req) {
   try { return new URL(origin).host === req.headers.host; } catch { return false; }
 }
 
-const publicUser = (u) => (u ? { username: u.username || '', email: u.email || '', name: u.username ? '@' + u.username : u.email, ...(u.username ? { streak: streakOf(u), ...(u.gift ? { gift: u.gift } : {}), ...((u.inbox || []).length ? { inbox: u.inbox } : {}), ...((u.trophyNew || []).length ? { newTrophies: newTrophiesOf(u) } : {}), notifUnread: notifUnread(u) } : {}), ...(isAdmin(u) ? { admin: true } : {}) } : null);
+const publicUser = (u) => (u ? { username: u.username || '', email: u.email || '', name: u.username ? '@' + u.username : u.email, ...(u.username ? { streak: streakOf(u), ...(u.gift ? { gift: u.gift } : {}), ...((u.inbox || []).length ? { inbox: u.inbox } : {}), notifUnread: notifUnread(u) } : {}), ...(isAdmin(u) ? { admin: true } : {}) } : null);
 const normEmail = (e) => String(e || '').trim().toLowerCase();
 const validEmail = (e) => e.length <= 254 && /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(e);
 // Identifiant : 3 à 30 caractères, sans @ (pour ne jamais être confondu avec un e-mail)
@@ -1115,59 +1110,6 @@ export function findFriend(userId, username) {
 }
 
 
-// --- Trophées : des succès calculés à partir des stats du joueur ---
-// Pour en ajouter un : une ligne dans TROPHIES (id unique, icône, nom, description, valeur à atteindre).
-const TROPHIES = [
-  { id: 'games-1', icon: '🎮', name: 'Première partie', desc: 'Joue ton premier blind test.', stat: 'games', need: 1 },
-  { id: 'games-10', icon: '🎧', name: 'Habitué', desc: 'Joue 10 blind tests.', stat: 'games', need: 10 },
-  { id: 'games-50', icon: '🕹️', name: 'Accro', desc: 'Joue 50 blind tests.', stat: 'games', need: 50 },
-  { id: 'wins-1', icon: '🥇', name: 'Première victoire', desc: 'Gagne un blind test.', stat: 'wins', need: 1 },
-  { id: 'wins-10', icon: '🏆', name: 'Champion', desc: 'Gagne 10 blind tests.', stat: 'wins', need: 10 },
-  { id: 'wins-25', icon: '👑', name: 'Légende', desc: 'Gagne 25 blind tests.', stat: 'wins', need: 25 },
-  { id: 'points-1000', icon: '💯', name: 'Premier millier', desc: 'Gagne 1 000 points au blind test.', stat: 'points', need: 1000 },
-  { id: 'points-10000', icon: '🚀', name: 'Étoile montante', desc: 'Gagne 10 000 points au blind test.', stat: 'points', need: 10000 },
-  { id: 'streak-3', icon: '🔥', name: 'Ça chauffe', desc: 'Garde ta flamme 3 jours de suite.', stat: 'streak', need: 3 },
-  { id: 'streak-7', icon: '☄️', name: 'Semaine en feu', desc: 'Garde ta flamme 7 jours de suite.', stat: 'streak', need: 7 },
-  { id: 'streak-30', icon: '🌋', name: 'Inextinguible', desc: 'Garde ta flamme 30 jours de suite.', stat: 'streak', need: 30 },
-  { id: 'friends-1', icon: '🤝', name: 'Pas seul', desc: 'Ajoute ton premier ami.', stat: 'friends', need: 1 },
-  { id: 'friends-5', icon: '🎉', name: 'Sociable', desc: 'Aie 5 amis sur Star Song.', stat: 'friends', need: 5 },
-  { id: 'favs-10', icon: '❤️', name: 'Collectionneur', desc: 'Mets 10 sons en favoris.', stat: 'favs', need: 10 },
-  { id: 'searches-10', icon: '🔎', name: 'Détective', desc: 'Fais 10 recherches par paroles.', stat: 'searches', need: 10 },
-  { id: 'ideas-1', icon: '💡', name: 'Cerveau du site', desc: 'Propose une idée dans la boîte à idées.', stat: 'ideas', need: 1 },
-  { id: 'time-1h', icon: '⏱️', name: 'Un peu de temps', desc: 'Passe 1 heure sur Star Song.', stat: 'timeH', need: 1 },
-];
-function trophyStats(u) {
-  return {
-    games: u.bt?.games || 0, wins: u.bt?.wins || 0, points: u.bt?.points || 0,
-    streak: Math.max(u.streak?.best || 0, streakOf(u).count),
-    friends: (u.friends || []).length,
-    favs: u.data?.favorites?.length || 0,
-    searches: u.data?.searches || 0,
-    ideas: ideas.filter((i) => i.userId === u.id).length,
-    timeH: Math.floor((u.timeMs || 0) / 3600_000),
-  };
-}
-export function trophiesOf(u) {
-  const st = trophyStats(u);
-  return TROPHIES.map((t) => ({ id: t.id, icon: t.icon, name: t.name, desc: t.desc, have: Math.min(st[t.stat], t.need), need: t.need, at: (u.trophies || {})[t.id] || 0 }));
-}
-// gagne les nouveaux trophées (et prévient la personne) ; renvoie ceux qui viennent d'être gagnés
-export function checkTrophies(u) {
-  if (!u || !u.username) return [];
-  const st = trophyStats(u);
-  const got = [];
-  for (const t of TROPHIES) {
-    if ((u.trophies || {})[t.id] || st[t.stat] < t.need) continue;
-    (u.trophies ||= {})[t.id] = Date.now();
-    (u.trophyNew ||= []).push(t.id);
-    got.push(t);
-    notifyUser(u.id, 'trophy', { title: `Trophée gagné : ${t.name}`, body: t.desc, url: '/', tag: 'trophy:' + t.id, kind: 'trophy', randomBody: false }, { evenIfOnline: true });
-  }
-  if (got.length) saveSoon();
-  return got;
-}
-const newTrophiesOf = (u) => (u.trophyNew || []).map((id) => TROPHIES.find((t) => t.id === id)).filter(Boolean).map((t) => ({ id: t.id, icon: t.icon, name: t.name, desc: t.desc }));
-
 // --- Classement mondial du blind test : stats gardées dans chaque compte ---
 export async function recordBlindtest(userId, { points, won }) {
   const u = usersById.get(userId);
@@ -1178,7 +1120,6 @@ export async function recordBlindtest(userId, { points, won }) {
   if (won) bt.wins += 1;
   bt.best = Math.max(bt.best, Math.round(points) || 0);
   recordActivity(userId);
-  checkTrophies(u);
   try { await persist(); } catch (err) { console.error('Classement : sauvegarde impossible :', err.message); }
 }
 
@@ -1605,7 +1546,6 @@ function publicProfile(u, viewer) {
     timeOnSite: Math.round((u.timeMs || 0) / 1000), // en secondes
     streak: streakOf(u),
     badges: badgesOf(u),
-    trophies: trophiesOf(u),
     isMe,
     relation: isMe ? 'me' : isFriend ? 'friend'
       : viewer && (viewer.outgoing || []).includes(u.id) ? 'outgoing'
@@ -1708,7 +1648,7 @@ export async function handleAuth(req, res, url) {
 
     if (path === '/api/me') {
       if (req.method !== 'GET') throw new HttpError(405, 'Méthode non autorisée.');
-      { const cu = currentUser(req); if (cu) checkTrophies(cu); return send(res, 200, { user: publicUser(cu) }); }
+      return send(res, 200, { user: publicUser(currentUser(req)) });
     }
 
     if (isPush) return await handlePush(req, res, url, currentUser(req));

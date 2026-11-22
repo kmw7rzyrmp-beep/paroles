@@ -156,29 +156,6 @@
       body.append(fs);
     }
 
-    // trophées
-    if (p.trophies && p.trophies.length) {
-      const ts2 = el('section', 'pp-section');
-      const won = p.trophies.filter((t) => t.at).length;
-      ts2.append(el('h3', '', `🏆 Trophées (${won}/${p.trophies.length})`));
-      const grid = el('div', 'pp-trophies');
-      [...p.trophies].sort((x, y) => (y.at ? 1 : 0) - (x.at ? 1 : 0)).forEach((t) => {
-        const c = el('div', 'pp-trophy' + (t.at ? ' got' : ''));
-        c.title = t.desc;
-        const ic = el('span', 'pt-ic', t.at ? t.icon : '🔒'); ic.setAttribute('aria-hidden', 'true');
-        const tx = el('div', 'pt-tx');
-        tx.append(el('b', '', t.name), el('small', '', t.at ? t.desc : (p.relation === 'me' ? t.desc : 'À débloquer')));
-        c.append(ic, tx);
-        if (!t.at && p.relation === 'me') {
-          const bar = el('i', 'pt-bar'); const f = el('u'); f.style.width = Math.round(100 * t.have / t.need) + '%'; bar.append(f);
-          tx.append(bar, el('em', '', `${t.have} / ${t.need}`));
-        }
-        grid.append(c);
-      });
-      ts2.append(grid);
-      body.append(ts2);
-    }
-
     // sons préférés
     const sec = el('section', 'pp-section');
     sec.append(el('h3', '', 'Sons préférés'));
