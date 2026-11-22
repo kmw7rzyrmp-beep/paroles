@@ -4,8 +4,8 @@
 window.DZ = {
   dict: {
     'Accueil': 'Dar (Accueil)',
-    'Paroles': 'Les paroles, wallah',
-    'Blind test': 'Blind test wallah',
+    'Paroles': 'Les paroles (sur la tête de ma mère)',
+    'Blind test': 'Blind test (sans tricher, ya khi)',
     'Playlists': 'Les playlists de tonton',
     'Classement': 'Classement des Fennecs',
     'Social': 'Le douar',
@@ -25,7 +25,7 @@ window.DZ = {
     'J’ai déjà un compte': 'Khoya, j’ai déjà un compte',
     'Bienvenue sur Star Song': 'Marhba sur Star Song 🇩🇿',
     'Trouver': 'Chkoun hada ?',
-    'Écouter': 'Écouter, wallah',
+    'Écouter': 'Écouter (baisse, la voisine dort)',
     'Favoris': 'Mes préférés, hbibi',
     'Favori': 'Hbibi',
     'Résultats': 'Ce qu’on a trouvé, inchallah',
@@ -43,7 +43,7 @@ window.DZ = {
     'Code de la partie': 'Code du salon (pas le code de la route)',
     'Ton pseudo': 'Ton blaze',
     'Pseudo': 'Blaze',
-    'Mot de passe': 'Mot de passe (pas 123456, wallah)',
+    'Mot de passe': 'Mot de passe (pas 123456, ya hasra)',
     'Facile': 'Facile (thé à la menthe)',
     'Intermédiaire': 'Intermédiaire (couscous)',
     'HARRR MODE': 'HARRR MODE (harissa)',
@@ -69,7 +69,7 @@ window.DZ = {
     'Jeu entre potes': 'Jeu entre khawa',
     'Blind test entre potes': 'Blind test entre khawa',
     'Blind test express': 'Blind test chrono, même pas le temps de dire inchallah',
-    'Recherche par paroles': 'Recherche par paroles, wallah',
+    'Recherche par paroles': 'Recherche par paroles, même sans le GPS',
     'Rap FR': 'Rap FR / DZ',
     'Battle royale': 'Battle royale (sans pitié, comme le marché du vendredi)',
     'Prépare-toi…': 'Prépare-toi, inchallah…',
@@ -103,7 +103,7 @@ window.DZ = {
     'Tu connais le refrain par cœur mais pas le titre ? Même tonton au karaoké fait mieux.',
     'Le refrain, c’est facile. Le titre, c’est comme trouver une place de parking à Alger-Centre.',
     'Tape les paroles, on s’occupe du reste. Inchallah ça trouve du premier coup.',
-    'Un banger dans la tête et zéro titre en mémoire ? Wallah, ça arrive aux meilleurs.',
+    'Un banger dans la tête et zéro titre en mémoire ? Ya latif, ça arrive aux meilleurs.',
     'Plus rapide que la file d’attente à la poste. Et ça, c’est pas difficile.',
     'Ton oreille est bonne, ta mémoire un peu moins. Reprends du couscous, ça aide.',
     'Tu as entendu ce son au mariage de ta cousine, avoue.',
@@ -115,7 +115,7 @@ window.DZ = {
     'Les paroles, c’est ton rayon. Les titres, le nôtre. Les samsas, celui de maman.',
     'Ton cerveau est un bon DJ, mais un mauvais libraire. Comme le cousin.',
     'On retrouve ton son aussi vite qu’un but des Fennecs. Allez les Verts !',
-    'Le son parfait pour la soirée existe. Il lui manque juste un nom, wallah.',
+    'Le son parfait pour la soirée existe. Il lui manque juste un nom, comme le nouveau-né du voisin.',
     'Un son sans titre, c’est un mariage sans zorna. Retrouvons-le.',
     'Tu fredonnes, on cherche. Tu dors, on cherche encore. Hamdoullah.',
   ],
@@ -137,6 +137,7 @@ window.DZ = {
 
   // bandeau vert-blanc-rouge qui défile tout en haut
   function ribbon(on) {
+    if (!document.body) return; // la page se charge encore : on réessaie à la fin du chargement
     let r = document.querySelector('.dz-ribbon');
     if (!on) { if (r) r.remove(); return; }
     if (r) return;

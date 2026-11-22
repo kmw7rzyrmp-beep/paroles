@@ -723,3 +723,10 @@ html[data-site="dz"] .dz-card b { color: #8fe3b0; }
 .lang-switch { gap: 0; }
 @media (max-width: 860px) { .dz-track span { font-size: .7rem; } }
 @media (prefers-reduced-motion: reduce) { .dz-track { animation: none; } }
+
+/* bouton de la musique DZ */
+.dz-music-btn { position: fixed; left: 16px; bottom: 16px; z-index: 90; width: 3rem; height: 3rem; min-height: 0; padding: 0; border-radius: 50%; font-size: 1.3rem; display: grid; place-items: center; background: #0f9a52; color: #fff; box-shadow: 0 8px 22px rgba(0,0,0,.45), 0 0 0 3px rgba(255,255,255,.15); animation: dzBeat 1.6s ease-in-out infinite; }
+.dz-music-btn.off { background: #2a2a2e; animation: none; }
+@keyframes dzBeat { 50% { transform: scale(1.1); } }
+@media (max-width: 860px) { .dz-music-btn { bottom: 92px; left: 12px; width: 2.7rem; height: 2.7rem; } }
+@media (prefers-reduced-motion: reduce) { .dz-music-btn { animation: none; } }
