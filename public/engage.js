@@ -62,6 +62,38 @@
     chip.setAttribute('aria-label', label);
     if (popIt) { chip.classList.remove('pop'); void chip.offsetWidth; chip.classList.add('pop'); }
   }
+
+  // ---------- la fête : une pluie de flammes quand on gagne sa flamme du jour ----------
+  const parisDay = () => new Date().toLocaleDateString('sv-SE', { timeZone: 'Europe/Paris' });
+  const FLAME_WORDS = ['Bravo, ta flamme est allumée !', 'Tu es en feu !', 'Une flamme de plus, bien joué !', 'Ça chauffe, continue comme ça !', 'Flamme gagnée, tu assures !'];
+  function celebrateFlame(n) {
+    if (!me) return;
+    const key = 'ss-flame-day:' + me.username;
+    let seen = '';
+    try { seen = localStorage.getItem(key) || ''; } catch { /* stockage bloqué */ }
+    const today = parisDay();
+    if (seen === today) return;
+    try { localStorage.setItem(key, today); } catch { /* pas grave */ }
+    const calm = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const box = $('div', 'fl-party'); box.setAttribute('aria-hidden', 'true');
+    if (!calm) {
+      for (let i = 0; i < 34; i++) {
+        const f = $('span', 'fl-p', i % 7 === 3 ? '✨' : '🔥');
+        f.style.cssText = `left:${Math.random() * 100}%;font-size:${1.1 + Math.random() * 2.2}rem;animation-delay:${(Math.random() * 1.3).toFixed(2)}s;animation-duration:${(2.4 + Math.random() * 1.8).toFixed(2)}s;--sway:${(Math.random() * 90 - 45).toFixed(0)}px`;
+        box.append(f);
+      }
+    }
+    const card = $('div', 'fl-card');
+    card.append($('div', 'fl-big', '🔥'), $('b', '', n > 1 ? `${n} jours de suite !` : 'Première flamme !'), $('p', '', FLAME_WORDS[Math.floor(Math.random() * FLAME_WORDS.length)]));
+    box.append(card);
+    document.body.append(box);
+    try { navigator.vibrate && navigator.vibrate([80, 40, 80, 40, 200]); } catch { /* pas de vibreur */ }
+    const chip = document.querySelector('#account .flame-chip');
+    if (chip) { chip.classList.remove('pop'); void chip.offsetWidth; chip.classList.add('pop'); }
+    setTimeout(() => { box.classList.add('out'); setTimeout(() => box.remove(), 600); }, 3600);
+  }
+  window.ssCelebrateFlame = (n) => { try { localStorage.removeItem('ss-flame-day:' + (me && me.username)); } catch { /* */ } celebrateFlame(n || 1); }; // pour tester
+
   let lastCount = null;
   async function refreshMe() {
     try {
@@ -71,6 +103,7 @@
       const s = me.streak || { count: 0 };
       drawFlame(s, lastCount !== null && s.count > lastCount);
       lastCount = s.count;
+      if (s.today && s.count) celebrateFlame(s.count);
       if (me.gift === 'flame-1') showGift(s);
     } catch { /* hors ligne */ }
   }
@@ -104,6 +137,8 @@
   }
 
   refreshMe();
+  // la flamme peut aussi s'allumer en jouant (blind test) : on revérifie de temps en temps
+  setInterval(() => { if (!document.hidden && me) refreshMe(); }, 20_000);
   // après une recherche, la flamme peut s'allumer : on revérifie
   const realFetch = window.fetch;
   window.fetch = function (...args) {

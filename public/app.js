@@ -55,6 +55,7 @@
     else if (what === 'profile') { if (me && window.openProfile) window.openProfile(me.username); }
     else if (what === 'notifs') openNotifs();
     else if (what === 'admin') { if (location.pathname !== '/') location.href = '/#admin'; else go('admin'); }
+    else if (what === 'ideas') { if (meKnown && !me) { if (window.needLogin) window.needLogin('proposer une idée'); return; } if (location.pathname !== '/') location.href = '/#idees'; else go('idees'); }
     else if (what === 'patch') { if (location.pathname !== '/') location.href = '/#patch'; else go('patch'); }
     else if (what === 'ranking') { if (location.pathname !== '/') location.href = '/#classement'; else go('classement'); }
   }
@@ -62,14 +63,14 @@
   // ---------- les « grandes pages » (Amis, Notifications, Classement) ----------
   // Elles prennent toute la place du contenu, le menu de gauche reste là. L'adresse change (#amis…),
   // donc le bouton « retour » du téléphone ou du navigateur ramène à l'accueil.
-  const PAGES = { amis: 'friendsDialog', notifications: 'pageNotifs', classement: 'pageRanking', patch: 'pagePatch', admin: 'pageAdmin' };
+  const PAGES = { amis: 'friendsDialog', notifications: 'pageNotifs', classement: 'pageRanking', patch: 'pagePatch', idees: 'pageIdeas', admin: 'pageAdmin' };
   const frame = $('.frame');
   let current = '';
   function go(name) { if (location.hash !== '#' + name) location.hash = name; else route(); }
   function pageEl(name) { return document.getElementById(PAGES[name]); }
   function setNav(name) {
     $$('.nav a, .top-tabs a, .tabbar a, .tabbar button').forEach((a) => {
-      const target = a.dataset.pageLink || (a.dataset.open === 'friends' ? 'amis' : a.dataset.open === 'notifs' ? 'notifications' : a.dataset.open === 'ranking' ? 'classement' : a.dataset.open === 'patch' ? 'patch' : a.dataset.open === 'admin' ? 'admin' : '');
+      const target = a.dataset.pageLink || (a.dataset.open === 'friends' ? 'amis' : a.dataset.open === 'notifs' ? 'notifications' : a.dataset.open === 'ranking' ? 'classement' : a.dataset.open === 'patch' ? 'patch' : a.dataset.open === 'ideas' ? 'idees' : a.dataset.open === 'admin' ? 'admin' : '');
       const isHome = !target && (a.getAttribute('href') === '/' || a.textContent.trim() === 'Paroles');
       const on = name ? target === name : isHome;
       if (on) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current');
@@ -85,6 +86,8 @@
     const want = PAGES[name] ? name : '';
     if (want === 'admin' && meKnown && !(me && me.admin)) { window.history.replaceState(null, '', '/'); return route(); }
     if (want === 'admin' && !meKnown) return;
+    if (want === 'idees' && !meKnown) return;
+    if (want === 'idees' && !me) { window.history.replaceState(null, '', '/'); if (window.needLogin) window.needLogin('proposer une idée'); return route(); }
     if (want === 'amis' && !me) {
       if (!meKnown) return; // on attend de savoir qui est connecté
       window.history.replaceState(null, '', '/');
@@ -111,6 +114,7 @@
     if (want === 'notifications') { window.dispatchEvent(new Event('notif-open')); drawHistory(); }
     if (want === 'classement') window.dispatchEvent(new Event('ranking-open'));
     if (want === 'patch') drawPatch();
+    if (want === 'idees') window.dispatchEvent(new Event('ideas-open'));
     if (want === 'admin') {
       window.dispatchEvent(new Event('admin-open'));
       // filet de sécurité : si la page reste vide, on le dit (au lieu d'un écran noir)
@@ -429,6 +433,7 @@
     const item = (emoji, label, fn) => { const x2 = el('button'); x2.type = 'button'; x2.append(el('span', '', emoji), document.createTextNode(label)); x2.onclick = () => { close(); fn(); }; grid.append(x2); };
     item('🏆', 'Classement', () => open('ranking'));
     item('📋', 'Patch note', () => open('patch'));
+    item('💡', 'Idées', () => open('ideas'));
     if (me) item('👤', 'Mon profil', () => open('profile'));
     item('🎵', 'Playlists', () => { location.href = '/blindtest#playlistsBox'; });
     if (me && me.admin) item('🛡️', 'Admin', () => open('admin'));

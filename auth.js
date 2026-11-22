@@ -209,6 +209,7 @@ async function load() {
   vapid = db.vapid || null;
   migrations = new Set(db.migrations || []);
   if (db.live) Object.assign(live, db.live);
+  ideas = Array.isArray(db.ideas) ? db.ideas : [];
   if (!vapid) { vapid = newVapidKeys(); vapidIsNew = true; } // première fois : on crée les clés des notifications
   for (const u of db.users || []) {
     usersById.set(u.id, u);
@@ -231,6 +232,7 @@ function persist() {
     vapid,
     migrations: [...migrations],
     live,
+    ideas,
   });
   const job = writing.then(() => writeStore(snapshot));
   writing = job.catch(() => {});
@@ -302,6 +304,7 @@ const presence = (u) => {
 };
 // ===================== Flammes, badges, notifications =====================
 let vapid = null, vapidIsNew = false;
+let ideas = []; // les idées proposées par les joueurs (voir handleIdeas)
 let migrations = new Set(); // changements à faire une seule fois sur les comptes déjà créés
 let saveTimer = null;
 function saveSoon() { // une seule sauvegarde pour plein de petits changements
@@ -377,8 +380,8 @@ export function badgesOf(u, limit = 60) {
 }
 
 // --- Notifications sur le téléphone / l'ordinateur (Web Push) ---
-const NOTIF_TYPES = ['req', 'inv', 'msg', 'streak'];
-const prefsOf = (u) => ({ req: true, inv: true, msg: true, streak: true, ...(u.notif || {}) });
+const NOTIF_TYPES = ['req', 'inv', 'msg', 'streak', 'idea'];
+const prefsOf = (u) => ({ req: true, inv: true, msg: true, streak: true, idea: true, ...(u.notif || {}) });
 // on prévient seulement si la personne n'est pas déjà sur le site (sinon elle voit la notification dans la page)
 // --- Historique des notifications (visible dans l'onglet « Notifications ») ---
 // On garde les 100 dernières. Plusieurs messages d'une même personne se regroupent en une seule ligne.
@@ -429,7 +432,7 @@ const NOTIF_WORDS = {
   acc: ['Vous pouvez vous écrire et jouer ensemble.', 'C’est le moment de lancer un blind test 🎯', 'Dis-lui bonjour, il est dans ta liste d’amis !'],
   inv: ['Rejoins la partie avant qu’elle commence !', 'Le salon t’attend, dépêche-toi 🎯', 'Vite, la partie va bientôt démarrer !'],
 };
-const NOTIF_STYLE = { req: { emoji: '🤝' }, acc: { emoji: '✅' }, inv: { emoji: '🎯' }, msg: { emoji: '💬' }, streak: { emoji: '🔥' }, patch: { emoji: '🆕' } };
+const NOTIF_STYLE = { req: { emoji: '🤝' }, acc: { emoji: '✅' }, inv: { emoji: '🎯' }, msg: { emoji: '💬' }, streak: { emoji: '🔥' }, patch: { emoji: '🆕' }, idea: { emoji: '💡' } };
 function buildPayload(type, data, image) {
   const kind = data.kind || type; // « acc » = demande acceptée (même réglage que « req »)
   const emoji = (NOTIF_STYLE[kind] || {}).emoji || '';
@@ -453,6 +456,71 @@ export function notifyUser(userId, type, data, { evenIfOnline = false } = {}) {
       }).catch((err) => console.error('Notification :', err.message));
     }
   }).catch((err) => console.error('Notification :', err.message));
+}
+
+
+// --- La boîte à idées : les joueurs proposent, les admins répondent ---
+const IDEA_CATS = ['site', 'blindtest', 'amis', 'autre'];
+const IDEA_STATUS = ['new', 'seen', 'planned', 'done', 'refused'];
+const cleanText = (x, n) => String(x || '').replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/g, ' ').replace(/[ \t]+/g, ' ').replace(/\n{3,}/g, '\n\n').trim().slice(0, n);
+function ideaView(i, viewer) {
+  const author = usersById.get(i.userId);
+  return {
+    id: i.id, text: i.text, cat: i.cat, status: i.status, at: i.at,
+    reply: i.reply || '', replyAt: i.replyAt || 0,
+    from: author && author.username ? author.username : '?',
+    mine: i.userId === viewer.id,
+  };
+}
+async function handleIdeas(req, res, me) {
+  if (!me || !me.username) throw new HttpError(401, 'Connecte-toi pour proposer une idée.');
+  const admin = isAdmin(me);
+  if (req.method === 'GET') {
+    const list = admin ? ideas : ideas.filter((i) => i.userId === me.id);
+    return send(res, 200, { admin, ideas: [...list].reverse().map((i) => ideaView(i, me)) });
+  }
+  if (req.method !== 'POST') throw new HttpError(405, 'Méthode non autorisée.');
+  const body = await readJson(req, 8_000);
+  const action = String(body.action || '');
+  if (action === 'add') {
+    const text = cleanText(body.text, 600);
+    if (text.length < 8) throw new HttpError(400, 'Décris ton idée en quelques mots de plus (8 lettres minimum).');
+    const cat = IDEA_CATS.includes(body.cat) ? body.cat : 'autre';
+    const day = Date.now() - 24 * 3600_000;
+    if (ideas.filter((i) => i.userId === me.id && i.at > day).length >= 5) throw new HttpError(429, 'Tu as déjà envoyé 5 idées aujourd’hui. Reviens demain !');
+    if (ideas.some((i) => i.userId === me.id && i.text === text)) throw new HttpError(409, 'Tu as déjà envoyé cette idée.');
+    if (ideas.length >= 3000) throw new HttpError(503, 'La boîte à idées est pleine pour le moment.');
+    const idea = { id: randomBytes(6).toString('base64url'), userId: me.id, text, cat, status: 'new', at: Date.now() };
+    ideas.push(idea);
+    countStat('ideas');
+    saveSoon();
+    for (const a of usersById.values()) {
+      if (a.id !== me.id && isAdmin(a)) notifyUser(a.id, 'idea', { title: `Nouvelle idée de @${me.username}`, body: text.slice(0, 120), url: '/#idees', tag: 'idea-new', group: 'idea-new', randomBody: false }, { evenIfOnline: true });
+    }
+    return send(res, 201, { ok: true, idea: ideaView(idea, me) });
+  }
+  if (!admin) throw new HttpError(403, 'Réservé aux admins.');
+  const idea = ideas.find((i) => i.id === String(body.id || ''));
+  if (!idea) throw new HttpError(404, 'Cette idée n’existe plus.');
+  if (action === 'reply') {
+    const reply = cleanText(body.reply, 800);
+    const status = IDEA_STATUS.includes(body.status) ? body.status : idea.status;
+    const replyChanged = reply !== (idea.reply || '');
+    idea.status = status;
+    if (replyChanged) { idea.reply = reply; idea.replyAt = reply ? Date.now() : 0; }
+    saveSoon();
+    const author = usersById.get(idea.userId);
+    if (author && author.id !== me.id && (replyChanged && reply)) {
+      notifyUser(author.id, 'idea', { title: 'Réponse à ton idée', body: reply.slice(0, 140), url: '/#idees', tag: 'idea:' + idea.id, randomBody: false }, { evenIfOnline: true });
+    }
+    return send(res, 200, { ok: true, idea: ideaView(idea, me) });
+  }
+  if (action === 'delete') {
+    ideas = ideas.filter((i) => i !== idea);
+    saveSoon();
+    return send(res, 200, { ok: true });
+  }
+  throw new HttpError(400, 'Action inconnue.');
 }
 
 async function handlePush(req, res, url, me) {
@@ -1502,7 +1570,7 @@ async function handleProfile(req, res, url) {
   throw new HttpError(404, 'Introuvable.');
 }
 
-const ROUTES = new Set(['/api/me', '/api/signup', '/api/login', '/api/logout', '/api/data', '/api/username', '/api/rankings', '/api/favorites']);
+const ROUTES = new Set(['/api/me', '/api/signup', '/api/login', '/api/logout', '/api/data', '/api/username', '/api/rankings', '/api/favorites', '/api/ideas']);
 
 // Renvoie true si la requête a été traitée ici
 export async function handleAuth(req, res, url) {
@@ -1521,6 +1589,8 @@ export async function handleAuth(req, res, url) {
       const me = currentUser(req);
       return send(res, 200, rankings(me ? me.id : null));
     }
+
+    if (path === '/api/ideas') return await handleIdeas(req, res, currentUser(req));
 
     if (path === '/api/me') {
       if (req.method !== 'GET') throw new HttpError(405, 'Méthode non autorisée.');

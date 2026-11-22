@@ -1,7 +1,7 @@
 // Messagerie entre amis : une fenêtre « Messages » (liste des conversations + discussion).
 // Utilisable partout : window.openChat() ouvre la liste, window.openChat('pseudo') ouvre la discussion.
 (() => {
-  const css = `
+  let css = `
   dialog.chat {
     width: min(26rem, calc(100vw - 1rem)); height: min(40rem, calc(100dvh - 1rem)); max-height: none; padding: 0;
     display: none; flex-direction: column; overflow: hidden;
@@ -112,6 +112,65 @@
     .ch-rec { min-height: 2.9rem; }
   }
   .invite-toast[data-key^="msg:"] small { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; max-width: 16rem; }
+  `;
+
+  /* ================= Refonte visuelle des Messages : plus doux, plus lisible, plus fluide ================= */
+  css += `
+  dialog.chat {
+    width: min(27.5rem, calc(100vw - 1rem)); border-radius: 26px; background: linear-gradient(180deg, #1c1b21 0%, #141317 100%);
+    border: 1px solid rgba(255,255,255,.07); box-shadow: 0 34px 90px rgba(0,0,0,.75), 0 0 0 1px rgba(0,0,0,.4);
+  }
+  dialog.chat::backdrop { background: rgba(8, 8, 10, .62); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); }
+  .ch-head { background: rgba(255,255,255,.025); border-bottom: 1px solid rgba(255,255,255,.06); padding: .85rem .95rem; }
+  .ch-head h2 { font-size: 1.45rem; letter-spacing: -.03em; }
+  .ch-icon { border-radius: 50%; background: rgba(255,255,255,.07); color: var(--blanc); transition: background .2s, transform .2s; }
+  .ch-icon:hover { background: rgba(255,255,255,.14); }
+  .ch-body { scroll-behavior: smooth; }
+  /* liste des conversations */
+  .ch-list { padding: .4rem .5rem; display: flex; flex-direction: column; gap: .15rem; }
+  .ch-row { border-radius: 18px; transition: background .2s, transform .2s; }
+  .ch-row:hover { background: rgba(255,255,255,.055); transform: translateX(2px); }
+  .ch-row:active { transform: scale(.985); background: rgba(255,255,255,.09); }
+  .ch-row.unread { background: linear-gradient(90deg, rgba(242,107,58,.13), rgba(242,107,58,0) 70%); }
+  .ch-row.unread .ch-name b, .ch-row.unread .ch-name span { color: #fff; }
+  .ch-av { background: linear-gradient(135deg, #3b3a44, #2a2930); box-shadow: 0 0 0 2px rgba(255,255,255,.06); }
+  .ch-row.unread .ch-av { box-shadow: 0 0 0 2px var(--orange); }
+  .ch-av i { border-color: #1c1b21; }
+  .ch-badge { background: linear-gradient(135deg, #ff8a5c, #f26b3a); box-shadow: 0 4px 12px rgba(242,107,58,.45); animation: badgePop .4s cubic-bezier(.3, 1.6, .5, 1); }
+  .ch-sub { letter-spacing: .02em; }
+  .ch-empty { padding: 1.4rem; border-radius: 20px; background: rgba(255,255,255,.035); }
+  /* discussion */
+  .ch-msgs { padding: 1rem .9rem 1.2rem; gap: .22rem; }
+  .ch-day { background: rgba(255,255,255,.07); color: #b9b9c0; font-weight: 600; padding: .2rem .75rem; }
+  .ch-msg { max-width: 82%; padding: .55rem .85rem; border-radius: 20px; line-height: 1.38; box-shadow: 0 1px 2px rgba(0,0,0,.25); }
+  .ch-msg.them { background: #2a2931; border: 1px solid rgba(255,255,255,.05); border-bottom-left-radius: 6px; }
+  .ch-msg.me { background: linear-gradient(135deg, #ff8f60 0%, #f26b3a 100%); color: #1a1013; border-bottom-right-radius: 6px; box-shadow: 0 6px 16px rgba(242,107,58,.28); }
+  .ch-msg:nth-last-child(-n+2) { animation: chMsgIn .28s cubic-bezier(.2, .9, .3, 1.15); }
+  .ch-msg.me:nth-last-child(-n+2) { transform-origin: 100% 100%; }
+  .ch-msg.them:nth-last-child(-n+2) { transform-origin: 0 100%; }
+  @keyframes chMsgIn { from { opacity: 0; transform: translateY(10px) scale(.92); } }
+  .ch-time { opacity: .75; }
+  /* zone d'écriture : une pilule flottante */
+  .ch-form { margin: 0 .6rem .6rem; padding: .4rem .4rem .4rem .5rem; border: 1px solid rgba(255,255,255,.08); border-radius: 26px; background: rgba(255,255,255,.05); align-items: flex-end; }
+  .ch-form textarea { background: transparent; border: 0; border-radius: 18px; min-height: 2.5rem; padding: .6rem .7rem; }
+  .ch-form textarea:focus { box-shadow: none; }
+  .ch-form:focus-within { border-color: rgba(242,107,58,.6); box-shadow: 0 0 0 3px rgba(242,107,58,.16); }
+  .ch-form { transition: border-color .2s, box-shadow .25s; }
+  .ch-form button { min-height: 2.5rem; min-width: 2.5rem; padding: 0; border-radius: 50%; transition: transform .2s cubic-bezier(.3, 1.4, .5, 1), background .2s; }
+  .ch-form .ch-send { background: linear-gradient(135deg, #ff8f60, #f26b3a); color: #1a1013; box-shadow: 0 6px 16px rgba(242,107,58,.4); }
+  .ch-form .ch-send:hover { transform: scale(1.08) rotate(-6deg); }
+  .ch-form .ch-mic { background: rgba(255,255,255,.1); color: var(--blanc); }
+  .ch-note { padding: 0 1.1rem .5rem; }
+  @media (max-width: 34rem) {
+    dialog.chat { border-radius: 0; border: 0; background: #121214; }
+    .ch-head { background: rgba(18,18,20,.9); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); }
+    .ch-row { min-height: 4.4rem; }
+    .ch-row + .ch-row { border-top: 0; }
+    .ch-form { margin: 0 .5rem calc(.5rem + env(safe-area-inset-bottom, 0px)); padding: .35rem .35rem .35rem .45rem; }
+    .ch-form textarea { background: transparent; border-radius: 20px; min-height: 2.7rem; }
+    .ch-form button { min-height: 2.7rem; min-width: 2.7rem; }
+  }
+  @media (prefers-reduced-motion: reduce) { .ch-msg, .ch-badge { animation: none !important; } .ch-body { scroll-behavior: auto; } }
   `;
   const style = document.createElement('style');
   style.textContent = css;
