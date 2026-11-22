@@ -5,7 +5,7 @@ import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { join, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { handleAuth, clientIp, sessionUser, findFriend, recordBlindtest, blindtestLeaderboard, markInBlindtest, countStat, isAdmin, adminStats, recordActivity, recordListen, streakOf, notifyUser, usersStreak, getPlaylist, playlistsFor, adminNotify, atReplacer, runAdminCommand, addAdminCommand, ADMIN_COMMANDS, liveState, isMuted } from './auth.js';
+import { handleAuth, clientIp, sessionUser, findFriend, recordBlindtest, blindtestLeaderboard, markInBlindtest, countStat, isAdmin, adminStats, recordActivity, recordListen, streakOf, notifyUser, usersStreak, getPlaylist, playlistsFor, adminNotify, atReplacer, runAdminCommand, addAdminCommand, ADMIN_COMMANDS, liveState, isMuted, setCoverProvider } from './auth.js';
 import { createBlindtest } from './blindtest.js';
 import { CATEGORIES } from './categories.js';
 
@@ -172,6 +172,8 @@ async function findVideo(title, artist) {
   return id;
 }
 
+const BOOT_ID = String(Date.now()); // change à chaque redémarrage (= chaque mise à jour du site)
+
 // --- Pochettes d'albums de rap (le disque de l'accueil change à chaque visite) ---
 const albumCache = new Map(); // artiste -> [{ cover, album, artist }]
 async function randomCover() {
@@ -210,6 +212,8 @@ async function randomCover() {
   }
   return { cover: '' };
 }
+
+setCoverProvider(async () => (await randomCover()).cover || ''); // pochette des notifications sans favori
 
 // Un son de l'album (avec un extrait de 30 s) : de préférence parmi les premiers titres
 async function albumTrack(a) {
@@ -528,6 +532,7 @@ const server = createServer(async (req, res) => {
   if (await handleBlindtest(req, res, url)) return;
 
   // Notification envoyée par l'admin à la personne de son choix
+  if (url.pathname === '/api/version') { res.setHeader('Cache-Control', 'no-store'); return sendJson(res, 200, { v: BOOT_ID }); }
   if (url.pathname === '/api/patchnotes') { // le patch note : visible par tout le monde
     return sendJson(res, 200, { notes: PATCH_NOTES });
   }

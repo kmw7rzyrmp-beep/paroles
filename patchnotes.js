@@ -4,6 +4,15 @@
 // tag : 'new' (nouveauté), 'better' (amélioration), 'fix' (correction), 'removed' (retiré)
 export const PATCH_NOTES = [
   {
+    version: '2.18', date: '2026-11-23', time: '00:23', title: 'Notifications personnalisées',
+    items: [
+      ['better', 'Chaque notification affiche la pochette d\'un de tes sons favoris (ou d\'un album au hasard), avec une vibration et un bouton adaptés.'],
+      ['better', 'Un clic sur la notification t\'amène directement à la bonne page (le patch note, le chat, le salon...).'],
+      ['better', 'Les messages et les patch notes sont groupés : une seule notification avec le nombre.'],
+      ['new', 'Le site se met à jour tout seul, sans fermer ni rouvrir l\'appli.'],
+    ],
+  },
+  {
     version: '2.17', date: '2026-11-23', time: '00:18', title: 'Alerte patch note',
     items: [
       ['new', 'Une notification est envoyée à tout le monde dès qu\'un nouveau patch note sort.'],

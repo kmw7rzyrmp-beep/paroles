@@ -1,6 +1,6 @@
 // Service worker de Star Song : rend le site installable et l'ouvre même sans connexion.
 // Change VERSION quand tu modifies les icônes pour forcer la mise à jour du cache.
-const VERSION = 'star-song-v11';
+const VERSION = 'star-song-v12';
 const SHELL = ['/', '/blindtest', '/manifest.webmanifest', '/icon.png', '/icon-192.png', '/icon-512.png', '/apple-touch-icon.png', '/favicon.ico'];
 
 self.addEventListener('install', (event) => {
@@ -45,17 +45,46 @@ self.addEventListener('fetch', (event) => {
 });
 
 // Notifications envoyées par le serveur (même quand le site est fermé)
+// Notifications : un style par usage (vibration, bouton) et un groupement pour les messages et les patch notes
+const STYLE = {
+  req:    { vibrate: [120, 60, 120],      action: 'Voir la demande' },
+  acc:    { vibrate: [80, 40, 80, 40, 80], action: 'Dire bonjour' },
+  inv:    { vibrate: [250, 80, 250, 80, 250], action: 'Rejoindre la partie' },
+  msg:    { vibrate: [60, 40, 60],        action: 'Répondre' },
+  streak: { vibrate: [200, 100, 200],     action: 'Garder ma flamme' },
+  patch:  { vibrate: [100, 50, 100, 50, 300], action: 'Lire le patch note' },
+  admin:  { vibrate: [150, 60, 150],      action: 'Ouvrir' },
+};
 self.addEventListener('push', (event) => {
   let data = {};
   try { data = event.data ? event.data.json() : {}; } catch { data = { title: 'Star Song', body: event.data ? event.data.text() : '' }; }
-  event.waitUntil(self.registration.showNotification(data.title || 'Star Song', {
-    body: data.body || '',
-    icon: '/icon-192.png',
-    badge: '/icon-192.png',
-    tag: data.tag || undefined,
-    renotify: Boolean(data.tag),
-    data: { url: data.url || '/' },
-  }));
+  event.waitUntil((async () => {
+    const st = STYLE[data.type] || STYLE.admin;
+    let title = data.title || 'Star Song';
+    let body = data.body || '';
+    let count = 1, lines = [body];
+    // groupement : si une notification du même groupe est encore affichée, on la remplace par une seule, mise à jour
+    if (data.group && data.tag) {
+      const old = (await self.registration.getNotifications({ tag: data.tag }))[0];
+      if (old && old.data) {
+        count = (old.data.count || 1) + 1;
+        lines = [...(old.data.lines || []), body].slice(-4);
+        if (data.group === 'msg') { title = `💬 ${count} messages de @${data.from || '…'}`; body = lines.join('\n'); }
+        else if (data.group === 'patch') { title = `🆕 ${count} nouveaux patch notes`; body = lines.join('\n'); }
+      }
+    }
+    await self.registration.showNotification(title, {
+      body,
+      icon: data.image || '/icon-192.png', // la pochette d'un de ses sons favoris (ou d'un album au hasard)
+      image: data.image || undefined,
+      badge: '/icon-192.png',
+      tag: data.tag || undefined,
+      renotify: Boolean(data.tag),
+      vibrate: st.vibrate,
+      actions: [{ action: 'open', title: st.action }],
+      data: { url: data.url || '/', count, lines },
+    });
+  })());
 });
 
 // clic sur la notification : on ouvre (ou on remet au premier plan) la bonne page

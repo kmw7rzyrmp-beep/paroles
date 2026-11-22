@@ -401,17 +401,58 @@ export function logNotif(userId, type, data) {
 }
 const notifUnread = (u) => (u.notifs || []).filter((n) => !n.read).length;
 
+
+// --- Contenu des notifications : pochette d'album + texte adapté à chaque usage ---
+// Chaque notification porte la pochette d'un de ses sons favoris ; sans favori, une pochette de rap au hasard.
+let coverProvider = async () => '';
+export const setCoverProvider = (fn) => { coverProvider = fn; };
+const coverPool = []; // pochettes aléatoires déjà trouvées (pour ne pas interroger Deezer à chaque envoi)
+let coverFilling = false;
+async function fillCoverPool() {
+  if (coverFilling) return;
+  coverFilling = true;
+  try { const c = await coverProvider(); if (c && !coverPool.includes(c)) coverPool.push(c); if (coverPool.length > 15) coverPool.shift(); }
+  catch { /* réessayé au prochain envoi */ }
+  coverFilling = false;
+}
+async function notifImage(u) {
+  const favs = (u?.data?.favorites || []).filter((f) => f.image);
+  if (favs.length) return favs[Math.floor(Math.random() * favs.length)].image;
+  if (coverPool.length < 8) fillCoverPool(); // on garde la réserve pleine, en arrière-plan
+  if (!coverPool.length) await Promise.race([fillCoverPool(), new Promise((r) => setTimeout(r, 3000))]);
+  return coverPool.length ? coverPool[Math.floor(Math.random() * coverPool.length)] : '';
+}
+const pickOne = (list) => list[Math.floor(Math.random() * list.length)];
+// Plusieurs phrases par usage, tirées au hasard (le titre garde l'info importante)
+const NOTIF_WORDS = {
+  req: ['Ouvre Star Song pour accepter.', 'Un clic et vous jouez ensemble 🎧', 'Accepte pour lui écrire et lancer un blind test !'],
+  acc: ['Vous pouvez vous écrire et jouer ensemble.', 'C’est le moment de lancer un blind test 🎯', 'Dis-lui bonjour, il est dans ta liste d’amis !'],
+  inv: ['Rejoins la partie avant qu’elle commence !', 'Le salon t’attend, dépêche-toi 🎯', 'Vite, la partie va bientôt démarrer !'],
+};
+const NOTIF_STYLE = { req: { emoji: '🤝' }, acc: { emoji: '✅' }, inv: { emoji: '🎯' }, msg: { emoji: '💬' }, streak: { emoji: '🔥' }, patch: { emoji: '🆕' } };
+function buildPayload(type, data, image) {
+  const kind = data.kind || type; // « acc » = demande acceptée (même réglage que « req »)
+  const emoji = (NOTIF_STYLE[kind] || {}).emoji || '';
+  let title = String(data.title || 'Star Song');
+  if (emoji && !title.includes(emoji) && !/^\p{Extended_Pictographic}/u.test(title)) title = `${emoji} ${title}`;
+  const words = NOTIF_WORDS[kind];
+  const body = words && data.randomBody !== false && (!data.body || words.includes(data.body)) ? pickOne(words) : (data.body || '');
+  return { title, body, url: data.url || '/', tag: data.tag || type, type: kind, image: image || '', group: data.group || '', from: data.from || '' };
+}
+
 export function notifyUser(userId, type, data, { evenIfOnline = false } = {}) {
   const u = usersById.get(userId);
   if (u && u.username && type !== 'streak-silent') logNotif(userId, type, data); // toujours dans l'historique
   if (!u || !vapid || !(u.push || []).length || !prefsOf(u)[type]) return;
   if (!evenIfOnline && presence(u).online) return;
-  const payload = { title: data.title, body: data.body || '', url: data.url || '/', tag: data.tag || type };
-  for (const sub of [...u.push]) {
-    sendPush(sub, payload, vapid).then((r) => {
-      if (r === 'gone') { u.push = (u.push || []).filter((x) => x.endpoint !== sub.endpoint); saveSoon(); }
-    }).catch((err) => console.error('Notification :', err.message));
-  }
+  notifImage(u).then((image) => {
+    const payload = buildPayload(type, data, image);
+    for (const sub of [...u.push]) {
+      sendPush(sub, payload, vapid).then((r) => {
+        if (r === 'gone') { u.push = (u.push || []).filter((x) => x.endpoint !== sub.endpoint); saveSoon(); }
+      }).catch((err) => console.error('Notification :', err.message));
+    }
+  }).catch((err) => console.error('Notification :', err.message));
 }
 
 async function handlePush(req, res, url, me) {
@@ -468,7 +509,7 @@ async function handlePush(req, res, url, me) {
 
 // --- Notification envoyée par un admin à une personne ---
 // Elle part sur son téléphone (si les notifications sont activées) ET s'affiche sur le site à sa prochaine visite.
-export function adminNotify(fromUser, username, { title, body, url }) {
+export function adminNotify(fromUser, username, { title, body, url, kind, tag, group }) {
   const target = findByUsername(username);
   if (!target || !target.username) throw new HttpError(404, 'Ce compte n’existe pas.');
   const clean = (x, n) => String(x || '').replace(/[\u0000-\u001f\u007f]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, n);
@@ -482,11 +523,14 @@ export function adminNotify(fromUser, username, { title, body, url }) {
   saveSoon();
   const devices = (target.push || []).length;
   if (devices && vapid) {
-    for (const sub of [...target.push]) {
-      sendPush(sub, { title: t, body: b, url: link, tag: 'admin:' + item.id }, vapid).then((r) => {
-        if (r === 'gone') { target.push = (target.push || []).filter((x) => x.endpoint !== sub.endpoint); saveSoon(); }
-      }).catch((err) => console.error('Notification admin :', err.message));
-    }
+    notifImage(target).then((image) => {
+      const payload = buildPayload(kind || 'admin', { title: t, body: b, url: link, tag: tag || 'admin:' + item.id, group, randomBody: false }, image);
+      for (const sub of [...target.push]) {
+        sendPush(sub, payload, vapid).then((r) => {
+          if (r === 'gone') { target.push = (target.push || []).filter((x) => x.endpoint !== sub.endpoint); saveSoon(); }
+        }).catch((err) => console.error('Notification admin :', err.message));
+      }
+    }).catch((err) => console.error('Notification admin :', err.message));
   }
   countStat('admin_notifs');
   return { username: target.username, devices };
@@ -502,11 +546,11 @@ const who = (name) => {
 };
 const intArg = (v, label) => { const n = Number(v); if (!Number.isInteger(n)) throw new HttpError(400, `${label} : écris un nombre entier.`); return n; };
 const fmtMin = (ms) => { const t = Math.round((ms || 0) / 1000), h = Math.floor(t / 3600), m = Math.floor((t % 3600) / 60), sec = t % 60; return `${h} h ${String(m).padStart(2, '0')} min ${String(sec).padStart(2, '0')} s`; };
-function notifyAll(admin, title, body, url = '/') {
+function notifyAll(admin, title, body, url = '/', extra = {}) {
   let people = 0, devices = 0;
   for (const u of usersById.values()) {
     if (!u.username) continue;
-    try { const r = adminNotify(admin, u.username, { title, body, url }); people++; devices += r.devices; } catch { /* compte sans pseudo */ }
+    try { const r = adminNotify(admin, u.username, { title, body, url, ...extra }); people++; devices += r.devices; } catch { /* compte sans pseudo */ }
   }
   return { people, devices };
 }
@@ -1070,7 +1114,7 @@ async function handleFriends(req, res, url, me) {
   } else if (action === 'accept') {
     if (!me.incoming.includes(target.id)) throw new HttpError(404, 'Aucune demande de cette personne.');
     befriend();
-    notifyUser(target.id, 'req', { title: `@${me.username} a accepté ta demande d’ami`, body: 'Vous pouvez vous écrire et jouer ensemble.', url: '/#amis', tag: 'acc:' + me.id, from: me.username });
+    notifyUser(target.id, 'req', { title: `@${me.username} a accepté ta demande d’ami`, body: 'Vous pouvez vous écrire et jouer ensemble.', url: '/#amis', tag: 'acc:' + me.id, kind: 'acc', from: me.username });
   } else if (action === 'decline') {
     rm(me.incoming, target.id); rm(target.outgoing, me.id);
   } else if (action === 'cancel') {
@@ -1298,7 +1342,7 @@ async function handleMessages(req, res, url, me) {
     countStat('messages');
     saveChatsSoon();
     // les messages arrivent toujours sur le téléphone, même si la personne a le site ouvert ailleurs
-    notifyUser(other.id, 'msg', { title: `Message de @${me.username}`, body: preview, url: '/?chat=' + encodeURIComponent(me.username), tag: 'msg:' + me.id, group: 'msg:' + me.id, from: me.username }, { evenIfOnline: true });
+    notifyUser(other.id, 'msg', { title: `Message de @${me.username}`, body: preview, url: '/?chat=' + encodeURIComponent(me.username), tag: 'msg:' + me.id, group: 'msg', from: me.username, randomBody: false }, { evenIfOnline: true });
     return at;
   };
 
@@ -1680,9 +1724,10 @@ if (!migrations.has('flame-gift-1')) {
   const key = 'patch-notified-' + (last && last.version);
   if (last && !migrations.has(key)) {
     migrations.add(key);
-    {
-      const r = notifyAll({ username: 'star-song' }, `🆕 Patch note ${last.version}`, `${last.title} : viens voir les nouveautés !`, '/#patch');
+    // on attend un peu : le serveur doit d'abord être prêt pour trouver les pochettes
+    setTimeout(() => {
+      const r = notifyAll({ username: 'star-song' }, `Patch note ${last.version}`, `${last.title} : viens voir les nouveautés !`, '/#patch', { kind: 'patch', tag: 'patch', group: 'patch' });
       persist().then(() => console.log(`Patch note ${last.version} : notification envoyée à ${r.people} comptes.`)).catch((err) => console.error('Patch note :', err.message));
-    }
+    }, 20_000).unref();
   }
 }

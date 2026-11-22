@@ -138,3 +138,36 @@
     setTimeout(() => box.remove(), 5300);
   };
 })();
+
+// --- Mise à jour automatique : plus besoin de fermer puis rouvrir l'appli ---
+// Toutes les 60 s (et quand on revient sur l'appli), on demande la version du serveur.
+// Si elle a changé : l'accueil se recharge tout seul ; dans le blind test (pour ne pas couper une partie), un bouton apparaît.
+(function () {
+  let known = null, shown = false;
+  const check = async () => {
+    try {
+      const r = await fetch('/api/version', { cache: 'no-store' });
+      const { v } = await r.json();
+      if (known === null) { known = v; return; }
+      if (v === known || shown) return;
+      shown = true;
+      try { const reg = await navigator.serviceWorker?.getRegistration('/'); reg && reg.update(); } catch { /* sans importance */ }
+      const box = document.createElement('div');
+      box.setAttribute('role', 'status');
+      box.style.cssText = 'position:fixed;left:50%;bottom:84px;transform:translateX(-50%);z-index:99999;background:#1b1b24;color:#fff;border:1px solid #6c5ce7;border-radius:14px;padding:10px 16px;font:600 14px system-ui,sans-serif;box-shadow:0 8px 28px rgba(0,0,0,.45);display:flex;gap:12px;align-items:center';
+      const inGame = location.pathname.startsWith('/blindtest');
+      box.append(document.createTextNode(inGame ? '🔄 Nouvelle version du site' : '🔄 Mise à jour du site…'));
+      if (inGame) {
+        const b = document.createElement('button');
+        b.textContent = 'Mettre à jour';
+        b.style.cssText = 'background:#6c5ce7;color:#fff;border:0;border-radius:10px;padding:6px 12px;font-weight:700;cursor:pointer';
+        b.onclick = () => location.reload();
+        box.append(b);
+      } else setTimeout(() => location.reload(), 2500);
+      document.body.append(box);
+    } catch { /* hors connexion : on réessaie plus tard */ }
+  };
+  check();
+  setInterval(check, 60_000);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) check(); });
+})();
