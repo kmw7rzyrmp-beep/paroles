@@ -2241,11 +2241,14 @@ document.addEventListener('visibilitychange', () => { if (document.visibilitySta
   });
   // si un autre son démarre sur la page, celui de la pochette s'arrête
   document.addEventListener('play', (e) => { if (e.target !== audio && !audio.paused) audio.pause(); }, true);
+  let coverSite = window.siteLang && window.siteLang();
+  window.addEventListener('ss-lang', (e) => { const was = coverSite === 'dz', now = e.detail.lang === 'dz'; coverSite = e.detail.lang; if (was !== now) { newCover.retried = false; setTimeout(newCover, 300); } });
   async function newCover() {
     if (busy) return;
     busy = true;
     try {
-      const d = await (await fetch('/api/cover/random', { cache: 'no-store' })).json();
+      const dz = window.siteLang && window.siteLang() === 'dz';
+      const d = await (await fetch('/api/cover/random' + (dz ? '?dz=1' : ''), { cache: 'no-store' })).json();
       if (!d.cover) { if (!newCover.retried) { newCover.retried = true; setTimeout(newCover, 4000); } return; }
       const pre = new Image();
       pre.referrerPolicy = 'no-referrer';

@@ -5,6 +5,21 @@
 // tag : 'new' (nouveauté), 'better' (amélioration), 'fix' (correction), 'removed' (retiré)
 export const PATCH_NOTES = [
   {
+    version: '2.20', date: '2026-11-23', time: '00:46', title: 'Idées, Messages refaits et version DZ',
+    items: [
+      ['better', 'L\'onglet « Mon profil » disparaît du menu Social : clique sur ta photo pour ouvrir ton profil.'],
+      ['new', 'Nouvel onglet « Idées » : propose tes idées pour améliorer Star Song et retrouve la réponse des admins (tu reçois une notification).'],
+      ['new', 'Panel admin des idées : voir toutes les propositions, filtrer par statut, répondre, changer le statut ou supprimer.'],
+      ['better', 'Le menu Messages est entièrement redessiné : plus beau, bulles dégradées, zone d\'écriture flottante, animations plus fluides.'],
+      ['new', 'Quand tu gagnes ta flamme du jour, une pluie de flammes 🔥 vient te féliciter.'],
+      ['new', 'Troisième drapeau 🇩🇿 : une version parodique « DZ » du site, pleine d\'humour algérien, avec les couleurs vert, blanc et rouge.'],
+      ['new', 'Version DZ : une musique de fond orientale (avec un bouton pour la couper).'],
+      ['new', 'Version DZ : les pochettes d\'albums de l\'accueil sont des albums algériens bien clichés.'],
+      ['better', 'Faygee : un maximum de sons ajoutés au blind test.'],
+      ['better', 'Chaque notification de patch note te mène directement au patch note.'],
+    ],
+  },
+  {
     version: '2.19', date: '2026-11-23', time: '00:27', title: 'Un site plus fluide et plus beau',
     items: [
       ['better', 'Les cartes de l\'accueil apparaissent l\'une après l\'autre, en douceur.'],

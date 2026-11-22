@@ -176,9 +176,12 @@ const BOOT_ID = String(Date.now()); // change à chaque redémarrage (= chaque m
 
 // --- Pochettes d'albums de rap (le disque de l'accueil change à chaque visite) ---
 const albumCache = new Map(); // artiste -> [{ cover, album, artist }]
-async function randomCover() {
+// Version DZ du site : seulement des pochettes d'artistes algériens (raï, chaâbi, rap…), bien clichés
+const DZ_ARTISTS = ['Khaled', 'Cheb Mami', 'Rachid Taha', 'Cheb Hasni', 'Dahmane El Harrachi', 'Faudel', 'Soolking', 'Idir', 'Souad Massi',
+  'Cheb Bilal', 'Cheikha Rimitti', 'Amar Ezzahi', 'El Hadj M\'Hamed El Anka', 'Reda Taliani', 'Cheb Akil', 'Houari Manar', 'Lacrim', 'L\'Algérino', 'Warda', 'Matoub Lounès'];
+async function randomCover(dz = false) {
   const rap = CATEGORIES.filter((c) => c.id === 'rap-fr' || c.id === 'rap-us');
-  const artists = [...new Set(rap.flatMap((c) => c.chansons.map((s) => s.artiste)))];
+  const artists = dz ? DZ_ARTISTS : [...new Set(rap.flatMap((c) => c.chansons.map((s) => s.artiste)))];
   if (!artists.length || DEMO) return { cover: '' };
   for (let tries = 0; tries < 4; tries++) {
     const artist = artists[Math.floor(Math.random() * artists.length)];
@@ -543,7 +546,7 @@ const server = createServer(async (req, res) => {
     return sendJson(res, 200, { videoId: DEMO ? '' : await findVideo(title, artist) });
   }
   // Une pochette d'album d'un rappeur au hasard (le disque de l'accueil)
-  if (url.pathname === '/api/cover/random') return sendJson(res, 200, await randomCover());
+  if (url.pathname === '/api/cover/random') return sendJson(res, 200, await randomCover(url.searchParams.get('dz') === '1'));
   // Les effets en direct (annonce, confettis, couronnes) : pour tout le monde
   if (url.pathname === '/api/live') return sendJson(res, 200, liveState());
   // La console des admins
