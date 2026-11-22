@@ -1,4 +1,5 @@
 // Le patch note du site : visible par tout le monde (page « Patch note » du menu).
+// RÈGLE : on ne publie une version qu'à partir de 5 modifications (voir PATCHNOTES_EN_ATTENTE.md), car chaque version envoie une notification à tout le monde.
 // La plus récente en premier. Pour ajouter une version : copier un bloc en haut de la liste.
 // date + time : le jour et l'heure (heure de Paris) où la version est sortie
 // tag : 'new' (nouveauté), 'better' (amélioration), 'fix' (correction), 'removed' (retiré)
