@@ -5,7 +5,7 @@
 // tag : 'new' (nouveauté), 'better' (amélioration), 'fix' (correction), 'removed' (retiré)
 export const PATCH_NOTES = [
   {
-    version: '2.21', date: '2026-11-23', time: '18:00', title: 'Sauvegardes, revanche, trophées et plus',
+    version: '2.21', date: '2026-11-23', time: '18:00', title: 'Sauvegardes, revanche, bonus ×2 et plus',
     items: [
       ['new', 'Sauvegarde automatique des comptes : une copie par jour, gardée 7 jours.'],
       ['new', 'Revanche : à la fin d\'une partie, l\'hôte relance tout de suite une nouvelle manche avec les mêmes joueurs.'],
