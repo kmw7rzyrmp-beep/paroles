@@ -4,6 +4,12 @@
 // tag : 'new' (nouveauté), 'better' (amélioration), 'fix' (correction), 'removed' (retiré)
 export const PATCH_NOTES = [
   {
+    version: '2.16', date: '2026-11-22', time: '05:09', title: 'Esdeekid en Rap FR',
+    items: [
+      ['new', 'L\'artiste Esdeekid rejoint le Rap FR dans le blind test, avec 40 de ses sons.'],
+    ],
+  },
+  {
     version: '2.15', date: '2026-11-21', time: '21:30', title: 'Temps en direct',
     items: [
       ['better', 'Le temps passé sur le site avance seconde par seconde sur ton profil, sur celui des personnes en ligne, et dans le classement.'],

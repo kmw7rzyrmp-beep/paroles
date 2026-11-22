@@ -215,7 +215,13 @@ export function createBlindtest({ getJson, sameSong, clientIp, sessionUser, find
     return getJson(url, 'Deezer');
   }
 
+  const targetFor = (cat, artiste) => {
+    const m = Object.entries(cat.maxParArtiste || {}).find(([k]) => simple(k) === simple(artiste));
+    return m ? m[1] : TARGET_PER_ARTIST;
+  };
+
   async function fillArtist(cat, artiste, have) {
+    const target = targetFor(cat, artiste);
     // 1) retrouver l'artiste sur Deezer (le nom doit être exactement le même)
     const found = await deezer(`https://api.deezer.com/search/artist?${new URLSearchParams({ q: artiste, limit: '10' })}`);
     const squash = (x) => simple(x).replace(/ /g, ''); // « Supreme Nova » = « Supremenova »
@@ -231,7 +237,7 @@ export function createBlindtest({ getJson, sameSong, clientIp, sessionUser, find
     const seen = new Set(cat.chansons.filter((s) => s.artiste === artiste).map((s) => baseTitle(s.titre)));
     let added = 0;
     for (const t of top.data || []) {
-      if (have + added >= TARGET_PER_ARTIST) break;
+      if (have + added >= target) break;
       if (!t.preview || t.artist?.id !== match.id) continue; // seulement ses propres sons (pas ceux où il est en feat.)
       const titre = String(t.title_short || t.title || '').trim();
       if (!titre || titre.length > 60 || NOT_A_REAL_SONG.test(t.title || titre)) continue;
@@ -268,7 +274,7 @@ export function createBlindtest({ getJson, sameSong, clientIp, sessionUser, find
       // artistes ajoutés seulement par leur nom (categories.js → artistesAuto) : on part de 0 son
       for (const nom of cat.artistesAuto || []) if (![...counts.keys()].some((k) => simple(k) === simple(nom))) counts.set(nom, 0);
       for (const [artiste, have] of counts) {
-        if (have >= TARGET_PER_ARTIST) continue;
+        if (have >= targetFor(cat, artiste)) continue;
         try { total += await fillArtist(cat, artiste, have); allArtistsCache = null; }
         catch (err) { console.error(`Blind test, sons de ${artiste} :`, err.message); }
       }
