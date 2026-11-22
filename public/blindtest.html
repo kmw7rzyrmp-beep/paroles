@@ -26,7 +26,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/app.css?v=16">
+<link rel="stylesheet" href="/app.css?v=17">
 <style>
   /* Blind test : même interface que l'accueil (cadre noir, cartes arrondies, accent orange) */
   :root { --encre: #0b0b0c; --enfonce: var(--orange); }
@@ -705,6 +705,7 @@
     <h2 style="margin-top: 2rem">Les sons de la partie</h2>
     <ol id="tracklist" class="tracklist"></ol>
     <div class="actions">
+      <button id="rematchBtn" class="big rec" type="button" hidden>🔁 Revanche</button>
       <button id="againBtn" class="big rec" type="button">Rejouer</button>
       <button id="settingsBtn" type="button">Changer de catégorie</button>
       <button id="quitBtn" class="ghost" type="button">Quitter la partie</button>
@@ -1710,11 +1711,18 @@
       li.append(t, b);
       return li;
     }));
-    $('againBtn').hidden = false;
+    $('rematchBtn').hidden = !isHost(); // l'hôte relance tout de suite, mêmes réglages
+    $('againBtn').hidden = isHost();    // les autres se mettent prêts (l'hôte, lui, n'en a pas besoin)
     $('againBtn').textContent = 'Rejouer (je suis prêt)';
     $('settingsBtn').hidden = !isHost();
-    $('endWait').textContent = isHost() ? 'Quand tout le monde a cliqué sur « Rejouer », tu pourras relancer.' : 'Clique sur « Rejouer » : l’hôte relancera quand tout le monde sera prêt.';
+    $('endWait').textContent = isHost() ? 'Revanche : la même partie repart tout de suite pour tout le monde.' : 'Clique sur « Rejouer » : l’hôte peut aussi lancer la revanche en un clic.';
   }
+  $('rematchBtn').addEventListener('click', async () => {
+    unlockAudio();
+    $('rematchBtn').disabled = true;
+    try { state = await api(`/rooms/${state.code}/rematch`, { token: session.token }); render(); } catch (err) { $('endWait').textContent = err.message; }
+    $('rematchBtn').disabled = false;
+  });
   $('againBtn').addEventListener('click', async () => {
     unlockAudio();
     try { state = await api(`/rooms/${state.code}/ready`, { token: session.token, ready: true }); render(); } catch (err) { $('endWait').textContent = err.message; }

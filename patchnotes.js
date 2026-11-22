@@ -8,6 +8,8 @@ export const PATCH_NOTES = [
     version: '2.21', date: '2026-11-23', time: '18:00', title: 'Sauvegardes, revanche, trophées et plus',
     items: [
       ['new', 'Sauvegarde automatique des comptes : une copie par jour, gardée 7 jours.'],
+      ['new', 'Revanche : à la fin d\'une partie, l\'hôte relance tout de suite une nouvelle manche avec les mêmes joueurs.'],
+      ['new', 'Trophées : 17 succès à débloquer (parties, victoires, flammes, amis…), visibles sur ton profil, avec notification quand tu en gagnes un.'],
     ],
   },
   {

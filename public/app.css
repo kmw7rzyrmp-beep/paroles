@@ -730,3 +730,15 @@ html[data-site="dz"] .dz-card b { color: #8fe3b0; }
 @keyframes dzBeat { 50% { transform: scale(1.1); } }
 @media (max-width: 860px) { .dz-music-btn { bottom: 92px; left: 12px; width: 2.7rem; height: 2.7rem; } }
 @media (prefers-reduced-motion: reduce) { .dz-music-btn { animation: none; } }
+
+/* Trophées */
+.pp-trophies{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:8px}
+.pp-trophy{display:flex;gap:10px;align-items:center;padding:10px 12px;border-radius:14px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);opacity:.6}
+.pp-trophy.got{opacity:1;background:linear-gradient(135deg,rgba(255,190,60,.16),rgba(255,120,40,.08));border-color:rgba(255,190,60,.4)}
+.pp-trophy .pt-ic{font-size:1.6rem;flex:none}
+.pp-trophy .pt-tx{display:grid;gap:2px;min-width:0}
+.pp-trophy small{opacity:.75;font-size:.78rem}
+.pp-trophy em{font-style:normal;font-size:.72rem;opacity:.7}
+.pp-trophy .pt-bar{display:block;height:5px;border-radius:5px;background:rgba(255,255,255,.12);overflow:hidden}
+.pp-trophy .pt-bar u{display:block;height:100%;background:#ffb43c;text-decoration:none}
+.trophy-toast{border-color:rgba(255,190,60,.55)}

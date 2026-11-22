@@ -898,6 +898,16 @@ export function createBlindtest({ getJson, sameSong, clientIp, sessionUser, find
         return send(res, 202, view(room, me));
       }
 
+      if (action === 'rematch') { // revanche : l'hôte relance tout de suite, mêmes réglages, tout le monde est prêt
+        if (me.id !== room.hostId) throw new BtError(403, 'Seul l’hôte peut lancer la revanche.');
+        if (room.phase !== 'end') throw new BtError(409, 'La revanche se lance à la fin d’une partie.');
+        if (room.mode === 'br' && room.players.size < 2) throw new BtError(400, 'Il faut être au moins 2 pour jouer en battle royale. Invite un pote !');
+        for (const p of room.players.values()) p.ready = true;
+        room.chat.push({ id: ++room.seq, pid: '', name: '🔁', text: `${me.name} lance la revanche !`, at: Date.now() });
+        start(room);
+        return send(res, 202, view(room, me));
+      }
+
       if (action === 'ready') { // « Je suis prêt » (ou plus prêt)
         if (room.phase !== 'lobby' && room.phase !== 'end') throw new BtError(409, 'La partie est déjà lancée.');
         if (room.phase === 'end') room.phase = 'lobby';
