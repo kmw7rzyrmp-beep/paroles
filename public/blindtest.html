@@ -26,7 +26,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/app.css?v=17">
+<link rel="stylesheet" href="/app.css?v=18">
 <style>
   /* Blind test : même interface que l'accueil (cadre noir, cartes arrondies, accent orange) */
   :root { --encre: #0b0b0c; --enfonce: var(--orange); }
@@ -551,6 +551,7 @@
 
     <div id="createBox">
       <h2>Créer une partie</h2>
+      <p class="bonus-x2" id="bonusHome" hidden></p>
       <p class="lbl">Catégorie</p>
       <div id="catChips" class="chips block" role="radiogroup" aria-label="Catégorie"></div>
       <div id="homeArtists" class="artists block" hidden>
@@ -593,6 +594,7 @@
   <section id="lobby" hidden>
     <p class="lbl">Code de la partie</p>
     <p id="lobbyCode" class="code"></p>
+    <p class="bonus-x2" id="bonusLobby" hidden></p>
     <div class="actions" style="margin: 0 0 2rem">
       <button id="shareBtn" type="button">Inviter mes potes</button>
       <span id="shareMsg" class="wait"></span>
@@ -1065,6 +1067,7 @@
     }
     try {
       const d = await api('/categories');
+      if (d.bonus) showBonus('bonusHome', d.bonus);
       cats = d.categories; roundsChoices = d.rounds; if (d.reactions) reactions = d.reactions; if (d.maxRounds) maxRounds = d.maxRounds; if (d.levels) levels = d.levels; if (d.modes) modes = d.modes; if (d.lives) livesChoices = d.lives;
     } catch (err) { $('homeMsg').textContent = err.message; }
     drawHomeChips();
@@ -1362,8 +1365,16 @@
     renderGame();
   }
 
+  function showBonus(id, b) {
+    const el = $(id); if (!el || !b) return;
+    el.hidden = false;
+    el.replaceChildren();
+    const t = document.createElement('b'); t.textContent = '⚡ Bonus du jour ×2';
+    el.append(t, ' : points doublés sur ' + b.text + '.');
+  }
   function renderLobby() {
     show('lobby');
+    if (state.bonus) showBonus('bonusLobby', state.bonus);
     stopAudio();
     $('lobbyCode').textContent = state.code;
     playersList($('lobbyPlayers'), state.players, false);
@@ -1623,7 +1634,7 @@
       $('gains').replaceChildren(...s.results.map((r) => {
         const li = document.createElement('li');
         const n = document.createElement('span'); n.textContent = r.name;
-        const p = document.createElement('span'); p.className = r.points ? 'plus' : 'zero'; p.textContent = r.points ? '+' + r.points : (r.ok ? '0' : 'raté');
+        const p = document.createElement('span'); p.className = r.points ? 'plus' : 'zero'; p.textContent = r.points ? '+' + r.points + (r.x2 ? ' ⚡×2' : '') : (r.ok ? '0' : 'raté');
         li.append(n, p);
         return li;
       }));

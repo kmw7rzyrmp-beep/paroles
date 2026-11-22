@@ -742,3 +742,7 @@ html[data-site="dz"] .dz-card b { color: #8fe3b0; }
 .pp-trophy .pt-bar{display:block;height:5px;border-radius:5px;background:rgba(255,255,255,.12);overflow:hidden}
 .pp-trophy .pt-bar u{display:block;height:100%;background:#ffb43c;text-decoration:none}
 .trophy-toast{border-color:rgba(255,190,60,.55)}
+
+/* Bonus du jour ×2 */
+.bonus-x2{margin:.2rem 0 1rem;padding:.55rem .9rem;border-radius:12px;font-size:.9rem;background:linear-gradient(135deg,rgba(255,190,60,.18),rgba(255,120,40,.1));border:1px solid rgba(255,190,60,.45)}
+.bonus-x2[hidden]{display:none}

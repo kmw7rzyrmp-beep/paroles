@@ -93,6 +93,28 @@ function cleanArtists(id, list) {
   return picked.length === valid.size ? null : picked;
 }
 
+// --- Bonus du jour ×2 : chaque jour (heure de Paris), un artiste, une catégorie ou « les parties avec une playlist » ---
+// double les points gagnés. Le choix est le même pour tout le monde et ne change qu'à minuit.
+// La liste est figée au démarrage (avant le chargement des sons Deezer) pour que le choix reste stable.
+const BONUS_ARTISTS = (() => {
+  const n = new Map();
+  for (const c of CATEGORIES) { for (const a of c.artistesAuto || []) n.set(a, (n.get(a) || 0) + 99); for (const x of c.chansons) n.set(x.artiste, (n.get(x.artiste) || 0) + 1); }
+  return [...n].filter(([, k]) => k >= 5).map(([a]) => a).sort();
+})();
+const BONUS_CATS = CATEGORIES.map((c) => ({ id: c.id, nom: c.nom }));
+export function dailyBonus(at = Date.now()) {
+  const day = new Date(at).toLocaleDateString('sv-SE', { timeZone: 'Europe/Paris' });
+  const n = Math.floor(Date.parse(day + 'T00:00:00Z') / 86_400_000);
+  const kind = ['artist', 'category', 'playlist'][n % 3];
+  const k = Math.floor(n / 3);
+  if (kind === 'artist' && BONUS_ARTISTS.length) { const a = BONUS_ARTISTS[(k * 7 + 3) % BONUS_ARTISTS.length]; return { day, kind, value: a, label: a, text: `les sons de ${a}` }; }
+  if (kind === 'category' && BONUS_CATS.length) { const c = BONUS_CATS[(k * 5 + 1) % BONUS_CATS.length]; return { day, kind, value: c.id, label: c.nom, text: `la catégorie ${c.nom}` }; }
+  return { day, kind: 'playlist', value: '', label: 'Playlists', text: 'les parties avec une playlist' };
+}
+const bonusApplies = (b, room, round) => b.kind === 'playlist' ? isPlaylist(room.category)
+  : b.kind === 'category' ? (room.category === b.value || (room.category === ALL && round.cat === b.value))
+  : round.song.artiste === b.value;
+
 // Niveaux de difficulté : les sons les plus écoutés en Facile, les moins connus en HARRR MODE
 const LEVELS = [
   { id: 'facile', nom: 'Facile' },
@@ -401,6 +423,7 @@ export function createBlindtest({ getJson, sameSong, clientIp, sessionUser, find
       preview: song.preview || '',
       options,
       correct: options.findIndex((o) => o.titre === song.titre && o.artiste === song.artiste),
+      cat: song.cat,
       answers: new Map(), // playerId -> { choice, at, points }
     };
   }
@@ -600,6 +623,7 @@ export function createBlindtest({ getJson, sameSong, clientIp, sessionUser, find
       typing: [...(room.typing || new Map()).entries()].filter(([pid, t]) => pid !== me.id && now - t.at < 3500).map(([, t]) => t.name).slice(0, 4),
       category: room.category,
       categoryName: categoryName(room.category),
+      bonus: dailyBonus(),
       rounds: room.roundCount,
       level: room.level,
       artists: room.artists,
@@ -634,7 +658,7 @@ export function createBlindtest({ getJson, sameSong, clientIp, sessionUser, find
     if (room.phase === 'reveal' || room.phase === 'end') {
       out.correct = round.correct;
       out.song = round.song;
-      out.results = [...round.answers.entries()].map(([id, a]) => ({ name: room.players.get(id)?.name || '?', points: a.points, ok: a.choice === round.correct }))
+      out.results = [...round.answers.entries()].map(([id, a]) => ({ name: room.players.get(id)?.name || '?', points: a.points, ok: a.choice === round.correct, x2: !!a.x2 }))
         .sort((a, b) => b.points - a.points);
     }
     if (room.mode === 'br') {
@@ -760,6 +784,7 @@ export function createBlindtest({ getJson, sameSong, clientIp, sessionUser, find
         return send(res, 200, {
           categories: [...CATEGORIES.map((c) => ({ id: c.id, nom: c.nom, count: c.chansons.length, artists: categoryArtists(c.id) })),
             { id: ALL, nom: 'Tout mélangé', count: CATEGORIES.reduce((n, c) => n + c.chansons.length, 0), artists: allArtists() }, ...pls],
+          bonus: dailyBonus(),
           rounds: ROUND_CHOICES,
           maxRounds: MAX_ROUNDS,
           levels: LEVELS,
@@ -988,8 +1013,10 @@ export function createBlindtest({ getJson, sameSong, clientIp, sessionUser, find
         if (!Number.isInteger(choice) || choice < 0 || choice >= round.options.length) throw new BtError(400, 'Réponse invalide.');
         const elapsed = Math.max(0, Date.now() - g.roundStart);
         // bonne réponse : 500 points + jusqu'à 500 de bonus selon la rapidité
-        const points = choice === round.correct ? 500 + Math.round(500 * Math.max(0, 1 - elapsed / roundMs(room, g.index))) : 0;
-        round.answers.set(me.id, { choice, at: elapsed, points });
+        const base = choice === round.correct ? 500 + Math.round(500 * Math.max(0, 1 - elapsed / roundMs(room, g.index))) : 0;
+        const x2 = base > 0 && bonusApplies(dailyBonus(), room, round);
+        const points = x2 ? base * 2 : base; // bonus du jour
+        round.answers.set(me.id, { choice, at: elapsed, points, x2 });
         me.score += points;
         return send(res, 200, view(room, me));
       }
