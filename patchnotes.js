@@ -4,6 +4,12 @@
 // tag : 'new' (nouveauté), 'better' (amélioration), 'fix' (correction), 'removed' (retiré)
 export const PATCH_NOTES = [
   {
+    version: '2.17', date: '2026-11-23', time: '00:18', title: 'Alerte patch note',
+    items: [
+      ['new', 'Une notification est envoyée à tout le monde dès qu\'un nouveau patch note sort.'],
+    ],
+  },
+  {
     version: '2.16', date: '2026-11-22', time: '05:09', title: 'Esdeekid en Rap FR',
     items: [
       ['new', 'L\'artiste Esdeekid rejoint le Rap FR dans le blind test, avec 40 de ses sons.'],

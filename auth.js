@@ -2,6 +2,7 @@
 // Sans dépendance : mots de passe hachés avec scrypt (node:crypto),
 // données gardées dans data/db.json (créé automatiquement, ignoré par git).
 import { randomBytes, randomUUID, createHash, scrypt, timingSafeEqual } from 'node:crypto';
+import { PATCH_NOTES } from './patchnotes.js';
 import { newVapidKeys, sendPush, validSubscription } from './push.js';
 import { readFile, writeFile, rename, mkdir } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
@@ -1671,4 +1672,17 @@ if (!migrations.has('flame-gift-1')) {
   }
   migrations.add('flame-gift-1');
   persist().then(() => console.log(`Cadeau : une flamme offerte à ${n} compte(s).`)).catch((err) => console.error('Cadeau flamme :', err.message));
+}
+
+// Nouveau patch note : une notification part à tout le monde (une seule fois par version).
+{
+  const last = PATCH_NOTES[0];
+  const key = 'patch-notified-' + (last && last.version);
+  if (last && !migrations.has(key)) {
+    migrations.add(key);
+    {
+      const r = notifyAll({ username: 'star-song' }, `🆕 Patch note ${last.version}`, `${last.title} : viens voir les nouveautés !`, '/#patch');
+      persist().then(() => console.log(`Patch note ${last.version} : notification envoyée à ${r.people} comptes.`)).catch((err) => console.error('Patch note :', err.message));
+    }
+  }
 }
