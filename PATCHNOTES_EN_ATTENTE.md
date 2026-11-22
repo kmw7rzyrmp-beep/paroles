@@ -1,8 +1,10 @@
-# Modifications en attente de patch note
+# Règle des patch notes
 
-Règle : on ne publie un patch note (dans `patchnotes.js`) qu’à partir de **10 modifications** visibles par les joueurs.
-Tant qu'il y en a moins de 10, on les note ici. Quand on arrive à 10, on les met toutes dans un nouveau patch note, puis on vide cette liste.
-Avant de publier, on PRÉVIENT l'utilisateur (demande de l'utilisateur).
-(Le patch note envoie une notification à tout le monde, c'est pour ça qu'on les regroupe.)
+**Un seul patch note par jour, publié automatiquement à 18 h (heure de Paris).**
 
-## En attente (0 / 10)
+- La version du jour est écrite à l'avance dans `patchnotes.js` avec `time: '18:00'`. Elle reste cachée jusqu'à 18 h.
+- Chaque modification visible faite dans la journée s'ajoute à cette version (une ligne dans `items`).
+- À 18 h, le serveur la publie tout seul et envoie la notification à tout le monde (une seule fois).
+- 10 minutes avant, les admins reçoivent un message pour les prévenir.
+- S'il n'y a eu aucune modification ce jour-là, il n'y a pas de version du jour : aucun patch note n'est envoyé.
+- Le lendemain, on crée une nouvelle version (numéro suivant, date du jour, `time: '18:00'`).

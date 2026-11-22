@@ -5,7 +5,7 @@ import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { join, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { handleAuth, clientIp, sessionUser, findFriend, recordBlindtest, blindtestLeaderboard, markInBlindtest, countStat, isAdmin, adminStats, recordActivity, recordListen, streakOf, notifyUser, usersStreak, getPlaylist, playlistsFor, adminNotify, atReplacer, runAdminCommand, addAdminCommand, ADMIN_COMMANDS, liveState, isMuted, setCoverProvider } from './auth.js';
+import { handleAuth, clientIp, sessionUser, findFriend, recordBlindtest, blindtestLeaderboard, markInBlindtest, countStat, isAdmin, adminStats, recordActivity, recordListen, streakOf, notifyUser, usersStreak, getPlaylist, playlistsFor, adminNotify, atReplacer, runAdminCommand, addAdminCommand, ADMIN_COMMANDS, liveState, isMuted, setCoverProvider, patchVisible } from './auth.js';
 import { createBlindtest } from './blindtest.js';
 import { CATEGORIES } from './categories.js';
 
@@ -537,7 +537,7 @@ const server = createServer(async (req, res) => {
   // Notification envoyée par l'admin à la personne de son choix
   if (url.pathname === '/api/version') { res.setHeader('Cache-Control', 'no-store'); return sendJson(res, 200, { v: BOOT_ID }); }
   if (url.pathname === '/api/patchnotes') { // le patch note : visible par tout le monde
-    return sendJson(res, 200, { notes: PATCH_NOTES });
+    return sendJson(res, 200, { notes: PATCH_NOTES.filter((n) => patchVisible(n)) });
   }
   if (url.pathname === '/api/video') {
     const title = String(url.searchParams.get('title') || '').slice(0, 200), artist = String(url.searchParams.get('artist') || '').slice(0, 200);
@@ -564,7 +564,7 @@ const server = createServer(async (req, res) => {
       body = JSON.parse(raw || '{}');
     } catch { return sendJson(res, 400, { error: 'Requête invalide.' }); }
     try {
-      return sendJson(res, 200, { out: runAdminCommand(user, body.line) });
+      return sendJson(res, 200, { out: await runAdminCommand(user, body.line) });
     } catch (err) {
       return sendJson(res, err.status || 500, { error: err.status ? err.message : 'Erreur : ' + err.message });
     }

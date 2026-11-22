@@ -1,9 +1,15 @@
 // Le patch note du site : visible par tout le monde (page « Patch note » du menu).
-// RÈGLE : on publie une version toutes les 10 modifications (voir PATCHNOTES_EN_ATTENTE.md), car chaque version envoie une notification à tout le monde.
+// RÈGLE : un seul patch note par jour, publié tout seul à 18:00 (heure de Paris). La version du jour est écrite ici à l'avance avec time: '18:00' : elle reste cachée jusqu'à l'heure. Pas de changement ce jour-là = pas de version. Les admins sont prévenus 10 minutes avant.
 // La plus récente en premier. Pour ajouter une version : copier un bloc en haut de la liste.
 // date + time : le jour et l'heure (heure de Paris) où la version est sortie
 // tag : 'new' (nouveauté), 'better' (amélioration), 'fix' (correction), 'removed' (retiré)
 export const PATCH_NOTES = [
+  {
+    version: '2.21', date: '2026-11-23', time: '18:00', title: 'Sauvegardes, revanche, trophées et plus',
+    items: [
+      ['new', 'Sauvegarde automatique des comptes : une copie par jour, gardée 7 jours.'],
+    ],
+  },
   {
     version: '2.20', date: '2026-11-23', time: '00:46', title: 'Idées, Messages refaits et version DZ',
     items: [

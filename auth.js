@@ -4,7 +4,7 @@
 import { randomBytes, randomUUID, createHash, scrypt, timingSafeEqual } from 'node:crypto';
 import { PATCH_NOTES } from './patchnotes.js';
 import { newVapidKeys, sendPush, validSubscription } from './push.js';
-import { readFile, writeFile, rename, mkdir } from 'node:fs/promises';
+import { readFile, writeFile, rename, mkdir, readdir, unlink } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
@@ -224,20 +224,69 @@ async function load() {
 }
 
 let writing = Promise.resolve();
+const snapshotJson = () => JSON.stringify({
+  users: [...usersById.values()],
+  sessions: [...sessions].map(([h, s]) => ({ h, ...s })),
+  stats,
+  vapid,
+  migrations: [...migrations],
+  live,
+  ideas,
+});
 function persist() {
-  const snapshot = JSON.stringify({
-    users: [...usersById.values()],
-    sessions: [...sessions].map(([h, s]) => ({ h, ...s })),
-    stats,
-    vapid,
-    migrations: [...migrations],
-    live,
-    ideas,
-  });
+  const snapshot = snapshotJson();
   const job = writing.then(() => writeStore(snapshot));
   writing = job.catch(() => {});
   return job;
 }
+
+
+// --- Sauvegarde automatique : une copie par jour, on garde les 7 dernières ---
+// En ligne (Supabase) : des lignes « backup-AAAA-MM-JJ » à côté de la ligne principale.
+// En local : des fichiers data/backups/db-AAAA-MM-JJ.json.
+// Pour revenir en arrière, il suffit de recopier une sauvegarde dans la ligne « main » (ou dans data/db.json).
+const BACKUP_KEEP = 7;
+let lastBackupDay = '';
+async function listBackups() {
+  if (REMOTE) {
+    const rows = await (await supabase('GET', '?id=like.backup-*&select=id,updated_at&order=id.desc')).json();
+    return rows.map((r) => ({ id: r.id, day: r.id.slice(7), at: r.updated_at }));
+  }
+  try {
+    const names = (await readdir(join(DATA_DIR, 'backups'))).filter((n) => /^db-\d{4}-\d{2}-\d{2}\.json$/.test(n)).sort().reverse();
+    return names.map((n) => ({ id: n, day: n.slice(3, 13), at: '' }));
+  } catch { return []; }
+}
+export async function makeBackup(force = false) {
+  const day = parisDay();
+  if (!force && lastBackupDay === day) return null;
+  const snapshot = snapshotJson();
+  if (REMOTE) {
+    await supabase('POST', '?on_conflict=id', { id: 'backup-' + day, data: JSON.parse(snapshot), updated_at: new Date().toISOString() },
+      { Prefer: 'resolution=merge-duplicates,return=minimal' });
+  } else {
+    const dir = join(DATA_DIR, 'backups');
+    await mkdir(dir, { recursive: true });
+    await writeFile(join(dir, `db-${day}.json`), snapshot, { mode: 0o600 });
+  }
+  lastBackupDay = day;
+  const all = await listBackups();
+  for (const b of all.slice(BACKUP_KEEP)) {
+    try { if (REMOTE) await supabase('DELETE', `?id=eq.${encodeURIComponent(b.id)}`); else await unlink(join(DATA_DIR, 'backups', b.id)); } catch { /* sera réessayé demain */ }
+  }
+  console.log(`Sauvegarde du ${day} faite (${Math.round(snapshot.length / 1024)} Ko, ${Math.min(all.length, BACKUP_KEEP)} gardées).`);
+  return { day, kb: Math.round(snapshot.length / 1024), kept: Math.min(all.length, BACKUP_KEEP) };
+}
+// au démarrage (si celle d'aujourd'hui n'existe pas) puis toutes les 3 heures
+async function backupIfNeeded() {
+  try {
+    if (!lastBackupDay) { const have = await listBackups(); if (have.some((b) => b.day === parisDay())) { lastBackupDay = parisDay(); return; } }
+    await makeBackup();
+  } catch (err) { console.error('Sauvegarde automatique impossible :', err.message); }
+}
+setTimeout(backupIfNeeded, 45_000).unref();
+setInterval(backupIfNeeded, 3 * 3600_000).unref();
+export { listBackups };
 
 // --- Mots de passe ---
 const SCRYPT = { N: 16384, r: 8, p: 1 };
@@ -702,17 +751,21 @@ export const ADMIN_COMMANDS = [
     run: () => { const a = adminStats(); return `Comptes : ${a.accounts.total} (dont ${a.accounts.today} aujourd’hui) · En ligne : ${a.accounts.online} · Recherches : ${a.activity.searches.total} · Parties de blind test : ${a.blindtest.games.total}`; } },
   { name: 'journal', use: 'journal', help: 'Les dernières commandes tapées par les admins.',
     run: () => (ADMIN_LOG.length ? ADMIN_LOG.slice(-15).map((l) => `${new Date(l.at).toLocaleTimeString('fr-FR', { timeZone: 'Europe/Paris', hour: '2-digit', minute: '2-digit' })} @${l.by} : ${l.line}`).join('\n') : 'Rien pour l’instant.') },
+  { name: 'sauvegarde', use: 'sauvegarde', help: 'Fait une sauvegarde de tous les comptes tout de suite (il y en a déjà une automatique par jour).',
+    run: async () => { const r = await makeBackup(true); return `Sauvegarde du ${r.day} faite (${r.kb} Ko). ${r.kept} sauvegarde(s) gardée(s).`; } },
+  { name: 'sauvegardes', use: 'sauvegardes', help: 'Liste les sauvegardes automatiques gardées (une par jour, 7 jours).',
+    run: async () => { const l = await listBackups(); return l.length ? l.map((b) => `• ${b.day}`).join('\n') : 'Aucune sauvegarde pour l’instant (la première part peu après le démarrage).'; } },
 ];
 // Les commandes du blind test (salons) sont ajoutées par server.js
 export function addAdminCommand(cmd) { ADMIN_COMMANDS.push(cmd); }
-export function runAdminCommand(admin, line) {
+export async function runAdminCommand(admin, line) {
   const raw = String(line || '').trim().slice(0, 600);
   if (!raw) throw new HttpError(400, 'Tape une commande (ou « aide »).');
   const parts = raw.replace(/^\//, '').split(/\s+/);
   const name = parts.shift().toLowerCase();
   const cmd = ADMIN_COMMANDS.find((c) => c.name === name);
   if (!cmd) throw new HttpError(400, `Commande inconnue : « ${name} ». Tape « aide » pour voir la liste.`);
-  const out = cmd.run(parts, admin);
+  const out = await cmd.run(parts, admin);
   ADMIN_LOG.push({ at: Date.now(), by: admin.username, line: raw.slice(0, 120) });
   if (ADMIN_LOG.length > 50) ADMIN_LOG.shift();
   countStat('admin_cmds');
@@ -1788,16 +1841,44 @@ if (!migrations.has('flame-gift-1')) {
   persist().then(() => console.log(`Cadeau : une flamme offerte à ${n} compte(s).`)).catch((err) => console.error('Cadeau flamme :', err.message));
 }
 
-// Nouveau patch note : une notification part à tout le monde (une seule fois par version).
-{
-  const last = PATCH_NOTES[0];
-  const key = 'patch-notified-' + (last && last.version);
-  if (last && !migrations.has(key)) {
-    migrations.add(key);
-    // on attend un peu : le serveur doit d'abord être prêt pour trouver les pochettes
-    setTimeout(() => {
-      const r = notifyAll({ username: 'star-song' }, `Patch note ${last.version}`, `${last.title} : viens voir les nouveautés !`, '/#patch', { kind: 'patch', tag: 'patch', group: 'patch' });
-      persist().then(() => console.log(`Patch note ${last.version} : notification envoyée à ${r.people} comptes.`)).catch((err) => console.error('Patch note :', err.message));
-    }, 20_000).unref();
-  }
+// --- Patch note : un seul par jour, publié automatiquement à l'heure prévue (18 h, heure de Paris) ---
+// Dans patchnotes.js, la version du jour est écrite à l'avance avec time: '18:00'. Elle reste cachée jusqu'à cette heure.
+// À l'heure dite, elle apparaît dans le site et une notification part à tout le monde (une seule fois par version).
+// 10 minutes avant, les admins reçoivent un petit message pour les prévenir. Pas de changement ce jour-là = pas de version = pas de patch note.
+const parisStamp = () => new Date().toLocaleString('sv-SE', { timeZone: 'Europe/Paris' }).slice(0, 16); // « 2026-11-23 18:00 »
+const stampMin = (st) => Date.parse(st.replace(' ', 'T') + ':00Z') / 60000; // minutes (l'heure de Paris lue comme si c'était de l'UTC : seul l'écart compte)
+export const patchVisible = (n, stamp = parisStamp()) => `${n.date} ${n.time || '00:00'}` <= stamp;
+async function checkPatchNotes() {
+  try {
+    const stamp = parisStamp();
+    const visible = PATCH_NOTES.filter((n) => patchVisible(n, stamp));
+    const fresh = visible.filter((n) => !migrations.has('patch-notified-' + n.version));
+    let dirty = false;
+    if (fresh.length) {
+      const newest = fresh[0];
+      // une version vieille de plus de 12 h est juste marquée comme vue (pas de notification en retard après un redémarrage)
+      const ageOk = stampMin(stamp) - stampMin(`${newest.date} ${newest.time || '00:00'}`) <= 13 * 60;
+      for (const n of fresh) migrations.add('patch-notified-' + n.version);
+      dirty = true;
+      if (ageOk) {
+        const r = notifyAll({ username: 'star-song' }, `Patch note ${newest.version}`, `${newest.title} : viens voir les nouveautés !`, '/#patch', { kind: 'patch', tag: 'patch', group: 'patch' });
+        console.log(`Patch note ${newest.version} publié : notification envoyée à ${r.people} comptes.`);
+      }
+    }
+    // prévenir les admins 10 minutes avant la publication
+    for (const n of PATCH_NOTES.filter((x) => !patchVisible(x, stamp))) {
+      const diff = stampMin(`${n.date} ${n.time || '00:00'}`) - stampMin(stamp); // minutes avant la publication
+      const key = 'patch-warned-' + n.version;
+      if (migrations.has(key) || diff > 10) continue;
+      migrations.add(key); dirty = true;
+      const list = n.items.slice(0, 3).map((i) => i[1]).join(' · ');
+      for (const a of usersById.values()) {
+        if (!a.username || !isAdmin(a)) continue;
+        try { adminNotify({ username: 'star-song' }, a.username, { title: `Patch note ${n.version} dans 10 minutes`, body: `${n.items.length} changement${n.items.length > 1 ? 's' : ''} : ${list}`.slice(0, 280), url: '/#patch', tag: 'patch-warn' }); } catch { /* pas un admin valide */ }
+      }
+    }
+    if (dirty) await persist();
+  } catch (err) { console.error('Patch note :', err.message); }
 }
+setTimeout(checkPatchNotes, 20_000).unref();
+setInterval(checkPatchNotes, 60_000).unref();
