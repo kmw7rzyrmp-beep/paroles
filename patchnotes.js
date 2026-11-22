@@ -5,6 +5,17 @@
 // tag : 'new' (nouveauté), 'better' (amélioration), 'fix' (correction), 'removed' (retiré)
 export const PATCH_NOTES = [
   {
+    version: '2.19', date: '2026-11-23', time: '00:27', title: 'Un site plus fluide et plus beau',
+    items: [
+      ['better', 'Les cartes de l\'accueil apparaissent l\'une après l\'autre, en douceur.'],
+      ['better', 'Les fenêtres s\'ouvrent avec un fond qui apparaît en fondu.'],
+      ['better', 'Boutons, liens et champs de texte plus souples, avec une lueur quand on écrit et un contour visible au clavier.'],
+      ['better', 'Défilement plus fluide, avec des barres de défilement fines et discrètes.'],
+      ['better', 'Sur téléphone : le site est plus fluide (flou allégé) et répond tout de suite au toucher.'],
+      ['new', 'Un message te prévient quand la connexion est perdue, puis quand elle revient.'],
+    ],
+  },
+  {
     version: '2.18', date: '2026-11-23', time: '00:23', title: 'Notifications personnalisées',
     items: [
       ['better', 'Chaque notification affiche la pochette d\'un de tes sons favoris (ou d\'un album au hasard), avec une vibration et un bouton adaptés.'],

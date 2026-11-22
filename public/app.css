@@ -602,3 +602,46 @@ dialog.friends-panel.as-page .friends { display: grid; grid-template-columns: 23
 .more-grid a, .more-grid button { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .35rem; min-height: 5.2rem; padding: .5rem; border-radius: 18px;
   background: #1d1d21; color: var(--blanc); text-decoration: none; font: 600 .8rem var(--texte); text-align: center; animation: cardIn .35s ease both; }
 .more-grid span { font-size: 1.6rem; }
+
+/* ================= Finitions : fluidité, animations, confort ================= */
+html { scroll-behavior: smooth; }
+body { -webkit-tap-highlight-color: transparent; text-rendering: optimizeLegibility; -webkit-font-smoothing: antialiased; }
+button, a, summary, [role="button"], input, select, textarea, label { touch-action: manipulation; } /* pas de délai au toucher */
+.card, .friend-item, dialog, .np-card, .more-sheet { backface-visibility: hidden; }
+
+/* Barres de défilement fines et discrètes */
+* { scrollbar-width: thin; scrollbar-color: rgba(255,255,255,.22) transparent; }
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-thumb { background: rgba(255,255,255,.2); border-radius: 8px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,.34); }
+::-webkit-scrollbar-track { background: transparent; }
+::selection { background: rgba(242, 107, 58, .45); }
+
+/* Boutons : retour souple au clic, anneau visible au clavier */
+button { transition: background .2s, color .2s, transform .18s cubic-bezier(.3, .9, .3, 1.2), opacity .2s; }
+:focus-visible { outline: 2px solid var(--orange); outline-offset: 2px; border-radius: 8px; }
+input:focus-visible, textarea:focus-visible { outline: none; }
+input, textarea, select { transition: border-color .2s, box-shadow .25s, background .2s; }
+input:focus, textarea:focus { box-shadow: 0 0 0 3px rgba(242, 107, 58, .22); }
+a { transition: color .2s, opacity .2s; }
+
+/* Entrée des éléments : les cartes de l'accueil arrivent l'une après l'autre (une seule fois) */
+.main > .card, .rail > .card { animation: cardIn .55s cubic-bezier(.2, .9, .3, 1.1) backwards; }
+.main > .card:nth-child(2), .rail > .card:nth-child(2) { animation-delay: .06s; }
+.main > .card:nth-child(3), .rail > .card:nth-child(3) { animation-delay: .12s; }
+.main > .card:nth-child(4), .rail > .card:nth-child(4) { animation-delay: .18s; }
+.main > .card:nth-child(n+5), .rail > .card:nth-child(n+5) { animation-delay: .24s; }
+
+/* Fenêtres : le fond apparaît en fondu */
+dialog[open]::backdrop { animation: fadeIn .25s ease both; }
+
+/* Listes (amis, notifications, résultats) : chaque ligne apparaît en douceur, une seule fois */
+.result, .res-item { animation: rise .35s ease backwards; }
+
+/* Mobile : flou plus léger (plus fluide sur les téléphones) et pas de défilement qui « rebondit » dans les panneaux */
+@media (max-width: 860px) {
+  .top, .tabbar, .more-sheet, .np-card { -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); }
+  dialog::backdrop { -webkit-backdrop-filter: none; backdrop-filter: none; }
+  html { scroll-behavior: auto; }
+}
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }

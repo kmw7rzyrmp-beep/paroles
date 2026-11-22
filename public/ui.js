@@ -171,3 +171,20 @@
   setInterval(check, 60_000);
   document.addEventListener('visibilitychange', () => { if (!document.hidden) check(); });
 })();
+
+// --- Connexion perdue / retrouvée : un petit message au lieu d'un site qui « ne répond plus » ---
+(function () {
+  let bar = null;
+  const show = (text, ok) => {
+    if (bar) bar.remove();
+    bar = document.createElement('div');
+    bar.setAttribute('role', 'status');
+    bar.textContent = text;
+    bar.style.cssText = 'position:fixed;top:12px;left:50%;transform:translateX(-50%);z-index:99998;padding:8px 16px;border-radius:999px;font:600 13px system-ui,sans-serif;color:#fff;box-shadow:0 8px 24px rgba(0,0,0,.4);transition:opacity .4s;background:' + (ok ? '#2f9e5b' : '#c0392b');
+    document.body.append(bar);
+    if (ok) { const b = bar; setTimeout(() => { b.style.opacity = '0'; setTimeout(() => b.remove(), 450); }, 2200); }
+  };
+  window.addEventListener('offline', () => show('📡 Plus de connexion…', false));
+  window.addEventListener('online', () => show('✅ Connexion retrouvée', true));
+  if (!navigator.onLine) window.addEventListener('DOMContentLoaded', () => show('📡 Plus de connexion…', false));
+})();
