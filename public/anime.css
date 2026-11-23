@@ -172,3 +172,8 @@ html[data-skin="anime"] #artistSetsBox, html[data-skin="anime"] .bonus-x2 { disp
 .an-stage.an-reveal.yt .an-tag { pointer-events: none; padding-top: 1.4rem; }
 .an-stage.an-reveal.yt .an-sound { z-index: 3; }
 html[data-skin="anime"] .cat-lbl { display: none !important; }
+
+/* pas d'overlay : le lecteur YouTube ne reçoit aucun clic (donc aucune interface YouTube), et le bouton son est une simple icône */
+.an-stage.an-reveal.yt .an-yt { pointer-events: none; }
+.an-yt iframe { transform: scale(1.04); }
+.an-sound { top: auto; left: auto; right: .8rem; bottom: .8rem; width: 2.4rem; height: 2.4rem; padding: 0; display: grid; place-items: center; font-size: 1.1rem; }

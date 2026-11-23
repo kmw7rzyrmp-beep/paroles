@@ -68,14 +68,14 @@
       ytId = id;
       ytBox.replaceChildren();
       const f = document.createElement('iframe');
-      f.src = `https://www.youtube-nocookie.com/embed/${id}?autoplay=1&mute=1&playsinline=1&controls=1&rel=0&modestbranding=1&enablejsapi=1`;
+      f.src = `https://www.youtube-nocookie.com/embed/${id}?autoplay=1&mute=1&playsinline=1&controls=0&disablekb=1&fs=0&iv_load_policy=3&rel=0&modestbranding=1&showinfo=0&start=40&enablejsapi=1`;
       f.allow = 'autoplay; encrypted-media; picture-in-picture';
       f.title = 'Clip de l’opening';
       f.setAttribute('allowfullscreen', '');
       ytBox.append(f);
     }
     soundTip.hidden = false;
-    soundTip.onclick = () => { ytCmd('unMute'); ytCmd('playVideo'); if (window.btAudio) window.btAudio.pause(); soundTip.hidden = true; };
+    soundTip.onclick = () => { ytCmd('unMute'); ytCmd('playVideo'); ytCmd('setVolume'); if (window.btAudio) window.btAudio.pause(); soundTip.hidden = true; };
     return true;
   }
   function clearYT() { ytId = ''; if (ytBox) ytBox.replaceChildren(); if (stage) stage.classList.remove('yt'); }
@@ -93,7 +93,7 @@
     const lines = mk('div', 'an-speed'); // lignes de vitesse au moment de la révélation
     const tag = mk('div', 'an-tag'); title = mk('b'); sub = mk('small'); tag.append(title, sub);
     verdict = mk('div', 'an-verdict');
-    soundTip = mk('button', 'an-sound', '🔊 Touche pour le son'); soundTip.type = 'button'; soundTip.hidden = true;
+    soundTip = mk('button', 'an-sound', '🔇'); soundTip.setAttribute('aria-label', 'Activer le son du clip'); soundTip.type = 'button'; soundTip.hidden = true;
     soundTip.onclick = () => { video.muted = false; video.play().catch(() => {}); soundTip.hidden = true; };
     ytBox = mk('div', 'an-yt');
     screen.append(cover, video, ytBox, mystery, lines, tag, verdict, soundTip);
@@ -108,7 +108,10 @@
     if (!src) { stage.classList.add('no-video'); return; }
     if (videoSrc !== src) { videoSrc = src; video.src = src; stage.classList.remove('no-video'); }
     const go = () => {
-      if (at > 0.5 && isFinite(video.duration)) video.currentTime = Math.min(at, Math.max(0, video.duration - 2));
+      if (isFinite(video.duration) && video.duration > 8) { // on démarre vers le milieu de l'opening (plus de générique du début)
+        const mid = video.duration * 0.45;
+        video.currentTime = Math.min(at > 0.5 ? Math.max(at, mid) : mid, video.duration - 3);
+      }
       video.muted = userMuted();
       video.play().then(() => { soundTip.hidden = true; }).catch(() => { video.muted = true; video.play().catch(() => {}); soundTip.hidden = userMuted(); });
     };
