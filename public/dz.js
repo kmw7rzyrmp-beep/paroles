@@ -92,7 +92,7 @@ window.DZ = {
     'Demande envoyée': 'Demande envoyée (on attend le pigeon voyageur)',
     'Aucune demande envoyée pour l’instant. Invite quelqu’un avec son @pseudo.': 'Aucune demande envoyée. Le douar t’attend : invite quelqu’un avec son @blaze.',
     'Blind test musique': 'Blind test musique (le raï compris)',
-    'Blind test animé': 'Blind test animé (Vegeta, le vrai DZ. Au sang)',
+    'Blind test animé': 'Blind test animé (Vegeta, le vrai DZ. Au sang chaud)',
     'Jeu entre potes': 'Jeu entre sahbi',
     'Nouveau': 'Tout neuf, sorti du hammam',
     'Rap, pop, R&B, rock… Trouve le son avant les autres.': 'Rap, pop, R&B, raï… Trouve le son avant le cousin.',
