@@ -3,6 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="theme-color" content="#000000">
+<script>try{if(localStorage.getItem('ss-theme')==='light')document.documentElement.dataset.theme='light'}catch(e){}</script>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Star Song</title>
 <meta name="description" content="Tape quelques paroles et retrouve le titre de la chanson et son artiste.">
@@ -15,6 +16,7 @@
 <meta name="apple-mobile-web-app-title" content="Star Song">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <script src="/dz.js"></script>
+<script src="/theme.js?v=3" defer></script>
 <script src="/dzboom.js" defer></script>
 <script src="/i18n.js"></script>
 <script src="/ui.js"></script>
@@ -32,6 +34,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/app.css?v=29">
+<link rel="stylesheet" href="/theme.css?v=2">
 <style>
   /* ---------- Accueil : le grand bandeau orange avec la recherche ---------- */
   .hero {

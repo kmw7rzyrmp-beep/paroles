@@ -1,0 +1,71 @@
+/* Thème clair : on ne change que les couleurs (variables), le reste de l'interface est le même. */
+html[data-theme="light"] {
+  --mur: #f7f4f0;
+  --fond: #ee7a4c;
+  --coque: #ffffff;
+  --coque-hi: #efe9e2;
+  --blanc: #17171a;
+  --gris: #66666e;
+  --muet: #9a9aa2;
+  --ligne: #e6dfd7;
+  --jaune: #c2410c;
+  --danger: #d6352a;
+  --chrome: #17171a;
+  --feutre-encre: #ffffff;
+  color-scheme: light;
+}
+
+/* ===== Thème clair : surfaces codées en dur ===== */
+html[data-theme="light"] button{color:#fff}
+html[data-theme="light"] .ghost{background:rgba(0,0,0,.06);color:var(--blanc)}
+html[data-theme="light"] .ghost:hover{background:rgba(0,0,0,.12)}
+html[data-theme="light"] .nav a:hover,html[data-theme="light"] .nav button:hover,
+html[data-theme="light"] .profile-btn:hover,html[data-theme="light"] .menu-btn:hover{background:rgba(0,0,0,.06)}
+html[data-theme="light"] input[type="text"],html[data-theme="light"] input[type="search"],html[data-theme="light"] input[type="password"],
+html[data-theme="light"] input:not([type]),html[data-theme="light"] textarea,
+html[data-theme="light"] .auth input,html[data-theme="light"] .friends input[type="text"],
+html[data-theme="light"] .rk-search,html[data-theme="light"] .as-name,html[data-theme="light"] .as-search,
+html[data-theme="light"] .chat-form input,html[data-theme="light"] .pp-bio-input,html[data-theme="light"] .pw-all textarea{background:#fff;color:#17171a;border-color:#e0d8cf}
+html[data-theme="light"] dialog,html[data-theme="light"] dialog.ss-modal,html[data-theme="light"] dialog.as-dialog,
+html[data-theme="light"] .welcome-in,html[data-theme="light"] .more-panel,html[data-theme="light"] .chat-panel,
+html[data-theme="light"] .np-card,html[data-theme="light"] .invite-toast,html[data-theme="light"] .id-toast{background:#fff;color:#17171a;box-shadow:0 20px 60px rgba(0,0,0,.25)}
+html[data-theme="light"] dialog::backdrop{background:rgba(0,0,0,.35)}
+html[data-theme="light"] .player-card,html[data-theme="light"] .tape,html[data-theme="light"] .rk-me,
+html[data-theme="light"] .as-art{background:linear-gradient(160deg,#fff,#f1ebe4)}
+html[data-theme="light"] .top{background:rgba(255,255,255,.9)}
+html[data-theme="light"] .more-grid a,html[data-theme="light"] .more-grid button,
+html[data-theme="light"] .chips button,html[data-theme="light"] #createBox .chips button,
+html[data-theme="light"] .ss-foot .no,html[data-theme="light"] .np-later,html[data-theme="light"] .as-chip,
+html[data-theme="light"] .as-genres button,html[data-theme="light"] .as-artists button,html[data-theme="light"] .as-d-foot .cancel,
+html[data-theme="light"] .fav-btn,html[data-theme="light"] .ready-box,html[data-theme="light"] .reward,
+html[data-theme="light"] .pw-quick button,html[data-theme="light"] .pw-powers li,html[data-theme="light"] .pw-powers button,
+html[data-theme="light"] .flame-chip,html[data-theme="light"] .pp-stat,html[data-theme="light"] .pp-song,html[data-theme="light"] .pp-badge,html[data-theme="light"] .pp-fav{background:#efe9e2;color:#17171a;border-color:#e0d8cf}
+html[data-theme="light"] .chips button:hover,html[data-theme="light"] .options button:hover:not(:disabled),
+html[data-theme="light"] .as-chip:hover,html[data-theme="light"] .nf-item:hover,html[data-theme="light"] .rk-row:hover,
+html[data-theme="light"] .as-page #friendList .friend-item:hover{background:#e6dfd7}
+html[data-theme="light"] .nf-item.unread{background:#fdf0e8}
+html[data-theme="light"] .options button.on,html[data-theme="light"] .chips button.on,html[data-theme="light"] .as-chip.on,
+html[data-theme="light"] .id-tab.on,html[data-theme="light"] .nf-chip.on{background:#17171a;color:#fff}
+html[data-theme="light"] .pn-ver::before,html[data-theme="light"] .pn-num{background:#fff}
+html[data-theme="light"] .pn-timeline::before{background:#e0d8cf}
+html[data-theme="light"] .friend-tabs button{background:rgba(0,0,0,.05);border-color:rgba(0,0,0,.1)}
+html[data-theme="light"] .friend-tabs button[aria-selected="true"]{background:rgba(0,0,0,.14);border-color:rgba(0,0,0,.25)}
+html[data-theme="light"] .switch span{background:#cfc7be}
+html[data-theme="light"] *{scrollbar-color:rgba(0,0,0,.25) transparent}
+html[data-theme="light"] ::-webkit-scrollbar-thumb{background:rgba(0,0,0,.22)}
+/* Messages */
+html[data-theme="light"] dialog.chat,html[data-theme="light"] .ch-head,html[data-theme="light"] .ch-form{background:#fff;color:#17171a;border-color:#e6dfd7}
+html[data-theme="light"] .ch-row:hover{background:#f3eee8}
+html[data-theme="light"] .ch-msg.them{background:#efe9e2;color:#17171a;border-color:#e6dfd7}
+html[data-theme="light"] .ch-form textarea{background:#f7f4f0;color:#17171a}
+html[data-theme="light"] .ch-icon,html[data-theme="light"] .ch-day,html[data-theme="light"] .ch-empty,html[data-theme="light"] .ch-form .ch-mic{background:rgba(0,0,0,.06);color:#17171a}
+/* Blind test */
+html[data-theme="light"] .chat-list li .bub,html[data-theme="light"] .players li .rdy,html[data-theme="light"] .ready-btn[aria-pressed="true"]{background:#efe9e2;color:#17171a}
+html[data-theme="light"] .chat-head,html[data-theme="light"] .chat-form{border-color:#e0d8cf}
+html[data-theme="light"] .react-bar button:hover,html[data-theme="light"] .react-bar button:active{background:#e6dfd7}
+/* Profil / classement / outils */
+html[data-theme="light"] .pp-avatar,html[data-theme="light"] .pp-save{background:#fff;color:#17171a}
+html[data-theme="light"] .pw-hero,html[data-theme="light"] .pw-hint{background:#fff;border-color:#e6dfd7}
+html[data-theme="light"] .rk-scope{background:rgba(0,0,0,.12)}
+/* le skin animé reste sombre */
+html[data-skin="anime"][data-theme="light"]{--mur:#0b0b0c;--coque:#141416;--coque-hi:#1d1d21;--blanc:#f4f4f5;--gris:#a1a1a8;--ligne:#2a2a2e;--chrome:#f4f4f5;color-scheme:dark}

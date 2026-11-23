@@ -7,6 +7,8 @@ export const PATCH_NOTES = [
   {
     version: '2.21', date: '2026-11-23', time: '18:00', title: 'Sauvegardes, revanche, bonus ×2 et plus',
     items: [
+      ['new', 'Thème clair : un bouton ☀️/🌙 en haut (ou dans « Plus » sur téléphone) pour passer du thème sombre au thème clair.'],
+      ['new', 'Guide de bienvenue en 3 écrans pour les nouveaux, relançable avec le bouton ❓.'],
       ['new', 'Sauvegarde automatique des comptes : une copie par jour, gardée 7 jours.'],
       ['new', 'Revanche : à la fin d\'une partie, l\'hôte relance tout de suite une nouvelle manche avec les mêmes joueurs.'],
       ['new', 'Bonus du jour ×2 : chaque jour, un artiste, une catégorie ou les parties avec playlist rapportent le double de points au blind test.'],
