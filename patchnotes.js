@@ -11,7 +11,7 @@ export const PATCH_NOTES = [
       ['new', 'Revanche : à la fin d\'une partie, l\'hôte relance tout de suite une nouvelle manche avec les mêmes joueurs.'],
       ['new', 'Bonus du jour ×2 : chaque jour, un artiste, une catégorie ou les parties avec playlist rapportent le double de points au blind test.'],
       ['new', 'Commande admin « bonus » : voir, choisir ou tirer au hasard le bonus du jour.'],
-      ['new', 'Quand tu cliques sur le drapeau algérien, il explose en une énorme gerbe de confettis, d\'étoiles et de croissants.'],
+      ['new', 'Quand tu cliques sur le drapeau algérien, il explose : flash, ondes de choc, gros BOUM, drapeau géant qui flotte puis éclate en morceaux, feux d\'artifice et pluie de confettis.'],
       ['better', 'Le drapeau algérien clignote, brille et change de couleurs pour qu\'on ne rate pas la version DZ.'],
     ],
   },

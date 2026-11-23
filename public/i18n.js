@@ -816,11 +816,11 @@
     const sync = (l = lang) => { box.dataset.lang = l; box.querySelectorAll('button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.l === l))); };
     box.addEventListener('click', (e) => {
       const b = e.target.closest('button');
-      if (b && b.dataset.l === 'dz') dzBoom(b); // le drapeau explose à chaque clic
+      if (b && b.dataset.l === 'dz' && window.ssDzBoom) window.ssDzBoom(b); // le drapeau explose (dzboom.js)
       if (!b || b.dataset.l === box.dataset.lang) return;
       sync(b.dataset.l);
       setLang(b.dataset.l);
-      if (b.dataset.l === 'dz' && window.ssDzParty) setTimeout(window.ssDzParty, 350);
+      if (b.dataset.l === 'dz' && window.ssDzParty) setTimeout(window.ssDzParty, 5600); // après l'explosion
     });
     sync();
     bar.append(box);
@@ -828,51 +828,6 @@
 
   const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-  // Explosion du drapeau algérien : onde de choc, flash, énorme gerbe de confettis, étoiles, croissants et mini-drapeaux
-  function dzBoom(btn) {
-    const r = btn.getBoundingClientRect();
-    const ox = r.left + r.width / 2, oy = r.top + r.height / 2;
-    btn.classList.remove('dz-exploded'); void btn.offsetWidth; btn.classList.add('dz-exploded');
-    setTimeout(() => btn.classList.remove('dz-exploded'), 1300);
-    const cv = document.createElement('canvas');
-    cv.setAttribute('aria-hidden', 'true');
-    cv.style.cssText = 'position:fixed;inset:0;width:100%;height:100%;z-index:99999;pointer-events:none';
-    const dpr = Math.min(2, window.devicePixelRatio || 1);
-    cv.width = innerWidth * dpr; cv.height = innerHeight * dpr;
-    document.body.append(cv);
-    const g = cv.getContext('2d'); g.scale(dpr, dpr);
-    if (!reduce) { document.body.classList.add('dz-shake'); setTimeout(() => document.body.classList.remove('dz-shake'), 700); }
-    const COLORS = ['#006233', '#ffffff', '#d21034', '#ffd54a', '#2ecc71', '#ff4fa3'];
-    const GLYPHS = ['⭐', '🌙', '🇩🇿', '✨', '🎉', '🔥'];
-    const n = reduce ? 40 : 260;
-    const ps = Array.from({ length: n }, (_, i) => {
-      const ang = Math.random() * Math.PI * 2, sp = 4 + Math.random() * (reduce ? 6 : 17);
-      const glyph = i % 5 === 0;
-      return { x: ox, y: oy, vx: Math.cos(ang) * sp, vy: Math.sin(ang) * sp - 3, rot: Math.random() * 6, vr: (Math.random() - .5) * .5,
-        size: glyph ? 16 + Math.random() * 22 : 5 + Math.random() * 9, c: COLORS[i % COLORS.length], t: glyph ? GLYPHS[(Math.random() * GLYPHS.length) | 0] : '', life: 1 };
-    });
-    const rings = [0, 120, 260].map((d) => ({ d, r: 0 }));
-    const t0 = performance.now(); const DUR = reduce ? 1200 : 2800;
-    (function frame(now) {
-      const t = now - t0;
-      g.clearRect(0, 0, innerWidth, innerHeight);
-      if (t < 260) { g.fillStyle = `rgba(255,255,255,${.75 * (1 - t / 260)})`; g.fillRect(0, 0, innerWidth, innerHeight); } // flash
-      for (const ring of rings) {
-        const k = (t - ring.d) / 900; if (k < 0 || k > 1) continue;
-        g.strokeStyle = `rgba(255,213,74,${1 - k})`; g.lineWidth = 10 * (1 - k) + 1;
-        g.beginPath(); g.arc(ox, oy, k * Math.max(innerWidth, innerHeight) * .7, 0, 7); g.stroke();
-      }
-      for (const p of ps) {
-        p.vy += .22; p.vx *= .992; p.x += p.vx; p.y += p.vy; p.rot += p.vr;
-        p.life = Math.max(0, 1 - t / DUR);
-        g.save(); g.globalAlpha = Math.min(1, p.life * 1.6); g.translate(p.x, p.y); g.rotate(p.rot);
-        if (p.t) { g.font = p.size + 'px serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(p.t, 0, 0); }
-        else { g.fillStyle = p.c; g.fillRect(-p.size / 2, -p.size / 4, p.size, p.size / 2); }
-        g.restore();
-      }
-      if (t < DUR) requestAnimationFrame(frame); else cv.remove();
-    })(t0);
-  }
   function setLang(next) {
     try { localStorage.setItem('lang', next); } catch {}
     if (reduce) { lang = next; applyAll(); return; }
