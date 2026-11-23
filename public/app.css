@@ -735,7 +735,11 @@ html[data-site="dz"] .dz-card b { color: #8fe3b0; }
 .bonus-x2{margin:.2rem 0 1rem;padding:.55rem .9rem;border-radius:12px;font-size:.9rem;background:linear-gradient(135deg,rgba(255,190,60,.18),rgba(255,120,40,.1));border:1px solid rgba(255,190,60,.45)}
 .bonus-x2[hidden]{display:none}
 
-/* Drapeau algérien qui clignote */
-.lang-switch button[data-l="dz"] svg{animation:dzBlink 1.1s ease-in-out infinite}
-@keyframes dzBlink{0%,100%{opacity:1;filter:brightness(1)}50%{opacity:.25;filter:brightness(1.6)}}
-@media (prefers-reduced-motion:reduce){.lang-switch button[data-l="dz"] svg{animation:none}}
+/* Drapeau algérien : clignote, plein de couleurs et brillant */
+.lang-switch button[data-l="dz"]{position:relative;overflow:hidden;border-radius:6px}
+.lang-switch button[data-l="dz"] svg{animation:dzBlink 1.1s ease-in-out infinite,dzColors 3s linear infinite;filter:saturate(1.8) drop-shadow(0 0 5px #ffd54a) drop-shadow(0 0 9px #ff4fa3)}
+.lang-switch button[data-l="dz"]::after{content:"";position:absolute;inset:-20% auto -20% -60%;width:45%;background:linear-gradient(100deg,transparent,rgba(255,255,255,.95),transparent);transform:skewX(-20deg);animation:dzShine 1.8s ease-in-out infinite;pointer-events:none}
+@keyframes dzBlink{0%,100%{opacity:1}50%{opacity:.3}}
+@keyframes dzColors{0%{filter:saturate(1.8) hue-rotate(0deg) drop-shadow(0 0 5px #ffd54a) drop-shadow(0 0 9px #ff4fa3)}50%{filter:saturate(2.2) hue-rotate(180deg) drop-shadow(0 0 7px #4fe3ff) drop-shadow(0 0 11px #ffd54a)}100%{filter:saturate(1.8) hue-rotate(360deg) drop-shadow(0 0 5px #ffd54a) drop-shadow(0 0 9px #ff4fa3)}}
+@keyframes dzShine{0%{left:-60%}60%,100%{left:130%}}
+@media (prefers-reduced-motion:reduce){.lang-switch button[data-l="dz"] svg,.lang-switch button[data-l="dz"]::after{animation:none}}
