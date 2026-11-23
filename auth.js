@@ -1855,7 +1855,17 @@ if (!migrations.has('flame-gift-1')) {
 // 10 minutes avant, les admins reçoivent un petit message pour les prévenir. Pas de changement ce jour-là = pas de version = pas de patch note.
 const parisStamp = () => new Date().toLocaleString('sv-SE', { timeZone: 'Europe/Paris' }).slice(0, 16); // « 2026-11-23 18:00 »
 const stampMin = (st) => Date.parse(st.replace(' ', 'T') + ':00Z') / 60000; // minutes (l'heure de Paris lue comme si c'était de l'UTC : seul l'écart compte)
-export const patchVisible = (n, stamp = parisStamp()) => `${n.date} ${n.time || '00:00'}` <= stamp;
+// un patch note est visible à son heure, ou tout de suite si l'admin l'a publié en avance (commande « patchnote »)
+export const patchVisible = (n, stamp = parisStamp()) => `${n.date} ${n.time || '00:00'}` <= stamp || migrations.has('patch-now-' + n.version);
+// admin : publie tout de suite le prochain patch note prévu (au lieu d'attendre 18 h) et prévient tout le monde
+export async function publishPatchNow() {
+  const next = PATCH_NOTES.filter((n) => !patchVisible(n)).sort((x, y) => `${x.date} ${x.time || ''}`.localeCompare(`${y.date} ${y.time || ''}`))[0];
+  if (!next) return null;
+  migrations.add('patch-now-' + next.version);
+  await persist();
+  await checkPatchNotes(); // envoie la notification à tout le monde, une seule fois
+  return next;
+}
 async function checkPatchNotes() {
   try {
     const stamp = parisStamp();

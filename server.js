@@ -5,7 +5,7 @@ import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { join, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { handleAuth, clientIp, sessionUser, findFriend, recordBlindtest, blindtestLeaderboard, markInBlindtest, countStat, isAdmin, adminStats, recordActivity, recordListen, streakOf, notifyUser, usersStreak, getPlaylist, playlistsFor, adminNotify, flagsWith, flagSet, atReplacer, runAdminCommand, addAdminCommand, ADMIN_COMMANDS, liveState, isMuted, setCoverProvider, patchVisible } from './auth.js';
+import { handleAuth, clientIp, sessionUser, findFriend, recordBlindtest, blindtestLeaderboard, markInBlindtest, countStat, isAdmin, adminStats, recordActivity, recordListen, streakOf, notifyUser, usersStreak, getPlaylist, playlistsFor, adminNotify, flagsWith, flagSet, atReplacer, runAdminCommand, addAdminCommand, ADMIN_COMMANDS, liveState, isMuted, setCoverProvider, patchVisible, publishPatchNow } from './auth.js';
 import { createBlindtest, dailyBonus, setBonusOverride, bonusChoices, animeLookup, animeCategory, ytLookup } from './blindtest.js';
 import { CATEGORIES } from './categories.js';
 
@@ -561,6 +561,17 @@ addAdminCommand({ name: 'anime-test', use: 'anime-test [NOM | tout]', help: 'Vé
     const r = await animeLookup(s, { force: true });
     const yt = await ytLookup(s);
     return `${s.anime} « ${s.titre} » → ${r.ok ? 'trouvé : ' + r.theme + '\n' + r.video : 'introuvable'} (score ${r.score})\nSecours YouTube (téléphones) : ${yt ? 'https://youtu.be/' + yt : 'introuvable'}\n` + r.log.join('\n');
+  } });
+// patch note : voir ce qui est prévu, ou l'envoyer tout de suite sans attendre 18 h
+addAdminCommand({ name: 'patchnote', use: 'patchnote [envoyer]', help: 'Voit le patch note prévu à 18 h, ou l’envoie tout de suite avec « patchnote envoyer ».',
+  run: async (args) => {
+    const next = PATCH_NOTES.filter((n) => !patchVisible(n))[0];
+    if (args[0] === 'envoyer') {
+      const sent = await publishPatchNow();
+      return sent ? `Patch note ${sent.version} « ${sent.title} » envoyé à tout le monde (${sent.items.length} changements).` : 'Aucun patch note en attente : rien à envoyer.';
+    }
+    if (!next) return 'Aucun patch note en attente. (Il en part un par jour à 18 h, seulement s’il y a eu des modifications.)';
+    return `Prévu ${next.date} à ${next.time || '00:00'} : ${next.version} « ${next.title} »\n` + next.items.map((i) => '• ' + i[1]).join('\n') + '\n\nPour l’envoyer maintenant : patchnote envoyer';
   } });
 addAdminCommand({ name: 'fermer-salon', use: 'fermer-salon CODE', help: 'Ferme un salon de blind test.',
   run: ([code]) => (handleBlindtest.closeRoom(code) ? `Salon ${String(code).toUpperCase()} fermé.` : 'Ce salon n’existe pas.') });
