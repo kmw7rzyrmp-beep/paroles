@@ -10,6 +10,7 @@ export const PATCH_NOTES = [
       ['new', 'Sauvegarde automatique des comptes : une copie par jour, gardée 7 jours.'],
       ['new', 'Revanche : à la fin d\'une partie, l\'hôte relance tout de suite une nouvelle manche avec les mêmes joueurs.'],
       ['new', 'Bonus du jour ×2 : chaque jour, un artiste, une catégorie ou les parties avec playlist rapportent le double de points au blind test.'],
+      ['better', 'Le drapeau algérien clignote pour qu\'on ne rate pas la version DZ.'],
     ],
   },
   {

@@ -734,3 +734,8 @@ html[data-site="dz"] .dz-card b { color: #8fe3b0; }
 /* Bonus du jour ×2 */
 .bonus-x2{margin:.2rem 0 1rem;padding:.55rem .9rem;border-radius:12px;font-size:.9rem;background:linear-gradient(135deg,rgba(255,190,60,.18),rgba(255,120,40,.1));border:1px solid rgba(255,190,60,.45)}
 .bonus-x2[hidden]{display:none}
+
+/* Drapeau algérien qui clignote */
+.lang-switch button[data-l="dz"] svg{animation:dzBlink 1.1s ease-in-out infinite}
+@keyframes dzBlink{0%,100%{opacity:1;filter:brightness(1)}50%{opacity:.25;filter:brightness(1.6)}}
+@media (prefers-reduced-motion:reduce){.lang-switch button[data-l="dz"] svg{animation:none}}
