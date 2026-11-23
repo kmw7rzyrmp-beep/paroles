@@ -756,6 +756,13 @@ export const ADMIN_COMMANDS = [
   { name: 'sauvegardes', use: 'sauvegardes', help: 'Liste les sauvegardes automatiques gardées (une par jour, 7 jours).',
     run: async () => { const l = await listBackups(); return l.length ? l.map((b) => `• ${b.day}`).join('\n') : 'Aucune sauvegarde pour l’instant (la première part peu après le démarrage).'; } },
 ];
+// petits réglages gardés dans la sauvegarde (même endroit que les migrations)
+export const flagsWith = (prefix) => [...migrations].filter((k) => k.startsWith(prefix));
+export function flagSet(key, replacePrefix) {
+  if (replacePrefix) for (const k of flagsWith(replacePrefix)) migrations.delete(k);
+  if (key) migrations.add(key);
+  saveSoon();
+}
 // Les commandes du blind test (salons) sont ajoutées par server.js
 export function addAdminCommand(cmd) { ADMIN_COMMANDS.push(cmd); }
 export async function runAdminCommand(admin, line) {

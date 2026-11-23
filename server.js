@@ -5,8 +5,8 @@ import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { join, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { handleAuth, clientIp, sessionUser, findFriend, recordBlindtest, blindtestLeaderboard, markInBlindtest, countStat, isAdmin, adminStats, recordActivity, recordListen, streakOf, notifyUser, usersStreak, getPlaylist, playlistsFor, adminNotify, atReplacer, runAdminCommand, addAdminCommand, ADMIN_COMMANDS, liveState, isMuted, setCoverProvider, patchVisible } from './auth.js';
-import { createBlindtest } from './blindtest.js';
+import { handleAuth, clientIp, sessionUser, findFriend, recordBlindtest, blindtestLeaderboard, markInBlindtest, countStat, isAdmin, adminStats, recordActivity, recordListen, streakOf, notifyUser, usersStreak, getPlaylist, playlistsFor, adminNotify, flagsWith, flagSet, atReplacer, runAdminCommand, addAdminCommand, ADMIN_COMMANDS, liveState, isMuted, setCoverProvider, patchVisible } from './auth.js';
+import { createBlindtest, dailyBonus, setBonusOverride, bonusChoices } from './blindtest.js';
 import { CATEGORIES } from './categories.js';
 
 // Charge le fichier .env s'il existe (le jeton Genius y est facultatif, voir README).
@@ -512,6 +512,30 @@ const STARTED = Date.now();
 // commandes de la console admin qui touchent au blind test
 addAdminCommand({ name: 'salons', use: 'salons', help: 'Les parties de blind test en cours.',
   run: () => { const list = handleBlindtest.rooms(); return list.length ? list.map((r) => `${r.code} · ${r.phase} · ${r.mode === 'br' ? 'battle royale' : 'normal'} · ${r.category} · ${r.players.join(', ')}`).join('\n') : 'Aucun salon ouvert.'; } });
+// bonus du jour ×2 : voir ou changer (garde le choix jusqu'à minuit, même après un redémarrage)
+const parisDay = () => new Date().toLocaleDateString('sv-SE', { timeZone: 'Europe/Paris' });
+for (const k of flagsWith('bonus-override|')) { const [, day, kind, value] = k.split('|'); if (day === parisDay()) setBonusOverride({ day, kind, value: value || '' }); }
+const normBonus = (x) => String(x).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]/g, '');
+addAdminCommand({ name: 'bonus', use: 'bonus [artiste NOM | categorie NOM | playlist | auto | liste]', help: 'Voit ou change le bonus du jour ×2 (valable jusqu’à minuit).',
+  run: (args) => {
+    const [mode, ...rest] = args; const want = rest.join(' ');
+    const now = () => `Bonus du jour : ${dailyBonus().text} (×2).`;
+    if (!mode) return now();
+    const { artists, categories } = bonusChoices();
+    if (mode === 'liste') return `Artistes : ${artists.join(', ')}\nCatégories : ${categories.map((c) => c.nom).join(', ')}`;
+    const day = parisDay(); let kind, value = '';
+    if (mode === 'auto') { setBonusOverride(null); flagSet(null, 'bonus-override|'); return 'Choix automatique rétabli. ' + now(); }
+    if (mode === 'playlist') kind = 'playlist';
+    else if (mode === 'artiste' || mode === 'categorie') {
+      if (!want) return `Précise le nom. Exemple : bonus ${mode} ${mode === 'artiste' ? 'PNL' : 'Rock'} (« bonus liste » pour tout voir).`;
+      if (mode === 'artiste') { value = artists.find((a) => normBonus(a) === normBonus(want)) || artists.find((a) => normBonus(a).includes(normBonus(want))); kind = 'artist'; }
+      else { const c = categories.find((x) => normBonus(x.nom) === normBonus(want) || normBonus(x.id) === normBonus(want)) || categories.find((x) => normBonus(x.nom).includes(normBonus(want))); value = c && c.id; kind = 'category'; }
+      if (!value) return `« ${want} » est introuvable. Tape « bonus liste » pour voir les choix.`;
+    } else return 'Utilise : bonus artiste NOM, bonus categorie NOM, bonus playlist, bonus auto ou bonus liste.';
+    setBonusOverride({ day, kind, value });
+    flagSet(`bonus-override|${day}|${kind}|${value}`, 'bonus-override|');
+    return 'Bonus changé. ' + now();
+  } });
 addAdminCommand({ name: 'fermer-salon', use: 'fermer-salon CODE', help: 'Ferme un salon de blind test.',
   run: ([code]) => (handleBlindtest.closeRoom(code) ? `Salon ${String(code).toUpperCase()} fermé.` : 'Ce salon n’existe pas.') });
 // visiteurs uniques du jour (empreinte de l'adresse IP, jamais l'adresse elle-même ; remis à zéro chaque jour)

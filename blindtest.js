@@ -102,8 +102,17 @@ const BONUS_ARTISTS = (() => {
   return [...n].filter(([, k]) => k >= 5).map(([a]) => a).sort();
 })();
 const BONUS_CATS = CATEGORIES.map((c) => ({ id: c.id, nom: c.nom }));
+let bonusOverride = null; // { day, kind, value } choisi par l'admin pour aujourd'hui
+export const setBonusOverride = (o) => { bonusOverride = o; };
+export const bonusChoices = () => ({ artists: BONUS_ARTISTS, categories: BONUS_CATS });
+function describeBonus(day, kind, value) {
+  if (kind === 'artist') return { day, kind, value, label: value, text: `les sons de ${value}` };
+  if (kind === 'category') { const c = BONUS_CATS.find((x) => x.id === value); return { day, kind, value, label: c ? c.nom : value, text: `la catégorie ${c ? c.nom : value}` }; }
+  return { day, kind: 'playlist', value: '', label: 'Playlists', text: 'les parties avec une playlist' };
+}
 export function dailyBonus(at = Date.now()) {
   const day = new Date(at).toLocaleDateString('sv-SE', { timeZone: 'Europe/Paris' });
+  if (bonusOverride && bonusOverride.day === day) return describeBonus(day, bonusOverride.kind, bonusOverride.value);
   const n = Math.floor(Date.parse(day + 'T00:00:00Z') / 86_400_000);
   const kind = ['artist', 'category', 'playlist'][n % 3];
   const k = Math.floor(n / 3);
