@@ -1782,6 +1782,23 @@
     leaveRoom();
     $('homeMsg').textContent = 'Tu as quitté la partie : tes points de cette partie ont été annulés.';
   });
+  // Quitter la page pendant une partie : on prévient que les points seront perdus
+  const gameActive = () => state && session && ['countdown', 'playing', 'reveal'].includes(state.phase) && state.players.some((p) => p.id === state.me);
+  let leaving = false;
+  document.addEventListener('click', async (e) => {
+    const a = e.target.closest && e.target.closest('a[href]');
+    if (!a || leaving || !gameActive() || e.defaultPrevented || e.button || e.metaKey || e.ctrlKey || e.shiftKey || a.target === '_blank') return;
+    const url = new URL(a.href, location.href);
+    if (url.origin === location.origin && url.pathname === location.pathname && url.search === location.search) return; // même page
+    e.preventDefault(); e.stopPropagation();
+    const yes = await window.ssConfirm({ icon: '⚠️', title: 'Êtes-vous sûr de vouloir partir ?', text: 'Vous perdrez tous vos points.', ok: 'Partir', cancel: 'Rester dans la partie', danger: true });
+    if (!yes || !gameActive()) { if (yes) location.href = a.href; return; }
+    leaving = true;
+    try { await api(`/rooms/${state.code}/forfeit`, { token: session.token }); } catch {} // les points de cette partie sont annulés
+    location.href = a.href;
+  }, true);
+  // fermer l'onglet ou recharger la page : message du navigateur
+  addEventListener('beforeunload', (e) => { if (!leaving && gameActive()) { e.preventDefault(); e.returnValue = ''; } });
   // ❤️ favoris : les mêmes que sur la page Paroles (compte + ce navigateur)
   const favKeys = new Set();
   try { for (const f of JSON.parse(localStorage.getItem('favorites') || '[]')) if (f && f.key) favKeys.add(f.key); } catch {}
