@@ -45,22 +45,7 @@
   }
   window.ssGuide = guide;
   function mount() {
-    apply(get());
-    const tr = document.querySelector('.top-right');
-    if (tr && !document.getElementById('themeBtn')) {
-      const b = document.createElement('button'); b.id = 'themeBtn'; b.type = 'button'; b.className = 'ss-tbtn';
-      b.onclick = () => apply(get() === 'light' ? 'dark' : 'light');
-      tr.prepend(b); apply(get());
-    }
-    // entrée dans « Plus » (téléphone)
-    new MutationObserver(() => {
-      const grid = document.querySelector('.more-grid');
-      if (grid && !grid.dataset.th) {
-        grid.dataset.th = '1';
-        const mk = (e, l, f) => { const x = document.createElement('button'); x.type = 'button'; x.innerHTML = `<span>${e}</span>${l}`; x.onclick = () => { document.querySelector('.more-sheet')?.remove(); f(); }; grid.append(x); };
-        mk(get() === 'light' ? '🌙' : '☀️', get() === 'light' ? t().dark : t().light, () => apply(get() === 'light' ? 'dark' : 'light'));
-      }
-    }).observe(document.body, { childList: true });
+    delete document.documentElement.dataset.theme;
     // guide : seulement à la toute première connexion d'un compte tout neuf
     fetch('/api/me', { credentials: 'same-origin', cache: 'no-store' }).then((r) => r.json()).then((d) => {
       if (!d.user || !d.user.guide || document.documentElement.dataset.skin) return;
