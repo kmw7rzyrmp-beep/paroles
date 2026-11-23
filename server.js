@@ -516,7 +516,7 @@ addAdminCommand({ name: 'salons', use: 'salons', help: 'Les parties de blind tes
 const parisDay = () => new Date().toLocaleDateString('sv-SE', { timeZone: 'Europe/Paris' });
 for (const k of flagsWith('bonus-override|')) { const [, day, kind, value] = k.split('|'); if (day === parisDay()) setBonusOverride({ day, kind, value: value || '' }); }
 const normBonus = (x) => String(x).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]/g, '');
-addAdminCommand({ name: 'bonus', use: 'bonus [artiste NOM | categorie NOM | playlist | auto | liste]', help: 'Voit ou change le bonus du jour ×2 (valable jusqu’à minuit).',
+addAdminCommand({ name: 'bonus', use: 'bonus [artiste NOM | categorie NOM | playlist | aleatoire | auto | liste]', help: 'Voit ou change le bonus du jour ×2 (valable jusqu’à minuit).',
   run: (args) => {
     const [mode, ...rest] = args; const want = rest.join(' ');
     const now = () => `Bonus du jour : ${dailyBonus().text} (×2).`;
@@ -525,13 +525,18 @@ addAdminCommand({ name: 'bonus', use: 'bonus [artiste NOM | categorie NOM | play
     if (mode === 'liste') return `Artistes : ${artists.join(', ')}\nCatégories : ${categories.map((c) => c.nom).join(', ')}`;
     const day = parisDay(); let kind, value = '';
     if (mode === 'auto') { setBonusOverride(null); flagSet(null, 'bonus-override|'); return 'Choix automatique rétabli. ' + now(); }
-    if (mode === 'playlist') kind = 'playlist';
+    if (mode === 'aleatoire' || mode === 'random') {
+      const k = ['artist', 'category', 'playlist'][Math.floor(Math.random() * 3)];
+      const pick = (l) => l[Math.floor(Math.random() * l.length)];
+      kind = k === 'artist' && artists.length ? 'artist' : k === 'category' && categories.length ? 'category' : 'playlist';
+      value = kind === 'artist' ? pick(artists) : kind === 'category' ? pick(categories).id : '';
+    } else if (mode === 'playlist') kind = 'playlist';
     else if (mode === 'artiste' || mode === 'categorie') {
       if (!want) return `Précise le nom. Exemple : bonus ${mode} ${mode === 'artiste' ? 'PNL' : 'Rock'} (« bonus liste » pour tout voir).`;
       if (mode === 'artiste') { value = artists.find((a) => normBonus(a) === normBonus(want)) || artists.find((a) => normBonus(a).includes(normBonus(want))); kind = 'artist'; }
       else { const c = categories.find((x) => normBonus(x.nom) === normBonus(want) || normBonus(x.id) === normBonus(want)) || categories.find((x) => normBonus(x.nom).includes(normBonus(want))); value = c && c.id; kind = 'category'; }
       if (!value) return `« ${want} » est introuvable. Tape « bonus liste » pour voir les choix.`;
-    } else return 'Utilise : bonus artiste NOM, bonus categorie NOM, bonus playlist, bonus auto ou bonus liste.';
+    } else return 'Utilise : bonus artiste NOM, bonus categorie NOM, bonus playlist, bonus aleatoire, bonus auto ou bonus liste.';
     setBonusOverride({ day, kind, value });
     flagSet(`bonus-override|${day}|${kind}|${value}`, 'bonus-override|');
     return 'Bonus changé. ' + now();
