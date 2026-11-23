@@ -191,7 +191,14 @@ window.DZ = {
   // phrase d'accroche de l'accueil : une blague DZ au hasard (l'accueil l'appelle quand la langue change)
   window.ssDzPhrase = () => window.DZ.phrases[Math.floor(Math.random() * window.DZ.phrases.length)];
 
-  const apply = (lang) => ribbon(lang === 'dz');
+  // le logo en haut à gauche : version aux couleurs de l'Algérie (vinyle cerclé d'or, étiquette croissant et étoile)
+  function logo(on) {
+    for (const img of document.querySelectorAll('img.star-logo')) {
+      if (!img.dataset.src0) img.dataset.src0 = img.getAttribute('src');
+      img.setAttribute('src', on ? '/logo-dz.svg' : img.dataset.src0);
+    }
+  }
+  const apply = (lang) => { ribbon(lang === 'dz'); logo(lang === 'dz'); };
   window.addEventListener('ss-lang', (e) => apply(e.detail.lang));
   const start = () => apply(window.siteLang && window.siteLang());
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();

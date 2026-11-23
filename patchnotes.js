@@ -21,6 +21,7 @@ export const PATCH_NOTES = [
       ['better', 'Blind test animé : les playlists d\'artistes ne s\'affichent plus dans ce mode.'],
       ['fix', 'Le blind test s\'arrête bien au nombre de sons choisi (5, 10, 15…).'],
       ['new', 'Mode infini : tu peux t\'arrêter quand tu veux en gardant tes points.'],
+      ['new', 'Version DZ : le logo en haut à gauche est refait aux couleurs de l\'Algérie (vinyle cerclé d\'or, croissant et étoile).'],
       ['better', 'Le drapeau algérien clignote, brille et change de couleurs pour qu\'on ne rate pas la version DZ.'],
     ],
   },
