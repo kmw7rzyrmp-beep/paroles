@@ -18,6 +18,7 @@ export const PATCH_NOTES = [
       ['fix', 'Blind test animé : sur les téléphones qui ne lisent pas la vidéo (iPhone surtout), le clip de l\'opening s\'affiche maintenant via YouTube.'],
       ['better', 'Blind test animé : le clip de l\'opening démarre vers le milieu (plus de générique du début) et le lecteur YouTube n\'affiche plus son interface.'],
       ['new', 'Pendant une partie, si tu cliques sur une autre page (Amis, Accueil…), un message te demande si tu es sûr de partir : tu perds tous tes points.'],
+      ['better', 'Blind test animé : les playlists d\'artistes ne s\'affichent plus dans ce mode.'],
       ['fix', 'Le blind test s\'arrête bien au nombre de sons choisi (5, 10, 15…).'],
       ['new', 'Mode infini : tu peux t\'arrêter quand tu veux en gardant tes points.'],
       ['better', 'Le drapeau algérien clignote, brille et change de couleurs pour qu\'on ne rate pas la version DZ.'],

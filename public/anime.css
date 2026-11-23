@@ -177,3 +177,6 @@ html[data-skin="anime"] .cat-lbl { display: none !important; }
 .an-stage.an-reveal.yt .an-yt { pointer-events: none; }
 .an-yt iframe { transform: scale(1.04); }
 .an-sound { top: auto; left: auto; right: .8rem; bottom: .8rem; width: 2.4rem; height: 2.4rem; padding: 0; display: grid; place-items: center; font-size: 1.1rem; }
+
+/* pas de playlists d'artistes dans le blind test animé (accueil + pastilles du salon) */
+html[data-skin="anime"] #artistSetsBox, html[data-skin="anime"] .as-row, html[data-skin="anime"] .as-chips { display: none !important; }

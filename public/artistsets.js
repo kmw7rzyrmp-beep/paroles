@@ -153,7 +153,7 @@
   // ---------- les pastilles dans le salon (pour l'hôte) ----------
   let lobbyRow = null;
   function drawLobby() {
-    if (!lobbyRow) return;
+    if (!lobbyRow || document.documentElement.dataset.skin === 'anime') return; // pas de playlists d'artistes en mode animé
     const chips = lobbyRow.querySelector('.as-chips');
     const cur = bridge()?.current() || {};
     lobbyRow.hidden = !loggedIn || !(sets || []).length;
