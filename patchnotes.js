@@ -7,7 +7,7 @@ export const PATCH_NOTES = [
   {
     version: '2.21', date: '2026-11-23', time: '18:00', title: 'Sauvegardes, revanche, bonus ×2 et plus',
     items: [
-      ['new', 'Guide de bienvenue en 3 écrans, montré une seule fois à la première connexion d\'un nouveau compte.'],
+      ['new', 'Guide de bienvenue animé en 7 slides (recherche, blind test, animé, amis, flamme…), montré une seule fois à la première connexion d\'un nouveau compte.'],
       ['new', 'Sauvegarde automatique des comptes : une copie par jour, gardée 7 jours.'],
       ['new', 'Revanche : à la fin d\'une partie, l\'hôte relance tout de suite une nouvelle manche avec les mêmes joueurs.'],
       ['new', 'Bonus du jour ×2 : chaque jour, un artiste, une catégorie ou les parties avec playlist rapportent le double de points au blind test.'],
