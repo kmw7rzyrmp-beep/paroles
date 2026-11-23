@@ -743,3 +743,9 @@ html[data-site="dz"] .dz-card b { color: #8fe3b0; }
 @keyframes dzColors{0%{filter:saturate(1.8) hue-rotate(0deg) drop-shadow(0 0 5px #ffd54a) drop-shadow(0 0 9px #ff4fa3)}50%{filter:saturate(2.2) hue-rotate(180deg) drop-shadow(0 0 7px #4fe3ff) drop-shadow(0 0 11px #ffd54a)}100%{filter:saturate(1.8) hue-rotate(360deg) drop-shadow(0 0 5px #ffd54a) drop-shadow(0 0 9px #ff4fa3)}}
 @keyframes dzShine{0%{left:-60%}60%,100%{left:130%}}
 @media (prefers-reduced-motion:reduce){.lang-switch button[data-l="dz"] svg,.lang-switch button[data-l="dz"]::after{animation:none}}
+
+/* Drapeau DZ : encore plus voyant */
+.lang-switch button[data-l="dz"]{animation:dzPop 1.1s ease-in-out infinite;box-shadow:0 0 0 2px rgba(255,255,255,.85),0 0 14px 3px #ffd54a,0 0 26px 6px rgba(255,79,163,.7);z-index:2}
+.lang-switch button[data-l="dz"] svg{transform:scale(1.25)}
+@keyframes dzPop{0%,100%{transform:scale(1)}50%{transform:scale(1.22)}}
+@media (prefers-reduced-motion:reduce){.lang-switch button[data-l="dz"]{animation:none}}
