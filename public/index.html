@@ -31,7 +31,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/app.css?v=27">
+<link rel="stylesheet" href="/app.css?v=29">
 <style>
   /* ---------- Accueil : le grand bandeau orange avec la recherche ---------- */
   .hero {
@@ -229,6 +229,7 @@
     <ul class="nav">
       <li><a href="/" aria-current="page"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 11l8-7 8 7v9h-5v-6H9v6H4z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>Accueil</a></li>
       <li><a href="/blindtest"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="12" r="2.4" fill="currentColor"/></svg>Blind test</a></li>
+      <li><a href="/blindtest?mode=anime"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3c1.6 2.6 1.6 4.4 0 6-1.6-1.6-1.6-3.4 0-6zM12 21c-1.6-2.6-1.6-4.4 0-6 1.6 1.6 1.6 3.4 0 6zM3 12c2.6-1.6 4.4-1.6 6 0-1.6 1.6-3.4 1.6-6 0zM21 12c-2.6 1.6-4.4 1.6-6 0 1.6-1.6 3.4-1.6 6 0z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>Blind test animé</a></li>
       <li><a href="/blindtest#playlistsBox"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h11M4 11h11M4 16h7M17 14v6M17 20a2 2 0 1 1-2-2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M17 14l4-1" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>Playlists</a></li>
       <li><a href="#classement" data-page-link="classement"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 20V11M12 20V5M19 20v-6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>Classement</a></li>
     </ul>
@@ -296,6 +297,20 @@
         <button class="cover-play" type="button" hidden aria-pressed="false"><span class="cp-ico" aria-hidden="true"><svg class="pl" viewBox="0 0 24 24"><path d="M8 5l11 7-11 7z" fill="currentColor"/></svg><svg class="pa" viewBox="0 0 24 24"><path d="M7 5h3.5v14H7zM13.5 5H17v14h-3.5z" fill="currentColor"/></svg></span><span class="cp-txt"><b>Écouter</b><small data-notranslate></small></span><i class="cp-bar" aria-hidden="true"></i></button>
         <svg aria-hidden="true" class="wave" viewBox="0 0 400 80" preserveAspectRatio="none"><path d="M0 50 C40 10 80 70 120 40 S200 10 240 45 S320 75 400 30" fill="none" stroke="#fff" stroke-width="2"/></svg>
       </div>
+    </section>
+
+    <!-- Les deux blind tests -->
+    <section class="play-duo" aria-label="Jouer au blind test">
+      <a class="pd-card pd-music" href="/blindtest">
+        <span class="pd-art" aria-hidden="true"><span class="pd-vinyl"></span><span class="pd-notes">♪ ♫ ♪</span></span>
+        <span class="pd-txt"><small>Jeu entre potes</small><b>Blind test musique</b><span>Rap, pop, R&amp;B, rock… Trouve le son avant les autres.</span></span>
+        <span class="pd-go">Jouer</span>
+      </a>
+      <a class="pd-card pd-anime" href="/blindtest?mode=anime">
+        <span class="pd-art" aria-hidden="true"><span class="pd-sun"></span><span class="pd-kana">アニメ</span><span class="pd-petal p1"></span><span class="pd-petal p2"></span><span class="pd-petal p3"></span><span class="pd-petal p4"></span></span>
+        <span class="pd-txt"><small>Nouveau</small><b>Blind test animé</b><span>Les openings cultes, et le clip qui se lance à la réponse.</span></span>
+        <span class="pd-go">Jouer</span>
+      </a>
     </section>
 
     <div class="section-head">

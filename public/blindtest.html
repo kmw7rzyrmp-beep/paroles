@@ -27,7 +27,10 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/app.css?v=27">
+<link rel="stylesheet" href="/app.css?v=29">
+<link rel="stylesheet" href="/anime.css?v=2">
+<script>if (new URLSearchParams(location.search).get('mode') === 'anime') document.documentElement.dataset.skin = 'anime';</script>
+<script src="/anime.js?v=2" defer></script>
 <style>
   /* Blind test : même interface que l'accueil (cadre noir, cartes arrondies, accent orange) */
   :root { --encre: #0b0b0c; --enfonce: var(--orange); }
@@ -781,6 +784,8 @@
 
   // --- Un seul lecteur audio, « débloqué » au premier clic (obligatoire sur téléphone) ---
   const audio = new Audio();
+  window.btAudio = audio; // utilisé par anime.js (blind test animé)
+  const ANIME = document.documentElement.dataset.skin === 'anime';
   audio.preload = 'auto';
   let unlocked = false;
   function unlockAudio() {
@@ -1067,7 +1072,7 @@
       try { const me = await (await fetch('/api/me')).json(); if (me.user?.username) $('nameInput').value = me.user.username; } catch {}
     }
     try {
-      const d = await api('/categories');
+      const d = await api('/categories' + (ANIME ? '?skin=anime' : ''));
       if (d.bonus) showBonus('bonusHome', d.bonus);
       cats = d.categories; roundsChoices = d.rounds; if (d.reactions) reactions = d.reactions; if (d.maxRounds) maxRounds = d.maxRounds; if (d.levels) levels = d.levels; if (d.modes) modes = d.modes; if (d.lives) livesChoices = d.lives;
     } catch (err) { $('homeMsg').textContent = err.message; }
@@ -1075,7 +1080,7 @@
     // passerelle pour les playlists (playlists.js) : recharger les catégories, choisir une playlist
     window.btBridge = {
       async reloadCats() {
-        try { const d = await api('/categories'); cats = d.categories; } catch {}
+        try { const d = await api('/categories' + (ANIME ? '?skin=anime' : '')); cats = d.categories; } catch {}
         if (!cats.some((c) => c.id === pick.category)) { pick.category = 'rap-fr'; pick.artists = null; }
         drawHomeChips();
       },
@@ -1128,7 +1133,7 @@
     if (Array.isArray(pick.artists) && !pick.artists.length) { $('homeMsg').textContent = 'Coche au moins un artiste.'; return; }
     rememberName();
     try {
-      const d = await api('/rooms', { name: myName(), category: pick.category, rounds: pick.rounds, level: pick.level, mode: pick.mode, artists: pick.artists, lives: pick.lives });
+      const d = await api('/rooms', { name: myName(), skin: ANIME ? 'anime' : undefined, category: ANIME ? 'anime' : pick.category, rounds: pick.rounds, level: pick.level, mode: pick.mode, artists: pick.artists, lives: pick.lives });
       session = { code: d.code, token: d.token };
       saveSession();
       history.replaceState(null, '', '/blindtest?room=' + d.code);
@@ -1360,6 +1365,7 @@
 
   function render() {
     const s = state;
+    if (window.ssAnime) window.ssAnime.onState(s);
     social();
     if (s.phase === 'lobby' || s.phase === 'loading') return renderLobby();
     if (s.phase === 'end') return renderEnd();
@@ -1482,7 +1488,7 @@
   });
 
   $('shareBtn').addEventListener('click', async () => {
-    const link = `${location.origin}/blindtest?room=${state.code}`;
+    const link = `${location.origin}/blindtest?room=${state.code}${state.skin === 'anime' ? '&mode=anime' : ''}`;
     const text = `Viens jouer au blind test Star Song ! Code : ${state.code}`;
     try {
       if (navigator.share) await navigator.share({ title: 'Blind test Star Song', text, url: link });
@@ -1520,7 +1526,7 @@
     const s = state;
     $('soundBtn').hidden = false;
     drawSound();
-    if (!s.preview) { $('tape').classList.toggle('spinning', s.phase === 'playing'); return; }
+    if (!s.preview) { audio.pause(); playingKey = ''; $('tape').classList.toggle('spinning', s.phase === 'playing'); return; }
     const key = s.code + ':' + s.index;
     if (key !== playingKey) {
       playingKey = key;
@@ -1606,7 +1612,7 @@
     if (s.phase === 'playing') {
       $('reveal').hidden = true;
       const playing = s.mode === 'br' ? s.alive : others;
-      $('playState').textContent = s.meOut ? 'Tu regardes la partie.' : s.myChoice === null ? 'C’est quel son ?' : `Réponse envoyée. ${s.answered}/${playing} ont répondu.`;
+      $('playState').textContent = s.meOut ? 'Tu regardes la partie.' : s.myChoice === null ? (s.skin === 'anime' ? 'C’est quel anime ?' : 'C’est quel son ?') : `Réponse envoyée. ${s.answered}/${playing} ont répondu.`;
     } else {
       $('reveal').hidden = false;
       const mine = s.meOut && !(s.eliminated || []).length ? 'Tu regardes la partie.'

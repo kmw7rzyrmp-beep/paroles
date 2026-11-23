@@ -1,0 +1,165 @@
+/* Blind test animé : nuit tokyoïte, néons rose sakura et cyan, pétales qui tombent */
+html[data-skin="anime"] {
+  --fond: #ff7eb6;
+  --mur: #0c0820;
+  --coque: rgba(28, 20, 60, .78);
+  --coque-hi: rgba(48, 34, 96, .85);
+  --orange: #ff4f9a;
+  --rouge: #ff2e6e;
+  --jaune: #7ee8ff;
+  --ligne: rgba(255, 255, 255, .12);
+  --an-pink: #ff4f9a;
+  --an-cyan: #5ee7ff;
+  --an-violet: #8b5cff;
+}
+html[data-skin="anime"] body {
+  background:
+    radial-gradient(1200px 600px at 10% -10%, #ffb3d4 0, transparent 60%),
+    radial-gradient(900px 500px at 110% 20%, #8b5cff 0, transparent 55%),
+    linear-gradient(160deg, #ff7eb6, #6b3cff);
+  background-attachment: fixed;
+}
+html[data-skin="anime"] .main {
+  background:
+    radial-gradient(700px 380px at 85% 0%, rgba(139, 92, 255, .35), transparent 70%),
+    radial-gradient(600px 400px at 0% 100%, rgba(255, 79, 154, .22), transparent 70%),
+    #0c0820;
+}
+.an-petals { position: fixed; inset: 0; width: 100vw; height: 100vh; pointer-events: none; z-index: 1; }
+html[data-skin="anime"] .main, html[data-skin="anime"] .side { position: relative; z-index: 2; }
+
+/* en-tête du jeu */
+html[data-skin="anime"] .bt-hero h1 {
+  background: linear-gradient(90deg, #fff 0%, #ffc2dd 40%, var(--an-cyan) 100%);
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+  text-shadow: none; filter: drop-shadow(0 0 18px rgba(255, 79, 154, .45));
+}
+html[data-skin="anime"] .bt-hero .eyebrow { color: var(--an-cyan); letter-spacing: .06em; }
+
+/* une seule catégorie : on cache les choix de catégorie et d'artistes */
+html[data-skin="anime"] #catChips, html[data-skin="anime"] #lobbyCats,
+html[data-skin="anime"] #homeArtists, html[data-skin="anime"] #lobbyArtists,
+html[data-skin="anime"] #createBox > .lbl:first-of-type, html[data-skin="anime"] #hostSettings > .lbl:first-of-type,
+html[data-skin="anime"] #playlistsBox, html[data-skin="anime"] .tape { display: none !important; }
+
+/* boutons principaux en néon */
+html[data-skin="anime"] button.big, html[data-skin="anime"] .big.rec {
+  background: linear-gradient(135deg, var(--an-pink), var(--an-violet));
+  color: #fff; border: 0; box-shadow: 0 8px 28px rgba(255, 79, 154, .45), inset 0 1px 0 rgba(255, 255, 255, .35);
+}
+html[data-skin="anime"] .chips button[aria-checked="true"], html[data-skin="anime"] .chips button.on {
+  background: linear-gradient(135deg, var(--an-pink), var(--an-violet)); color: #fff;
+}
+
+/* compte à rebours : le chiffre en kanji géant */
+html[data-skin="anime"] .countdown .n { position: relative; color: transparent; font-size: 1px; }
+html[data-skin="anime"] .countdown .n::after {
+  content: attr(data-k); display: block; font: 900 clamp(7rem, 22vw, 12rem)/1 "Hiragino Mincho ProN", "Yu Mincho", "Noto Serif JP", serif;
+  color: #fff; text-shadow: 0 0 30px var(--an-pink), 0 0 60px var(--an-violet);
+  animation: anKanji .9s cubic-bezier(.2, 1.4, .4, 1) both;
+}
+html[data-skin="anime"] .countdown .lbl::after { content: " 準備はいい？"; color: var(--an-cyan); }
+@keyframes anKanji { from { transform: scale(2.4) rotate(-8deg); opacity: 0; filter: blur(8px); } to { transform: none; opacity: 1; filter: none; } }
+
+/* barre de temps */
+html[data-skin="anime"] .timer { height: 6px; background: rgba(255, 255, 255, .08); }
+html[data-skin="anime"] .timer i { background: linear-gradient(90deg, var(--an-cyan), var(--an-pink)); box-shadow: 0 0 12px var(--an-pink); }
+
+/* propositions : cartes en verre néon */
+html[data-skin="anime"] .options button {
+  background: linear-gradient(160deg, rgba(64, 44, 130, .7), rgba(26, 18, 56, .8));
+  border: 1px solid rgba(255, 255, 255, .14); border-radius: 16px; color: #fff;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .12);
+  backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+}
+html[data-skin="anime"] .options .t { font: 800 1.08rem/1.2 var(--texte); }
+html[data-skin="anime"] .options button:hover:not(:disabled) {
+  border-color: var(--an-pink); box-shadow: 0 0 0 1px var(--an-pink), 0 10px 30px rgba(255, 79, 154, .35);
+}
+html[data-skin="anime"] .options button.on { background: linear-gradient(135deg, #fff, #ffd6e8); color: #1a0b2e; }
+html[data-skin="anime"] .options button.good {
+  background: linear-gradient(135deg, #3cffb0, #12b886); color: #04150a; border-color: transparent;
+  box-shadow: 0 0 24px rgba(60, 255, 176, .55);
+}
+html[data-skin="anime"] .options button.bad { background: linear-gradient(135deg, #ff2e6e, #8a1238); color: #fff; animation: anGlitch .35s steps(2) 2; }
+@keyframes anGlitch { 0% { transform: translate(0); } 25% { transform: translate(-4px, 1px); } 50% { transform: translate(4px, -1px); } 75% { transform: translate(-2px, 2px); } }
+
+/* --- l'écran de l'opening --- */
+.an-stage { margin: 0 0 1.1rem; }
+.an-screen {
+  position: relative; aspect-ratio: 16 / 9; width: 100%; max-height: 52vh; border-radius: 20px; overflow: hidden;
+  background: #070512; isolation: isolate;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, .14), 0 0 0 4px rgba(255, 79, 154, .25), 0 20px 60px rgba(0, 0, 0, .55), 0 0 60px rgba(139, 92, 255, .35);
+}
+.an-cover { position: absolute; inset: -6%; background: center / cover no-repeat; opacity: 0; filter: saturate(1.2); transition: opacity .6s; }
+.an-video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; background: #000; opacity: 0; transition: opacity .5s; }
+.an-mystery {
+  position: absolute; inset: 0; display: grid; place-content: center; justify-items: center; gap: .3rem; text-align: center; color: #fff;
+  background:
+    repeating-linear-gradient(0deg, rgba(255, 255, 255, .04) 0 2px, transparent 2px 4px),
+    radial-gradient(circle at 50% 40%, rgba(139, 92, 255, .55), rgba(12, 8, 32, .98) 70%);
+  transition: opacity .35s, transform .5s;
+}
+.an-mystery b { font: 900 clamp(3.5rem, 11vw, 6.5rem)/1 var(--texte); text-shadow: 0 0 24px var(--an-pink), 0 0 50px var(--an-violet); animation: anPulse 1.2s ease-in-out infinite; }
+.an-mystery span { font: 700 1rem var(--texte); color: var(--an-cyan); letter-spacing: .04em; }
+@keyframes anPulse { 50% { transform: scale(1.08); } }
+.an-eq { display: flex; align-items: flex-end; gap: 4px; height: 46px; margin-top: .7rem; }
+.an-eq i { display: block; width: 6px; height: 100%; border-radius: 3px; background: linear-gradient(var(--an-pink), var(--an-cyan)); transform-origin: bottom; animation: anEq .8s ease-in-out infinite alternate; }
+@keyframes anEq { from { transform: scaleY(.15); } to { transform: scaleY(1); } }
+.an-stage:not(.an-playing) .an-eq i { animation-play-state: paused; }
+
+.an-speed { position: absolute; inset: 0; pointer-events: none; opacity: 0;
+  background: repeating-conic-gradient(from 0deg at 50% 50%, rgba(255, 255, 255, .55) 0deg 1.2deg, transparent 1.2deg 9deg);
+  -webkit-mask: radial-gradient(circle, transparent 28%, #000 70%); mask: radial-gradient(circle, transparent 28%, #000 70%); }
+.an-tag { position: absolute; left: 0; right: 0; bottom: 0; padding: 2.4rem 1.2rem 1rem; display: grid; gap: .15rem;
+  background: linear-gradient(transparent, rgba(7, 5, 18, .92)); color: #fff; opacity: 0; transform: translateY(20px); }
+.an-tag b { font: 900 clamp(1.4rem, 4.2vw, 2.4rem)/1.05 var(--texte); text-shadow: 0 0 18px rgba(255, 79, 154, .8); }
+.an-tag small { font: 600 .9rem var(--texte); color: var(--an-cyan); }
+.an-verdict { position: absolute; top: .9rem; right: .9rem; padding: .35rem .8rem; border-radius: 999px; font: 800 .9rem var(--texte); opacity: 0; }
+.an-verdict.ok { background: #3cffb0; color: #04150a; box-shadow: 0 0 20px rgba(60, 255, 176, .7); }
+.an-verdict.ko { background: #ff2e6e; color: #fff; box-shadow: 0 0 20px rgba(255, 46, 110, .7); }
+.an-sound { position: absolute; top: .9rem; left: .9rem; min-height: 0; padding: .4rem .8rem; border-radius: 999px; font: 700 .85rem var(--texte); background: rgba(0, 0, 0, .6); color: #fff; border: 1px solid rgba(255, 255, 255, .3); }
+
+/* pendant la manche : le mystère (le clip, s'il sert de son, reste caché derrière) */
+.an-stage.an-playing .an-mystery { opacity: 1; }
+
+/* la révélation */
+.an-stage.an-reveal .an-mystery { opacity: 0; transform: scale(1.15); pointer-events: none; }
+.an-stage.an-reveal .an-video { opacity: 1; }
+.an-stage.an-reveal.no-video .an-video { opacity: 0; }
+.an-stage.an-reveal.no-video .an-cover { opacity: 1; animation: anKen 13s ease-out both; }
+.an-stage.an-reveal .an-tag { opacity: 1; transform: none; transition: opacity .4s .25s, transform .5s .25s cubic-bezier(.2, 1.3, .4, 1); }
+.an-stage.an-reveal .an-verdict { opacity: 1; animation: anStamp .5s .35s cubic-bezier(.2, 1.6, .4, 1) both; }
+.an-stage.boom .an-speed { animation: anSpeed 1.1s ease-out both; }
+.an-stage.boom .an-screen { animation: anHit .5s cubic-bezier(.2, 1.4, .4, 1); }
+.an-stage.boom .an-screen::after { content: ""; position: absolute; inset: 0; background: #fff; pointer-events: none; animation: anFlash .45s ease-out both; }
+.an-stage.boom .an-tag b { animation: anSlash .7s .2s cubic-bezier(.2, 1.2, .4, 1) both; }
+@keyframes anKen { from { transform: scale(1); } to { transform: scale(1.12) translate(-2%, -2%); } }
+@keyframes anSpeed { 0% { opacity: .9; transform: scale(.6) rotate(0); } 100% { opacity: 0; transform: scale(1.5) rotate(20deg); } }
+@keyframes anHit { 0% { transform: scale(.94); } 60% { transform: scale(1.02); } 100% { transform: none; } }
+@keyframes anFlash { from { opacity: .85; } to { opacity: 0; } }
+@keyframes anStamp { from { transform: scale(2.2) rotate(-12deg); opacity: 0; } to { transform: rotate(-4deg); opacity: 1; } }
+@keyframes anSlash { from { clip-path: inset(0 100% 0 0); transform: translateX(-20px) skewX(-12deg); } to { clip-path: inset(0 0 0 0); transform: none; } }
+
+/* le résumé texte sous l'écran fait doublon avec le clip : on le garde discret */
+html[data-skin="anime"] #reveal .reveal { background: rgba(28, 20, 60, .6); border: 1px solid rgba(255, 255, 255, .1); }
+
+@media (prefers-reduced-motion: reduce) {
+  .an-eq i, .an-mystery b, .an-stage.an-reveal.no-video .an-cover { animation: none !important; }
+}
+
+/* le bandeau du jeu : soleil levant néon au lieu du vinyle */
+html[data-skin="anime"] .bt-hero {
+  background:
+    radial-gradient(circle at 88% 50%, rgba(255, 79, 154, .9) 0 4.6rem, transparent 4.7rem),
+    linear-gradient(120deg, #2a1466 0%, #5b2bd1 55%, #ff4f9a 130%);
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, .12), 0 20px 50px rgba(139, 92, 255, .35);
+}
+html[data-skin="anime"] .bt-hero::after {
+  background: repeating-linear-gradient(0deg, transparent 0 10px, #2a1466 10px 14px) !important;
+  -webkit-mask: radial-gradient(circle at 50% 50%, #000 0 4.7rem, transparent 4.75rem), linear-gradient(transparent 50%, #000 50%);
+  -webkit-mask-composite: source-in; mask-composite: intersect;
+  border-radius: 0 !important; box-shadow: none !important; opacity: 0 !important;
+}
+html[data-skin="anime"] .bt-hero h1 { background: none; color: #fff; filter: none; text-shadow: 0 0 24px rgba(255, 79, 154, .7); }
+html[data-skin="anime"] #artistSetsBox, html[data-skin="anime"] .bonus-x2 { display: none !important; }

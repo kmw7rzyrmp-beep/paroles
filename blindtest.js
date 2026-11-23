@@ -8,6 +8,7 @@ const ROUND_MS = 20_000;      // durée pour répondre
 const BR_MIN_MS = 8_000, BR_STEP_MS = 1_000;
 const LIVES = [1, 2, 3];       // battle royale : nombre de vies au départ
 const REVEAL_MS = 6_000;      // affichage de la bonne réponse
+const REVEAL_ANIME_MS = 13_000; // blind test animé : on laisse le temps de regarder l'opening
 const COUNTDOWN_MS = 4_000;   // compte à rebours avant la 1re manche
 const MAX_ROOMS = 300;
 const MAX_PLAYERS = 12;
@@ -60,7 +61,7 @@ function categorySongs(id) {
     const pl = playlistLookup(id.slice(3));
     return pl ? pl.songs.map((s) => ({ titre: s.titre, artiste: s.artiste, cover: s.cover || '', cat: id, verifierArtiste: true })) : null;
   }
-  if (id === ALL) return CATEGORIES.flatMap((c) => c.chansons.map((s) => ({ ...s, cat: c.id, verifierArtiste: c.verifierArtiste !== false })));
+  if (id === ALL) return CATEGORIES.filter((c) => !c.anime).flatMap((c) => c.chansons.map((s) => ({ ...s, cat: c.id, verifierArtiste: c.verifierArtiste !== false })));
   const c = CATEGORIES.find((x) => x.id === id);
   return c ? c.chansons.map((s) => ({ ...s, cat: c.id, verifierArtiste: c.verifierArtiste !== false })) : null;
 }
@@ -76,7 +77,7 @@ let allArtistsCache = null;
 function allArtists() {
   if (allArtistsCache) return allArtistsCache;
   const map = new Map();
-  for (const c of CATEGORIES) for (const s of c.chansons) {
+  for (const c of CATEGORIES.filter((x) => !x.anime)) for (const s of c.chansons) {
     const a = map.get(s.artiste) || { nom: s.artiste, count: 0, genres: [] };
     a.count += 1;
     if (!a.genres.includes(c.id)) a.genres.push(c.id);
@@ -101,7 +102,7 @@ const BONUS_ARTISTS = (() => {
   for (const c of CATEGORIES) { for (const a of c.artistesAuto || []) n.set(a, (n.get(a) || 0) + 99); for (const x of c.chansons) n.set(x.artiste, (n.get(x.artiste) || 0) + 1); }
   return [...n].filter(([, k]) => k >= 5).map(([a]) => a).sort();
 })();
-const BONUS_CATS = CATEGORIES.map((c) => ({ id: c.id, nom: c.nom }));
+const BONUS_CATS = CATEGORIES.filter((c) => !c.anime).map((c) => ({ id: c.id, nom: c.nom }));
 let bonusOverride = null; // { day, kind, value } choisi par l'admin pour aujourd'hui
 export const setBonusOverride = (o) => { bonusOverride = o; };
 export const bonusChoices = () => ({ artists: BONUS_ARTISTS, categories: BONUS_CATS });
@@ -123,6 +124,81 @@ export function dailyBonus(at = Date.now()) {
 const bonusApplies = (b, room, round) => b.kind === 'playlist' ? isPlaylist(room.category)
   : b.kind === 'category' ? (room.category === b.value || (room.category === ALL && round.cat === b.value))
   : round.song.artiste === b.value;
+
+// --- Blind test animé : la vidéo de l'opening (AnimeThemes.moe, API publique et gratuite) ---
+// On cherche le thème dont le titre de la chanson correspond ; sinon un opening du même anime.
+const AT_BASES = ['https://api.animethemes.moe', 'https://api.animethemes.moe/api'];
+const animeCache = new Map(); // "anime|titre" -> { video, image, theme, at, ok }
+const normAT = (x) => String(x || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]/g, '');
+async function atGet(path, log) {
+  let last = null;
+  for (const base of AT_BASES) {
+    try {
+      const r = await fetch(base + path, { headers: { Accept: 'application/json', 'User-Agent': 'StarSong/1.0 (blind test entre amis)' }, signal: AbortSignal.timeout(8000) });
+      log.push(`${base}${path.slice(0, 60)}… → HTTP ${r.status}`);
+      if (!r.ok) { last = new Error('HTTP ' + r.status); continue; }
+      return await r.json();
+    } catch (err) { log.push(`${base} → ${err.message}`); last = err; }
+  }
+  throw last || new Error('AnimeThemes injoignable');
+}
+function atVideo(entries) {
+  const list = [];
+  for (const e of entries || []) for (const v of e.videos || []) list.push({ v, ver: e.version || 1, bad: e.nsfw || e.spoiler });
+  if (!list.length) return '';
+  const res = (v) => Math.abs((v.resolution || 720) - 480);
+  list.sort((a, b) => (a.bad ? 1 : 0) - (b.bad ? 1 : 0) || a.ver - b.ver || (a.v.nc ? 1 : 0) - (b.v.nc ? 1 : 0) || res(a.v) - res(b.v));
+  const v = list[0].v;
+  if (v.link) return v.link;
+  const name = v.basename || v.filename || '';
+  return name ? `https://v.animethemes.moe/${/\.webm$/i.test(name) ? name : name + '.webm'}` : '';
+}
+function atImage(anime) {
+  const imgs = (anime && anime.images) || [];
+  const im = imgs.find((x) => /large/i.test(x.facet || '')) || imgs[0];
+  return im ? im.link || '' : '';
+}
+function atScore(t, song) {
+  const st = normAT(t.song && t.song.title), want = normAT(song.titre);
+  const an = normAT(t.anime && t.anime.name), q = normAT(song.q || song.anime);
+  let sc = 0;
+  if (st && want && st === want) sc += 6;
+  else if (st && want && Math.min(st.length, want.length) >= 3 && (st.includes(want) || want.includes(st))) sc += 4;
+  if (an && q && an === q) sc += 3;
+  else if (an && q && Math.min(an.length, q.length) >= 3 && (an.includes(q) || q.includes(an))) sc += 2;
+  if (t.type === 'OP') sc += 1;
+  return sc;
+}
+export async function animeLookup(song, { force = false } = {}) {
+  const key = (song.q || song.anime) + '|' + song.titre;
+  const c = animeCache.get(key);
+  if (!force && c && Date.now() - c.at < (c.ok ? 24 * 3600_000 : 30 * 60_000)) return c;
+  const log = [];
+  const themes = [];
+  const add = (list, anime) => { for (const t of list || []) themes.push(anime ? { ...t, anime: t.anime || anime } : t); };
+  const enc = encodeURIComponent;
+  const inc = 'images,animethemes.song,animethemes.animethemeentries.videos';
+  const tries = [
+    async () => { const j = await atGet(`/animetheme?q=${enc(song.titre)}&include=anime.images,song,animethemeentries.videos&page[size]=25`, log); add(j.animethemes); },
+    async () => { const j = await atGet(`/anime?q=${enc(song.q || song.anime)}&include=${inc}&page[size]=5`, log); for (const a of j.anime || []) add(a.animethemes, a); },
+    async () => { const j = await atGet(`/search?q=${enc(song.q || song.anime)}&fields[search]=anime&include[anime]=${inc}`, log); for (const a of (j.search && j.search.anime) || []) add(a.animethemes, a); },
+  ];
+  let best = null, bestScore = 0;
+  for (const run of tries) {
+    try { await run(); } catch { /* on essaie la suite */ }
+    for (const t of themes) {
+      const sc = atScore(t, song);
+      if (sc > bestScore && atVideo(t.animethemeentries)) { best = t; bestScore = sc; }
+    }
+    if (bestScore >= 9) break; // titre + anime trouvés
+  }
+  const ok = Boolean(best && bestScore >= 3);
+  const out = { ok, at: Date.now(), video: ok ? atVideo(best.animethemeentries) : '', image: ok ? atImage(best.anime) : '',
+    theme: ok ? `${best.anime && best.anime.name} ${best.slug || best.type || ''} « ${best.song && best.song.title} »` : '', score: bestScore, log };
+  animeCache.set(key, out);
+  return out;
+}
+export const animeCategory = () => CATEGORIES.find((c) => c.anime);
 
 // Niveaux de difficulté : les sons les plus écoutés en Facile, les moins connus en HARRR MODE
 const LEVELS = [
@@ -407,6 +483,17 @@ export function createBlindtest({ getJson, sameSong, clientIp, sessionUser, find
   // Une manche : le son + 4 propositions
   function makeRound(deck, song) {
     const { all, songs } = deck;
+    if (song.anime) { // blind test animé : on devine l'ANIME (3 autres animes au hasard)
+      const seen = new Set([song.anime]);
+      const others = [];
+      for (const x of shuffle(all)) { if (others.length >= 3) break; if (!x.anime || seen.has(x.anime)) continue; seen.add(x.anime); others.push(x); }
+      const options = shuffle([song, ...others]).map((x) => ({ titre: x.anime, artiste: x === song ? `${x.titre} · ${x.artiste}` : '' }));
+      return {
+        song: { titre: song.titre, artiste: song.artiste, anime: song.anime, cover: song.image || song.cover || '', level: song.level, video: song.video || '', image: song.image || '' },
+        preview: song.preview || '', video: song.video || '',
+        options, correct: options.findIndex((o) => o.titre === song.anime), cat: song.cat, answers: new Map(),
+      };
+    }
     // Mauvaises réponses : d'abord d'autres sons DU MÊME ARTISTE (reconnaître la voix ne suffit plus),
     // puis, s'il n'en a pas assez, des sons d'autres artistes (leurs noms sont cachés pendant la manche).
     const tkey = (x) => String(x.titre).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]/g, '');
@@ -449,8 +536,11 @@ export function createBlindtest({ getJson, sameSong, clientIp, sessionUser, find
       await new Promise((done) => {
         let left = batch.length;
         for (const s of batch) {
-          resolveSong(s)
-            .then((r) => { if ((r.preview || demo) && g.rounds.length < g.target) g.rounds.push(makeRound(deck, { ...s, ...r })); })
+          Promise.all([resolveSong(s), s.anime && !demo ? animeLookup(s).catch(() => ({})) : null])
+            .then(([r, av]) => {
+              const extra = av ? { video: av.video || '', image: av.image || '' } : {};
+              if ((r.preview || extra.video || demo) && g.rounds.length < g.target) g.rounds.push(makeRound(deck, { ...s, ...r, ...extra }));
+            })
             .catch(() => {})
             .finally(() => { left -= 1; g.pending -= 1; if (!left || g.rounds.length >= Math.min(upto, g.target)) done(); });
         }
@@ -541,7 +631,7 @@ export function createBlindtest({ getJson, sameSong, clientIp, sessionUser, find
           if (up) (p.newBadges ||= []).push(up);
         }
         const end = Math.min(now, g.phaseEnd);
-        g.phaseEnd = end + REVEAL_MS;
+        g.phaseEnd = end + (room.skin === 'anime' ? REVEAL_ANIME_MS : REVEAL_MS);
       } else if (room.phase === 'reveal') {
         if (now < g.phaseEnd) return;
         if (noMoreRounds(g) || (room.mode === 'br' && alive(room).length <= 1)) { endGame(room); return; }
@@ -631,6 +721,7 @@ export function createBlindtest({ getJson, sameSong, clientIp, sessionUser, find
       // qui est en train d'écrire dans le chat (sauf soi)
       typing: [...(room.typing || new Map()).entries()].filter(([pid, t]) => pid !== me.id && now - t.at < 3500).map(([, t]) => t.name).slice(0, 4),
       category: room.category,
+      skin: room.skin || '',
       categoryName: categoryName(room.category),
       bonus: dailyBonus(),
       rounds: room.roundCount,
@@ -659,6 +750,7 @@ export function createBlindtest({ getJson, sameSong, clientIp, sessionUser, find
     out.roundStart = g.roundStart;
     out.roundMs = roundMs(room, g.index);
     out.preview = round.preview;
+    if (!round.preview && round.video) out.video = round.video; // animé sans extrait : le son vient de la vidéo
     // pendant la manche, on ne montre que les titres : les artistes apparaissent avec la réponse
     out.options = room.phase === 'playing' ? round.options.map((o) => ({ titre: o.titre })) : round.options;
     const mine = round.answers.get(me.id);
@@ -791,8 +883,8 @@ export function createBlindtest({ getJson, sameSong, clientIp, sessionUser, find
           id: 'pl:' + p.id, nom: `${p.emoji} ${p.name}`, count: p.count, playlist: true, mine: p.mine, owner: p.owner, artists: categoryArtists('pl:' + p.id),
         })) : [];
         return send(res, 200, {
-          categories: [...CATEGORIES.map((c) => ({ id: c.id, nom: c.nom, count: c.chansons.length, artists: categoryArtists(c.id) })),
-            { id: ALL, nom: 'Tout mélangé', count: CATEGORIES.reduce((n, c) => n + c.chansons.length, 0), artists: allArtists() }, ...pls],
+          categories: url.searchParams.get('skin') === 'anime' ? [animeCategory()].filter(Boolean).map((c) => ({ id: c.id, nom: c.nom, count: c.chansons.length, artists: categoryArtists(c.id) })) : [...CATEGORIES.filter((c) => !c.anime).map((c) => ({ id: c.id, nom: c.nom, count: c.chansons.length, artists: categoryArtists(c.id) })),
+            { id: ALL, nom: 'Tout mélangé', count: CATEGORIES.filter((c) => !c.anime).reduce((n, c) => n + c.chansons.length, 0), artists: allArtists() }, ...pls],
           bonus: dailyBonus(),
           rounds: ROUND_CHOICES,
           maxRounds: MAX_ROUNDS,
@@ -859,7 +951,8 @@ export function createBlindtest({ getJson, sameSong, clientIp, sessionUser, find
         if (limited('creer:' + ip, 10)) throw new BtError(429, 'Trop de parties créées, attends une minute.');
         if (rooms.size >= MAX_ROOMS) throw new BtError(503, 'Trop de parties en cours, réessaie plus tard.');
         const body = await readBody(req);
-        const category = usable(req, body.category) ? body.category : 'rap-fr';
+        const skin = body.skin === 'anime' && animeCategory() ? 'anime' : '';
+        const category = skin ? animeCategory().id : usable(req, body.category) ? body.category : 'rap-fr';
         const roundCount = parseRounds(body.rounds) ?? 10;
         const level = LEVEL_IDS.includes(body.level) ? body.level : 'intermediaire';
         const mode = MODE_IDS.includes(body.mode) ? body.mode : 'classique';
@@ -867,7 +960,7 @@ export function createBlindtest({ getJson, sameSong, clientIp, sessionUser, find
         let code;
         do code = newCode(); while (rooms.has(code));
         const lives = LIVES.includes(Number(body.lives)) ? Number(body.lives) : 1;
-        const room = { code, phase: 'lobby', category, roundCount, level, mode, lives, artists, players: new Map(), hostId: '', game: null, seen: Date.now(), error: '', chat: [], reacts: [], seq: 0 };
+        const room = { code, phase: 'lobby', skin, category, roundCount, level, mode, lives, artists, players: new Map(), hostId: '', game: null, seen: Date.now(), error: '', chat: [], reacts: [], seq: 0 };
         const host = addPlayer(room, body.name, sessionUser(req));
         room.hostId = host.id;
         rooms.set(code, room);
@@ -911,7 +1004,7 @@ export function createBlindtest({ getJson, sameSong, clientIp, sessionUser, find
       if (action === 'settings') { // l'hôte change la catégorie ou le nombre de manches
         if (me.id !== room.hostId) throw new BtError(403, 'Seul l’hôte peut changer les réglages.');
         if (room.phase !== 'lobby' && room.phase !== 'end') throw new BtError(409, 'La partie est en cours.');
-        if (usable(req, body.category) && body.category !== room.category) { room.category = body.category; room.artists = null; }
+        if (!room.skin && usable(req, body.category) && body.category !== room.category) { room.category = body.category; room.artists = null; }
         if ('artists' in body) room.artists = cleanArtists(room.category, body.artists);
         if ('rounds' in body && parseRounds(body.rounds) !== null) room.roundCount = parseRounds(body.rounds);
         if (LEVEL_IDS.includes(body.level)) room.level = body.level;

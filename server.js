@@ -6,7 +6,7 @@ import { readFile } from 'node:fs/promises';
 import { join, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { handleAuth, clientIp, sessionUser, findFriend, recordBlindtest, blindtestLeaderboard, markInBlindtest, countStat, isAdmin, adminStats, recordActivity, recordListen, streakOf, notifyUser, usersStreak, getPlaylist, playlistsFor, adminNotify, flagsWith, flagSet, atReplacer, runAdminCommand, addAdminCommand, ADMIN_COMMANDS, liveState, isMuted, setCoverProvider, patchVisible } from './auth.js';
-import { createBlindtest, dailyBonus, setBonusOverride, bonusChoices } from './blindtest.js';
+import { createBlindtest, dailyBonus, setBonusOverride, bonusChoices, animeLookup, animeCategory } from './blindtest.js';
 import { CATEGORIES } from './categories.js';
 
 // Charge le fichier .env s'il existe (le jeton Genius y est facultatif, voir README).
@@ -540,6 +540,26 @@ addAdminCommand({ name: 'bonus', use: 'bonus [artiste NOM | categorie NOM | play
     setBonusOverride({ day, kind, value });
     flagSet(`bonus-override|${day}|${kind}|${value}`, 'bonus-override|');
     return 'Bonus changé. ' + now();
+  } });
+// blind test animé : vérifier qu'on trouve bien les vidéos d'openings (AnimeThemes)
+addAdminCommand({ name: 'anime-test', use: 'anime-test [NOM | tout]', help: 'Vérifie les vidéos d’openings du blind test animé.',
+  run: async (args) => {
+    const cat = animeCategory();
+    if (!cat) return 'Pas de catégorie animé.';
+    const want = normBonus(args.join(' '));
+    if (want === 'tout') {
+      const res = [];
+      for (let i = 0; i < cat.chansons.length; i += 10) { // par paquets de 10 en même temps
+        const part = cat.chansons.slice(i, i + 10);
+        const got = await Promise.all(part.map((x) => animeLookup(x).catch(() => ({ ok: false }))));
+        got.forEach((r, k) => res.push(r.ok ? '✅' : '❌ ' + part[k].anime + ' « ' + part[k].titre + ' »'));
+      }
+      const ok = res.filter((x) => x === '✅').length;
+      return `${ok} / ${res.length} vidéos trouvées.\n` + res.filter((x) => x !== '✅').join('\n');
+    }
+    const s = cat.chansons.find((x) => normBonus(x.anime).includes(want) || normBonus(x.titre).includes(want)) || cat.chansons[0];
+    const r = await animeLookup(s, { force: true });
+    return `${s.anime} « ${s.titre} » → ${r.ok ? 'trouvé : ' + r.theme + '\n' + r.video : 'introuvable'} (score ${r.score})\n` + r.log.join('\n');
   } });
 addAdminCommand({ name: 'fermer-salon', use: 'fermer-salon CODE', help: 'Ferme un salon de blind test.',
   run: ([code]) => (handleBlindtest.closeRoom(code) ? `Salon ${String(code).toUpperCase()} fermé.` : 'Ce salon n’existe pas.') });
