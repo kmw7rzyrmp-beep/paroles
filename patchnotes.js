@@ -13,6 +13,7 @@ export const PATCH_NOTES = [
       ['new', 'Commande admin « bonus » : voir, choisir ou tirer au hasard le bonus du jour.'],
       ['new', 'Quand tu cliques sur le drapeau algérien, il explose : flash, ondes de choc, gros BOUM, drapeau géant qui flotte puis éclate en morceaux, feux d\'artifice et pluie de confettis.'],
       ['new', 'Nouvelle catégorie « Animé » au blind test : plus de 70 openings et chansons d\'animés très connus (Attack on Titan, Demon Slayer, Naruto, Evangelion…).'],
+      ['new', 'Page Amis : nouvel onglet « Demande envoyée » avec toutes tes demandes d\'amis en attente (tu peux les annuler).'],
       ['better', 'Le drapeau algérien clignote, brille et change de couleurs pour qu\'on ne rate pas la version DZ.'],
     ],
   },

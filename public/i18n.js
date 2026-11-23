@@ -186,6 +186,8 @@
     'Invité': 'Invited',
     'Vos favoris et vos historiques de recherche sont visibles entre amis, une fois la demande acceptée.': 'Your favorites and search history are visible to each other once the request is accepted.',
     'Mes amis': 'My friends',
+    'Demande envoyée': 'Request sent',
+    'Aucune demande envoyée pour l’instant. Invite quelqu’un avec son @pseudo.': 'No request sent yet. Invite someone with their @username.',
     'Demandes reçues': 'Requests received',
     'Demandes envoyées': 'Requests sent',
     'Accepter': 'Accept',

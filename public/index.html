@@ -31,7 +31,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/app.css?v=24">
+<link rel="stylesheet" href="/app.css?v=27">
 <style>
   /* ---------- Accueil : le grand bandeau orange avec la recherche ---------- */
   .hero {
@@ -447,17 +447,23 @@
         <span>Mes messages</span><b id="openMessagesCount"></b>
       </button>
       <p id="friendMsg" class="friend-msg" role="status" aria-live="polite"></p>
-      <div id="friendIncoming"></div>
-      <div id="friendOutgoing"></div>
-      <h2>Mes amis</h2>
-      <ul id="friendList" class="friend-list"></ul>
-      <div id="friendDetail" class="friend-detail" hidden>
-        <h2 id="friendDetailTitle"></h2>
-        <h3>Dernières recherches</h3>
-        <ul id="friendHist" class="friend-list"></ul>
-        <h3>Favoris</h3>
-        <ul id="friendFavs" class="friend-favs"></ul>
+      <div class="friend-tabs" role="tablist" aria-label="Mes amis">
+        <button type="button" role="tab" id="ftAll" aria-selected="true">Mes amis</button>
+        <button type="button" role="tab" id="ftSent" aria-selected="false">Demande envoyée <b id="ftSentCount"></b></button>
       </div>
+      <div id="friendIncoming"></div>
+      <div id="friendAllBox">
+        <h2>Mes amis</h2>
+        <ul id="friendList" class="friend-list"></ul>
+        <div id="friendDetail" class="friend-detail" hidden>
+          <h2 id="friendDetailTitle"></h2>
+          <h3>Dernières recherches</h3>
+          <ul id="friendHist" class="friend-list"></ul>
+          <h3>Favoris</h3>
+          <ul id="friendFavs" class="friend-favs"></ul>
+        </div>
+      </div>
+      <div id="friendOutgoing" hidden></div>
     </section>
   </div>
 </dialog>
@@ -1602,6 +1608,17 @@
   const friendName = document.getElementById('friendName');
   const friendIncoming = document.getElementById('friendIncoming');
   const friendOutgoing = document.getElementById('friendOutgoing');
+  const friendAllBox = document.getElementById('friendAllBox');
+  const ftAll = document.getElementById('ftAll'), ftSent = document.getElementById('ftSent');
+  let friendTab = 'all';
+  function setFriendTab(t) {
+    friendTab = t;
+    ftAll.setAttribute('aria-selected', String(t === 'all')); ftSent.setAttribute('aria-selected', String(t === 'sent'));
+    friendAllBox.hidden = t !== 'all'; friendOutgoing.hidden = t !== 'sent';
+    document.getElementById('friendDetail').hidden = true;
+  }
+  ftAll.addEventListener('click', () => setFriendTab('all'));
+  ftSent.addEventListener('click', () => setFriendTab('sent'));
   const friendList = document.getElementById('friendList');
   const friendDetail = document.getElementById('friendDetail');
   const friendDetailTitle = document.getElementById('friendDetailTitle');
@@ -1726,9 +1743,15 @@
       mkBtn('Accepter', () => friendAction('accept', f.username)),
       mkBtn('Refuser', () => friendAction('decline', f.username), true),
     ], '', null, f.avatarUrl)));
+    document.getElementById('ftSentCount').textContent = friends.outgoing.length ? String(friends.outgoing.length) : '';
     friendSection(friendOutgoing, 'Demandes envoyées', friends.outgoing.map((f) => friendRow(f.username, [
       mkBtn('Annuler', () => friendAction('cancel', f.username), true),
     ], 'En attente : ', null, f.avatarUrl)));
+    if (!friends.outgoing.length) {
+      const p = document.createElement('p'); p.className = 'friend-empty';
+      p.textContent = 'Aucune demande envoyée pour l’instant. Invite quelqu’un avec son @pseudo.';
+      friendOutgoing.append(p);
+    }
 
     friendList.replaceChildren();
     if (!friends.friends.length) {

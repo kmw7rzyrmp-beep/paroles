@@ -154,10 +154,9 @@
     const view = $('#friendsView', fd);
     if (view && !view.querySelector('.fpg-left')) {
       const left = el('div', 'fpg-left'), right = el('div', 'fpg-right');
-      for (const id of ['friendForm', 'openMessages', 'friendMsg', 'friendIncoming', 'friendOutgoing']) { const x = document.getElementById(id); if (x) left.append(x); }
-      const h = [...view.children].find((x) => x.tagName === 'H2');
-      if (h) right.append(h);
-      for (const id of ['friendList', 'friendDetail']) { const x = document.getElementById(id); if (x) right.append(x); }
+      for (const id of ['friendForm', 'openMessages', 'friendMsg', 'friendIncoming']) { const x = document.getElementById(id); if (x) left.append(x); }
+      const tabs = view.querySelector('.friend-tabs'); if (tabs) right.append(tabs);
+      for (const id of ['friendAllBox', 'friendOutgoing']) { const x = document.getElementById(id); if (x) right.append(x); }
       view.prepend(left, right);
     }
     const title = $('#friendsTitle', fd);

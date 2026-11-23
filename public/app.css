@@ -450,7 +450,7 @@ dialog.friends-panel.as-page .friends { display: grid; grid-template-columns: 23
 .fpg-left #friendForm label { font-size: .95rem; }
 .fpg-left .open-messages { margin: .2rem 0 0; background: var(--coque-hi); color: var(--blanc); min-height: 3rem; }
 .fpg-left .open-messages:hover { background: #2a2a2e; }
-.fpg-right > h2 { margin: 0 0 1rem !important; font: 700 1.15rem var(--texte) !important; }
+.fpg-right > h2, .fpg-right #friendAllBox > h2 { margin: 0 0 1rem !important; font: 700 1.15rem var(--texte) !important; }
 .as-page #friendList { display: grid; grid-template-columns: repeat(auto-fill, minmax(15.5rem, 1fr)); gap: .9rem; }
 .as-page #friendList .friend-item {
   flex-direction: column; align-items: stretch; gap: .9rem; padding: 1.1rem; border-radius: 20px; background: var(--coque);
@@ -756,3 +756,15 @@ html[data-site="dz"] .dz-card b { color: #8fe3b0; }
 .dz-shake{animation:dzShake .7s cubic-bezier(.36,.07,.19,.97)}
 @keyframes dzShake{10%,90%{transform:translate(-2px,1px)}20%,80%{transform:translate(5px,-3px)}30%,50%,70%{transform:translate(-9px,4px)}40%,60%{transform:translate(9px,-4px)}}
 @media (prefers-reduced-motion:reduce){.dz-shake{animation:none}}
+
+/* Onglets de la page Amis */
+.friend-tabs{display:flex;gap:6px;margin:.6rem 0 1rem}
+.friend-tabs button{color:var(--blanc,#fff);min-height:0;padding:.45rem .9rem;border-radius:999px;font-size:.88rem;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);box-shadow:none}
+.friend-tabs button[aria-selected="true"]{background:rgba(255,255,255,.18);border-color:rgba(255,255,255,.4);font-weight:700}
+.friend-tabs b{margin-left:.3rem;padding:0 .4rem;border-radius:999px;background:#ff4f6a;color:#fff;font-size:.72rem}
+.friend-tabs b:empty{display:none}
+
+.as-page #friendAllBox[hidden], #friendOutgoing[hidden]{display:none}
+.as-page #friendOutgoing .friend-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(15.5rem,1fr));gap:.9rem}
+.as-page #friendOutgoing>h2{display:none}
+.as-page #friendOutgoing .friend-item{padding:.9rem 1rem;border-radius:18px;background:var(--coque)}
