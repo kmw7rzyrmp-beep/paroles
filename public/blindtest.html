@@ -28,9 +28,9 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/app.css?v=29">
-<link rel="stylesheet" href="/anime.css?v=2">
+<link rel="stylesheet" href="/anime.css?v=3">
 <script>if (new URLSearchParams(location.search).get('mode') === 'anime') document.documentElement.dataset.skin = 'anime';</script>
-<script src="/anime.js?v=2" defer></script>
+<script src="/anime.js?v=3" defer></script>
 <style>
   /* Blind test : même interface que l'accueil (cadre noir, cartes arrondies, accent orange) */
   :root { --encre: #0b0b0c; --enfonce: var(--orange); }
@@ -556,7 +556,7 @@
     <div id="createBox">
       <h2>Créer une partie</h2>
       <p class="bonus-x2" id="bonusHome" hidden></p>
-      <p class="lbl">Catégorie</p>
+      <p class="lbl cat-lbl">Catégorie</p>
       <div id="catChips" class="chips block" role="radiogroup" aria-label="Catégorie"></div>
       <div id="homeArtists" class="artists block" hidden>
         <button type="button" class="artists-toggle" aria-expanded="false">
@@ -612,7 +612,7 @@
       <p id="inviteMsg" class="wait"></p>
     </div>
     <div id="hostSettings">
-      <p class="lbl">Catégorie</p>
+      <p class="lbl cat-lbl">Catégorie</p>
       <div id="lobbyCats" class="chips block" role="radiogroup" aria-label="Catégorie"></div>
       <div id="lobbyArtists" class="artists block" hidden>
         <button type="button" class="artists-toggle" aria-expanded="false">
@@ -1564,6 +1564,9 @@
       : `Son ${s.index + 1} / ${s.total == null ? '∞' : s.total}`;
     $('gameCat').textContent = s.mode === 'br' ? `Battle royale, ${s.categoryName}` : `${s.categoryName}, ${s.levelName}`;
     $('stopBtn').hidden = !isHost() || s.players.length < 2;
+    const infinite = s.total == null && s.mode !== 'br';
+    $('forfeitBtn').textContent = infinite ? 'Arrêter et garder mes points' : 'Terminer la partie';
+    $('forfeitBtn').classList.toggle('keep', infinite);
     playersList($('gameScores'), s.players, true);
     // battle royale : temps qui se resserre, duel final
     const brb = $('brBanner');
@@ -1760,6 +1763,19 @@
   });
   // « Terminer la partie » : on demande confirmation, les points de la partie sont annulés
   $('forfeitBtn').addEventListener('click', async () => {
+    if (state && state.total == null && state.mode !== 'br') { // mode infini : on s'arrête en gardant ses points
+      const me = state.players.find((p) => p.id === state.me);
+      const pts = me ? me.score : 0;
+      const yes = await window.ssConfirm({ icon: '⏹️', title: 'Arrêter la partie ?', text: `Tu gardes tes ${pts} points : ils comptent dans le classement.`, ok: 'Arrêter et garder mes points', cancel: 'Continuer à jouer' });
+      if (!yes || !state || !session) return;
+      try {
+        const d = await api(`/rooms/${state.code}/forfeit`, { token: session.token, keep: true });
+        if (d && d.phase) { state = d; render(); return; } // seul : on voit l'écran de fin
+      } catch {}
+      leaveRoom();
+      $('homeMsg').textContent = `Tu t’es arrêté avec ${pts} points : ils sont gardés.`;
+      return;
+    }
     const ok = await window.ssConfirm({ icon: '🏳️', title: 'Êtes-vous sûr de vouloir terminer la partie ?', text: 'Vous ne gagnerez aucun point : tous les points de cette partie seront annulés.', ok: 'Terminer la partie', cancel: 'Continuer à jouer', danger: true });
     if (!ok || !state || !session) return;
     try { await api(`/rooms/${state.code}/forfeit`, { token: session.token }); } catch {}

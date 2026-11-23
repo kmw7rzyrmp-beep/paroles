@@ -54,7 +54,31 @@
 
   // --- l'écran de l'opening (au-dessus des propositions) ---
   let stage = null, video = null, cover = null, title = null, sub = null, verdict = null, soundTip = null;
-  let shownKey = '', videoSrc = '';
+  let shownKey = '', videoSrc = '', ytBox = null, ytId = '', watchdog = 0, revealSong = null;
+  // ce téléphone sait-il lire les vidéos WebM ? (souvent non sur iPhone)
+  const webmOk = (() => { try { const v = document.createElement('video'); return !!(v.canPlayType('video/webm; codecs="vp9"') || v.canPlayType('video/webm; codecs="vp8"')); } catch { return false; } })();
+  function ytCmd(func) { try { ytBox.querySelector('iframe')?.contentWindow.postMessage(JSON.stringify({ event: 'command', func, args: [] }), '*'); } catch {} }
+  // secours : le clip dans un lecteur YouTube (muet au départ, l'extrait continue ; on touche pour avoir le son du clip)
+  function showYT(id) {
+    if (!id || !stage) return false;
+    clearTimeout(watchdog);
+    video.pause();
+    stage.classList.add('yt'); stage.classList.remove('no-video');
+    if (ytId !== id) {
+      ytId = id;
+      ytBox.replaceChildren();
+      const f = document.createElement('iframe');
+      f.src = `https://www.youtube-nocookie.com/embed/${id}?autoplay=1&mute=1&playsinline=1&controls=1&rel=0&modestbranding=1&enablejsapi=1`;
+      f.allow = 'autoplay; encrypted-media; picture-in-picture';
+      f.title = 'Clip de l’opening';
+      f.setAttribute('allowfullscreen', '');
+      ytBox.append(f);
+    }
+    soundTip.hidden = false;
+    soundTip.onclick = () => { ytCmd('unMute'); ytCmd('playVideo'); if (window.btAudio) window.btAudio.pause(); soundTip.hidden = true; };
+    return true;
+  }
+  function clearYT() { ytId = ''; if (ytBox) ytBox.replaceChildren(); if (stage) stage.classList.remove('yt'); }
   function buildStage() {
     if (stage) return;
     stage = mk('div', 'an-stage'); stage.setAttribute('aria-live', 'polite');
@@ -71,10 +95,12 @@
     verdict = mk('div', 'an-verdict');
     soundTip = mk('button', 'an-sound', '🔊 Touche pour le son'); soundTip.type = 'button'; soundTip.hidden = true;
     soundTip.onclick = () => { video.muted = false; video.play().catch(() => {}); soundTip.hidden = true; };
-    screen.append(cover, video, mystery, lines, tag, verdict, soundTip);
+    ytBox = mk('div', 'an-yt');
+    screen.append(cover, video, ytBox, mystery, lines, tag, verdict, soundTip);
     stage.append(screen);
-    video.addEventListener('error', () => stage.classList.add('no-video'));
-    video.addEventListener('playing', () => stage.classList.remove('no-video'));
+    // la vidéo ne passe pas (format non lu par le téléphone) : secours YouTube, sinon l'image de l'anime
+    video.addEventListener('error', () => { if (!(revealSong && showYT(revealSong.yt))) stage.classList.add('no-video'); });
+    video.addEventListener('playing', () => { clearTimeout(watchdog); stage.classList.remove('no-video'); });
     const play = $('play'); if (play) play.prepend(stage);
   }
   const userMuted = () => { try { return localStorage.getItem('bt-muted') === '1'; } catch { return false; } };
@@ -88,7 +114,7 @@
     };
     if (video.readyState >= 1) go(); else video.addEventListener('loadedmetadata', go, { once: true });
   }
-  function stopVideo() { if (video) { video.pause(); } }
+  function stopVideo() { clearTimeout(watchdog); if (video) { video.pause(); } clearYT(); revealSong = null; }
 
   // --- à chaque nouvel état de la partie ---
   function onState(s) {
@@ -107,7 +133,7 @@
     shownKey = key;
     const btAudio = window.btAudio;
     if (s.phase === 'playing') {
-      stage.className = 'an-stage an-playing';
+      stage.className = 'an-stage an-playing'; clearYT(); revealSong = null; clearTimeout(watchdog);
       title.textContent = ''; sub.textContent = ''; verdict.textContent = ''; verdict.className = 'an-verdict';
       cover.style.backgroundImage = '';
       if (s.video) playVideo(s.video, Math.max(0, ((s.serverNow || Date.now()) - s.roundStart) / 1000)); // pas d'extrait : le son vient du clip (caché)
@@ -123,10 +149,14 @@
     verdict.textContent = mine == null ? '' : mine === s.correct ? '正解 ! Bien joué' : '残念… Raté';
     verdict.className = 'an-verdict ' + (mine == null ? '' : mine === s.correct ? 'ok' : 'ko');
     cover.style.backgroundImage = song.image || song.cover ? `url("${song.image || song.cover}")` : '';
-    if (song.video) {
+    revealSong = song;
+    if (song.video && webmOk) {
       if (btAudio) btAudio.pause(); // l'extrait laisse la place au clip
       playVideo(song.video, videoSrc === song.video ? video.currentTime : 0);
-    } else stage.classList.add('no-video');
+      // si rien ne démarre au bout de 4 s (téléphone qui ne lit pas ce format), on passe au secours YouTube
+      clearTimeout(watchdog);
+      watchdog = setTimeout(() => { if (video.paused || video.readyState < 2) { if (!showYT(song.yt)) stage.classList.add('no-video'); else if (btAudio && btAudio.paused && !userMuted()) btAudio.play().catch(() => {}); } }, 4000);
+    } else if (!showYT(song.yt)) stage.classList.add('no-video');
   }
 
   // le bouton son du jeu coupe / remet aussi le clip

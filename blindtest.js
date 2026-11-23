@@ -198,6 +198,27 @@ export async function animeLookup(song, { force = false } = {}) {
   animeCache.set(key, out);
   return out;
 }
+// Secours pour les téléphones qui ne lisent pas les vidéos WebM (iPhone surtout) :
+// on cherche l'opening sur YouTube (page de recherche publique) et on l'affiche dans un lecteur YouTube.
+const ytCache = new Map();
+export async function ytLookup(song) {
+  const key = (song.q || song.anime) + '|' + song.titre;
+  const c = ytCache.get(key);
+  if (c && Date.now() - c.at < (c.id ? 7 * 86_400_000 : 3600_000)) return c.id;
+  let id = '';
+  try {
+    const q = `${song.anime} opening ${song.titre} ${song.artiste}`;
+    const r = await fetch('https://www.youtube.com/results?hl=fr&gl=FR&search_query=' + encodeURIComponent(q), {
+      headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36', 'Accept-Language': 'fr-FR,fr;q=0.9', Cookie: 'CONSENT=YES+cb; SOCS=CAI' },
+      signal: AbortSignal.timeout(6000),
+    });
+    const html = await r.text();
+    const m = html.match(/"videoRenderer":\{"videoId":"([\w-]{11})"/) || html.match(/"videoId":"([\w-]{11})"/);
+    id = m ? m[1] : '';
+  } catch { /* YouTube injoignable : pas de secours */ }
+  ytCache.set(key, { id, at: Date.now() });
+  return id;
+}
 export const animeCategory = () => CATEGORIES.find((c) => c.anime);
 
 // Niveaux de difficulté : les sons les plus écoutés en Facile, les moins connus en HARRR MODE
@@ -489,7 +510,7 @@ export function createBlindtest({ getJson, sameSong, clientIp, sessionUser, find
       for (const x of shuffle(all)) { if (others.length >= 3) break; if (!x.anime || seen.has(x.anime)) continue; seen.add(x.anime); others.push(x); }
       const options = shuffle([song, ...others]).map((x) => ({ titre: x.anime, artiste: x === song ? `${x.titre} · ${x.artiste}` : '' }));
       return {
-        song: { titre: song.titre, artiste: song.artiste, anime: song.anime, cover: song.image || song.cover || '', level: song.level, video: song.video || '', image: song.image || '' },
+        song: { titre: song.titre, artiste: song.artiste, anime: song.anime, cover: song.image || song.cover || '', level: song.level, video: song.video || '', image: song.image || '', yt: song.yt || '' },
         preview: song.preview || '', video: song.video || '',
         options, correct: options.findIndex((o) => o.titre === song.anime), cat: song.cat, answers: new Map(),
       };
@@ -539,7 +560,12 @@ export function createBlindtest({ getJson, sameSong, clientIp, sessionUser, find
           Promise.all([resolveSong(s), s.anime && !demo ? animeLookup(s).catch(() => ({})) : null])
             .then(([r, av]) => {
               const extra = av ? { video: av.video || '', image: av.image || '' } : {};
-              if ((r.preview || extra.video || demo) && g.rounds.length < g.target) g.rounds.push(makeRound(deck, { ...s, ...r, ...extra }));
+              if ((r.preview || extra.video || demo) && g.rounds.length < g.target) {
+                const rd = makeRound(deck, { ...s, ...r, ...extra });
+                g.rounds.push(rd);
+                // secours YouTube pour les téléphones, cherché en arrière-plan (ne retarde pas la partie)
+                if (s.anime && !demo) ytLookup(s).then((id) => { if (id) rd.song.yt = id; }).catch(() => {});
+              }
             })
             .catch(() => {})
             .finally(() => { left -= 1; g.pending -= 1; if (!left || g.rounds.length >= Math.min(upto, g.target)) done(); });
@@ -634,7 +660,8 @@ export function createBlindtest({ getJson, sameSong, clientIp, sessionUser, find
         g.phaseEnd = end + (room.skin === 'anime' ? REVEAL_ANIME_MS : REVEAL_MS);
       } else if (room.phase === 'reveal') {
         if (now < g.phaseEnd) return;
-        if (noMoreRounds(g) || (room.mode === 'br' && alive(room).length <= 1)) { endGame(room); return; }
+        // sécurité : jamais plus de sons que le nombre choisi
+        if (noMoreRounds(g) || g.index + 1 >= g.target || (room.mode === 'br' && alive(room).length <= 1)) { endGame(room); return; }
         if (g.index + 1 >= g.rounds.length) {
           // le son suivant est encore en chargement : on patiente un peu sur la réponse
           topUp(g);
@@ -1044,6 +1071,16 @@ export function createBlindtest({ getJson, sameSong, clientIp, sessionUser, find
 
       if (action === 'forfeit') { // « Terminer la partie » : on quitte la partie en cours, ses points sont annulés
         tick(room);
+        // mode infini (hors battle royale) : on peut s'arrêter en GARDANT ses points
+        if (body.keep && room.roundCount === INFINITE && room.mode !== 'br' && room.game && ['playing', 'reveal'].includes(room.phase)) {
+          if (room.players.size <= 1) { endGame(room); return send(res, 200, view(room, me)); } // seul : la partie se termine, points gardés
+          if (me.userId) recordBlindtest(me.userId, { points: me.score, won: false });
+          room.chat.push({ id: ++room.seq, pid: '', name: '⏹️', text: `${me.name} s’est arrêté avec ${me.score} points.`, at: Date.now() });
+          room.players.delete(me.id);
+          room.typing?.delete(me.id);
+          if (room.hostId === me.id) room.hostId = room.players.keys().next().value;
+          return send(res, 200, { ok: true, kept: me.score });
+        }
         me.score = 0;
         for (const r of room.game ? room.game.rounds : []) { const a = r.answers.get(me.id); if (a) a.points = 0; }
         room.players.delete(me.id);

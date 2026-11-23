@@ -163,3 +163,12 @@ html[data-skin="anime"] .bt-hero::after {
 }
 html[data-skin="anime"] .bt-hero h1 { background: none; color: #fff; filter: none; text-shadow: 0 0 24px rgba(255, 79, 154, .7); }
 html[data-skin="anime"] #artistSetsBox, html[data-skin="anime"] .bonus-x2 { display: none !important; }
+
+/* secours YouTube (téléphones qui ne lisent pas le WebM) */
+.an-yt { position: absolute; inset: 0; opacity: 0; pointer-events: none; transition: opacity .5s; }
+.an-yt iframe { width: 100%; height: 100%; border: 0; display: block; }
+.an-stage.an-reveal.yt .an-yt { opacity: 1; pointer-events: auto; }
+.an-stage.an-reveal.yt .an-video, .an-stage.an-reveal.yt .an-cover { opacity: 0; }
+.an-stage.an-reveal.yt .an-tag { pointer-events: none; padding-top: 1.4rem; }
+.an-stage.an-reveal.yt .an-sound { z-index: 3; }
+html[data-skin="anime"] .cat-lbl { display: none !important; }

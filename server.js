@@ -6,7 +6,7 @@ import { readFile } from 'node:fs/promises';
 import { join, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { handleAuth, clientIp, sessionUser, findFriend, recordBlindtest, blindtestLeaderboard, markInBlindtest, countStat, isAdmin, adminStats, recordActivity, recordListen, streakOf, notifyUser, usersStreak, getPlaylist, playlistsFor, adminNotify, flagsWith, flagSet, atReplacer, runAdminCommand, addAdminCommand, ADMIN_COMMANDS, liveState, isMuted, setCoverProvider, patchVisible } from './auth.js';
-import { createBlindtest, dailyBonus, setBonusOverride, bonusChoices, animeLookup, animeCategory } from './blindtest.js';
+import { createBlindtest, dailyBonus, setBonusOverride, bonusChoices, animeLookup, animeCategory, ytLookup } from './blindtest.js';
 import { CATEGORIES } from './categories.js';
 
 // Charge le fichier .env s'il existe (le jeton Genius y est facultatif, voir README).
@@ -559,7 +559,8 @@ addAdminCommand({ name: 'anime-test', use: 'anime-test [NOM | tout]', help: 'Vé
     }
     const s = cat.chansons.find((x) => normBonus(x.anime).includes(want) || normBonus(x.titre).includes(want)) || cat.chansons[0];
     const r = await animeLookup(s, { force: true });
-    return `${s.anime} « ${s.titre} » → ${r.ok ? 'trouvé : ' + r.theme + '\n' + r.video : 'introuvable'} (score ${r.score})\n` + r.log.join('\n');
+    const yt = await ytLookup(s);
+    return `${s.anime} « ${s.titre} » → ${r.ok ? 'trouvé : ' + r.theme + '\n' + r.video : 'introuvable'} (score ${r.score})\nSecours YouTube (téléphones) : ${yt ? 'https://youtu.be/' + yt : 'introuvable'}\n` + r.log.join('\n');
   } });
 addAdminCommand({ name: 'fermer-salon', use: 'fermer-salon CODE', help: 'Ferme un salon de blind test.',
   run: ([code]) => (handleBlindtest.closeRoom(code) ? `Salon ${String(code).toUpperCase()} fermé.` : 'Ce salon n’existe pas.') });
