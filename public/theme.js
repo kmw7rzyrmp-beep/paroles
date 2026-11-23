@@ -37,7 +37,7 @@
     const draw = () => {
       const [ic, h, p] = s[i];
       o.innerHTML = `<div class="ssg-card"><div class="ssg-ico">${ic}</div><h2>${h}</h2><p>${p}</p><div class="ssg-dots">${s.map((_, k) => `<i class="${k === i ? 'on' : ''}"></i>`).join('')}</div><div class="ssg-row">${i < s.length - 1 ? `<button class="sk" type="button">${t().skip}</button>` : ''}<button class="nx" type="button">${i < s.length - 1 ? t().next : t().go}</button></div></div>`;
-      const end = () => { try { localStorage.setItem('ss-guide', '1'); } catch {} o.remove(); };
+      const end = () => { fetch('/api/push/guide-seen', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}', credentials: 'same-origin' }).catch(() => {}); o.remove(); };
       o.querySelector('.nx').onclick = () => (i < s.length - 1 ? (i++, draw()) : end());
       const sk = o.querySelector('.sk'); if (sk) sk.onclick = end;
     };
@@ -50,8 +50,7 @@
     if (tr && !document.getElementById('themeBtn')) {
       const b = document.createElement('button'); b.id = 'themeBtn'; b.type = 'button'; b.className = 'ss-tbtn';
       b.onclick = () => apply(get() === 'light' ? 'dark' : 'light');
-      const g = document.createElement('button'); g.type = 'button'; g.className = 'ss-tbtn'; g.textContent = '❓'; g.title = g.ariaLabel = t().guide; g.onclick = guide;
-      tr.prepend(g); tr.prepend(b); apply(get());
+      tr.prepend(b); apply(get());
     }
     // entrée dans « Plus » (téléphone)
     new MutationObserver(() => {
@@ -60,11 +59,13 @@
         grid.dataset.th = '1';
         const mk = (e, l, f) => { const x = document.createElement('button'); x.type = 'button'; x.innerHTML = `<span>${e}</span>${l}`; x.onclick = () => { document.querySelector('.more-sheet')?.remove(); f(); }; grid.append(x); };
         mk(get() === 'light' ? '🌙' : '☀️', get() === 'light' ? t().dark : t().light, () => apply(get() === 'light' ? 'dark' : 'light'));
-        mk('❓', t().guide, guide);
       }
     }).observe(document.body, { childList: true });
-    let seen = '1'; try { seen = localStorage.getItem('ss-guide'); } catch {}
-    if (!seen && !document.documentElement.dataset.skin && !location.search.includes('room')) { let n = 0; const w = setInterval(() => { const d = document.querySelector('dialog[open]'); if (!d || ++n > 600) { clearInterval(w); if (!d) setTimeout(guide, 600); } }, 700); }
+    // guide : seulement à la toute première connexion d'un compte tout neuf
+    fetch('/api/me', { credentials: 'same-origin', cache: 'no-store' }).then((r) => r.json()).then((d) => {
+      if (!d.user || !d.user.guide || document.documentElement.dataset.skin) return;
+      let n = 0; const w = setInterval(() => { const x = document.querySelector('dialog[open]'); if (!x || ++n > 60) { clearInterval(w); if (!x) setTimeout(guide, 500); } }, 700);
+    }).catch(() => {});
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', mount); else mount();
 })();

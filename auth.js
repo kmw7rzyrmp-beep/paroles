@@ -612,6 +612,11 @@ async function handlePush(req, res, url, me) {
     saveSoon();
     return send(res, 200, { ok: true });
   }
+  if (action === 'guide-seen') {
+    delete me.guide;
+    saveSoon();
+    return send(res, 200, { ok: true });
+  }
   if (action === 'gift-seen') {
     delete me.gift;
     saveSoon();
@@ -1018,7 +1023,7 @@ function sameSiteJson(req) {
   try { return new URL(origin).host === req.headers.host; } catch { return false; }
 }
 
-const publicUser = (u) => (u ? { username: u.username || '', email: u.email || '', name: u.username ? '@' + u.username : u.email, ...(u.username ? { streak: streakOf(u), ...(u.gift ? { gift: u.gift } : {}), ...((u.inbox || []).length ? { inbox: u.inbox } : {}), notifUnread: notifUnread(u) } : {}), ...(isAdmin(u) ? { admin: true } : {}) } : null);
+const publicUser = (u) => (u ? { username: u.username || '', email: u.email || '', name: u.username ? '@' + u.username : u.email, ...(u.username ? { ...(u.guide ? { guide: true } : {}), streak: streakOf(u), ...(u.gift ? { gift: u.gift } : {}), ...((u.inbox || []).length ? { inbox: u.inbox } : {}), notifUnread: notifUnread(u) } : {}), ...(isAdmin(u) ? { admin: true } : {}) } : null);
 const normEmail = (e) => String(e || '').trim().toLowerCase();
 const validEmail = (e) => e.length <= 254 && /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(e);
 // Identifiant : 3 à 30 caractères, sans @ (pour ne jamais être confondu avec un e-mail)
@@ -1764,7 +1769,7 @@ export async function handleAuth(req, res, url) {
       const hash = await hashPassword(password);
       checkFree(); // au cas où une autre requête l'aurait pris entre-temps
 
-      const user = { id: randomUUID(), username, hash, createdAt: new Date().toISOString() };
+      const user = { id: randomUUID(), username, hash, createdAt: new Date().toISOString(), guide: true };
       if (email) user.email = email;
       usersById.set(user.id, user);
       indexUser(user);
