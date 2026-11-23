@@ -749,3 +749,10 @@ html[data-site="dz"] .dz-card b { color: #8fe3b0; }
 .lang-switch button[data-l="dz"] svg{transform:scale(1.25)}
 @keyframes dzPop{0%,100%{transform:scale(1)}50%{transform:scale(1.22)}}
 @media (prefers-reduced-motion:reduce){.lang-switch button[data-l="dz"]{animation:none}}
+
+/* Explosion du drapeau DZ */
+.lang-switch button[data-l="dz"].dz-exploded svg{animation:dzGone 1.3s ease-in both}
+@keyframes dzGone{0%{transform:scale(1.25);opacity:1}12%{transform:scale(3.2);opacity:1;filter:brightness(3)}25%{transform:scale(0);opacity:0}80%{transform:scale(0);opacity:0}100%{transform:scale(1.25);opacity:1}}
+.dz-shake{animation:dzShake .7s cubic-bezier(.36,.07,.19,.97)}
+@keyframes dzShake{10%,90%{transform:translate(-2px,1px)}20%,80%{transform:translate(5px,-3px)}30%,50%,70%{transform:translate(-9px,4px)}40%,60%{transform:translate(9px,-4px)}}
+@media (prefers-reduced-motion:reduce){.dz-shake{animation:none}}
