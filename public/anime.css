@@ -180,3 +180,12 @@ html[data-skin="anime"] .cat-lbl { display: none !important; }
 
 /* pas de playlists d'artistes dans le blind test animé (accueil + pastilles du salon) */
 html[data-skin="anime"] #artistSetsBox, html[data-skin="anime"] .as-row, html[data-skin="anime"] .as-chips { display: none !important; }
+
+/* compteur « Son 5 / 10 » en haut à gauche de l'écran */
+.an-count { position: absolute; top: .8rem; left: .8rem; z-index: 4; display: flex; align-items: baseline; gap: 0; padding: .4rem .85rem .5rem; border-radius: 999px; overflow: hidden;
+  background: rgba(10, 6, 28, .72); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); color: #fff; font: 600 .95rem var(--texte);
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, .18), 0 6px 18px rgba(0, 0, 0, .4); }
+.an-count b { font-weight: 900; color: var(--an-cyan); }
+.an-count span { opacity: .85; white-space: pre; }
+.an-count::after { content: ""; position: absolute; left: 0; bottom: 0; height: 3px; width: calc(var(--p, 0) * 100%); background: linear-gradient(90deg, var(--an-cyan), var(--an-pink)); transition: width .6s; }
+.an-count.inf::after { display: none; }

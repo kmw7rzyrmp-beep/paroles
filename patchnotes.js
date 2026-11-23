@@ -19,6 +19,7 @@ export const PATCH_NOTES = [
       ['better', 'Blind test animé : le clip de l\'opening démarre vers le milieu (plus de générique du début) et le lecteur YouTube n\'affiche plus son interface.'],
       ['new', 'Pendant une partie, si tu cliques sur une autre page (Amis, Accueil…), un message te demande si tu es sûr de partir : tu perds tous tes points.'],
       ['better', 'Blind test animé : les playlists d\'artistes ne s\'affichent plus dans ce mode.'],
+      ['better', 'Blind test animé : un compteur « Son 5 / 10 » s\'affiche en haut à gauche de l\'écran pour voir où on en est (∞ en mode infini).'],
       ['fix', 'Le blind test s\'arrête bien au nombre de sons choisi (5, 10, 15…).'],
       ['new', 'Mode infini : tu peux t\'arrêter quand tu veux en gardant tes points.'],
       ['new', 'Version DZ : le logo en haut à gauche est refait aux couleurs de l\'Algérie (vinyle cerclé d\'or, croissant et étoile).'],

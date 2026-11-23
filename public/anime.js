@@ -53,7 +53,7 @@
   }
 
   // --- l'écran de l'opening (au-dessus des propositions) ---
-  let stage = null, video = null, cover = null, title = null, sub = null, verdict = null, soundTip = null;
+  let stage = null, counter = null, video = null, cover = null, title = null, sub = null, verdict = null, soundTip = null;
   let shownKey = '', videoSrc = '', ytBox = null, ytId = '', watchdog = 0, revealSong = null;
   // ce téléphone sait-il lire les vidéos WebM ? (souvent non sur iPhone)
   const webmOk = (() => { try { const v = document.createElement('video'); return !!(v.canPlayType('video/webm; codecs="vp9"') || v.canPlayType('video/webm; codecs="vp8"')); } catch { return false; } })();
@@ -96,7 +96,8 @@
     soundTip = mk('button', 'an-sound', '🔇'); soundTip.setAttribute('aria-label', 'Activer le son du clip'); soundTip.type = 'button'; soundTip.hidden = true;
     soundTip.onclick = () => { video.muted = false; video.play().catch(() => {}); soundTip.hidden = true; };
     ytBox = mk('div', 'an-yt');
-    screen.append(cover, video, ytBox, mystery, lines, tag, verdict, soundTip);
+    counter = mk('div', 'an-count'); counter.setAttribute('data-notranslate', '');
+    screen.append(cover, video, ytBox, mystery, lines, tag, verdict, soundTip, counter);
     stage.append(screen);
     // la vidéo ne passe pas (format non lu par le téléphone) : secours YouTube, sinon l'image de l'anime
     video.addEventListener('error', () => { if (!(revealSong && showYT(revealSong.yt))) stage.classList.add('no-video'); });
@@ -131,6 +132,13 @@
     if (s.phase === 'countdown') setTimeout(() => { const n = $('countN'); if (n) n.dataset.k = KANJI[Number(n.textContent) || 0] || ''; }, 0);
     if (s.phase !== 'playing' && s.phase !== 'reveal') { stopVideo(); shownKey = ''; if (stage) stage.className = 'an-stage'; return; }
     buildStage();
+    // « Son 5 / 10 » : où on en est dans la partie (∞ en mode infini)
+    const lang = window.siteLang ? window.siteLang() : 'fr';
+    const word = lang === 'en' ? 'Track' : 'Son';
+    const total = s.total == null ? '∞' : s.total;
+    counter.replaceChildren(mk('b', '', `${word} ${s.index + 1}`), mk('span', '', ` / ${total}`));
+    counter.style.setProperty('--p', s.total ? Math.min(1, (s.index + (s.phase === 'reveal' ? 1 : 0.5)) / s.total) : 0);
+    counter.classList.toggle('inf', s.total == null);
     const key = s.code + ':' + s.index + ':' + s.phase;
     if (key === shownKey) return;
     shownKey = key;
