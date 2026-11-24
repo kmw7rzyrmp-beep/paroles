@@ -1871,6 +1871,7 @@ export async function publishPatchNow() {
   await checkPatchNotes(); // envoie la notification à tout le monde, une seule fois
   return next;
 }
+const PATCH_NOTIF_MIN = 6;
 async function checkPatchNotes() {
   try {
     const stamp = parisStamp();
@@ -1883,7 +1884,8 @@ async function checkPatchNotes() {
       const ageOk = stampMin(stamp) - stampMin(`${newest.date} ${newest.time || '00:00'}`) <= 13 * 60;
       for (const n of fresh) migrations.add('patch-notified-' + n.version);
       dirty = true;
-      if (ageOk) {
+      // pas de notification aux joueurs si le patch note a moins de 6 changements (il reste visible sur la page Patch note)
+      if (ageOk && newest.items.length >= PATCH_NOTIF_MIN) {
         const r = notifyAll({ username: 'star-song' }, `Patch note ${newest.version}`, `${newest.title} : viens voir les nouveautés !`, '/#patch', { kind: 'patch', tag: 'patch', group: 'patch' });
         console.log(`Patch note ${newest.version} publié : notification envoyée à ${r.people} comptes.`);
       }
@@ -1897,7 +1899,7 @@ async function checkPatchNotes() {
       const list = n.items.slice(0, 3).map((i) => i[1]).join(' · ');
       for (const a of usersById.values()) {
         if (!a.username || !isAdmin(a)) continue;
-        try { adminNotify({ username: 'star-song' }, a.username, { title: `Patch note ${n.version} dans 10 minutes`, body: `${n.items.length} changement${n.items.length > 1 ? 's' : ''} : ${list}`.slice(0, 280), url: '/#patch', tag: 'patch-warn' }); } catch { /* pas un admin valide */ }
+        try { adminNotify({ username: 'star-song' }, a.username, { title: `Patch note ${n.version} dans 10 minutes`, body: `${n.items.length} changement${n.items.length > 1 ? 's' : ''}${n.items.length < PATCH_NOTIF_MIN ? ' (pas de notification aux joueurs)' : ''} : ${list}`.slice(0, 280), url: '/#patch', tag: 'patch-warn' }); } catch { /* pas un admin valide */ }
       }
     }
     if (dirty) await persist();
