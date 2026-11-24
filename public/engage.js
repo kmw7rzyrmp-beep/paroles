@@ -48,14 +48,14 @@
       account.prepend(chip);
     }
     const n = streak.count;
-    chip.classList.toggle('out', !n);
+    chip.classList.toggle('out', !streak.today);
     chip.classList.toggle('lit', Boolean(streak.today && n));
     chip.replaceChildren($('span', 'fl', '🔥'), document.createTextNode(String(n)));
     const fr = n
-      ? (streak.today ? `Série de ${n} jour${n > 1 ? 's' : ''} : flamme d’aujourd’hui gagnée` : `Série de ${n} jour${n > 1 ? 's' : ''} : joue ou cherche un son aujourd’hui pour la garder`)
+      ? (streak.today ? `Série de ${n} jour${n > 1 ? 's' : ''} : flamme d’aujourd’hui gagnée` : `Série de ${n} jour${n > 1 ? 's' : ''} : flamme grise, refais un blind test aujourd’hui pour gagner la suivante`)
       : 'Pas de série en cours : joue au blind test ou cherche un son pour allumer ta flamme';
     const en = n
-      ? (streak.today ? `${n}-day streak: today's flame earned` : `${n}-day streak: play or search today to keep it`)
+      ? (streak.today ? `${n}-day streak: today's flame earned` : `${n}-day streak: grey flame, play a blind test today to earn the next one`)
       : 'No streak yet: play a blind test or search a song to light your flame';
     const label = document.documentElement.lang === 'en' ? en : fr;
     chip.title = label;

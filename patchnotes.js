@@ -5,6 +5,12 @@
 // tag : 'new' (nouveauté), 'better' (amélioration), 'fix' (correction), 'removed' (retiré)
 export const PATCH_NOTES = [
   {
+    version: '2.22', date: '2026-11-24', time: '18:00', title: 'Flamme grise',
+    items: [
+      ['new', 'Flamme grise : quand ta flamme du jour n\'est pas encore gagnée, elle devient grise (le nombre de jours reste affiché). Refais un blind test pour la rallumer.'],
+    ],
+  },
+  {
     version: '2.21', date: '2026-11-23', time: '18:00', title: 'Sauvegardes, revanche, bonus ×2 et plus',
     items: [
       ['new', 'Guide de bienvenue animé en 7 slides (recherche, blind test, animé, amis, flamme…), montré une seule fois à la première connexion d\'un nouveau compte.'],
